@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stealth-agent"
+version = "0.1.0"
+description = "Agentic layer for converting product signals into repository PRs"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+stealth-agent = "stealth_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

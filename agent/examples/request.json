@@ -1,0 +1,31 @@
+{
+  "request_id": "req_001",
+  "title": "Bulk export customer feedback",
+  "problem_statement": "Support teams need to export tagged tickets weekly.",
+  "evidence": [
+    {
+      "source_type": "support_ticket",
+      "source_id": "zendesk_99",
+      "snippet": "Need CSV export by team and date range",
+      "weight": 0.8
+    },
+    {
+      "source_type": "call_transcript",
+      "source_id": "gong_22",
+      "snippet": "Manual export is error-prone and time consuming",
+      "weight": 0.9
+    }
+  ],
+  "business_context": {
+    "target_metric": "reduce support manual work",
+    "priority": "high"
+  },
+  "constraints": {
+    "max_files_changed": 5,
+    "risk_tolerance": "low"
+  },
+  "repository": {
+    "path": ".",
+    "default_branch": "main"
+  }
+}
