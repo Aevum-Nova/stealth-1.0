@@ -1,0 +1,180 @@
+CONNECTOR_CATALOG: list[dict] = [
+    {
+        "type": "slack",
+        "display_name": "Slack",
+        "description": "Import messages and threads from Slack channels",
+        "auth_method": "oauth2",
+        "icon": "slack",
+        "config_fields": [
+            {
+                "key": "channel_ids",
+                "label": "Channel IDs",
+                "type": "multi_text",
+                "required": True,
+                "help": "Enter Slack channel IDs to monitor. Find these in Slack channel settings.",
+            },
+            {
+                "key": "include_threads",
+                "label": "Include thread replies",
+                "type": "boolean",
+                "default": True,
+            },
+            {
+                "key": "include_images",
+                "label": "Include image attachments",
+                "type": "boolean",
+                "default": True,
+            },
+            {
+                "key": "min_message_length",
+                "label": "Min message length (chars)",
+                "type": "number",
+                "default": 10,
+            },
+        ],
+    },
+    {
+        "type": "google_forms",
+        "display_name": "Google Forms",
+        "description": "Import survey and feedback form responses",
+        "auth_method": "oauth2",
+        "icon": "google_forms",
+        "config_fields": [
+            {
+                "key": "form_ids",
+                "label": "Google Form IDs",
+                "type": "multi_text",
+                "required": True,
+                "help": "Form ID from the URL: docs.google.com/forms/d/{THIS_PART}/...",
+            }
+        ],
+    },
+    {
+        "type": "zendesk",
+        "display_name": "Zendesk",
+        "description": "Import support tickets and conversations",
+        "auth_method": "oauth2",
+        "icon": "zendesk",
+        "config_fields": [
+            {
+                "key": "subdomain",
+                "label": "Zendesk subdomain",
+                "type": "text",
+                "required": True,
+                "help": "Your subdomain from {subdomain}.zendesk.com",
+            },
+            {
+                "key": "include_internal_notes",
+                "label": "Include internal notes",
+                "type": "boolean",
+                "default": False,
+            },
+            {
+                "key": "include_attachments",
+                "label": "Include image attachments",
+                "type": "boolean",
+                "default": True,
+            },
+            {
+                "key": "ticket_statuses",
+                "label": "Ticket statuses to import",
+                "type": "multi_select",
+                "options": ["new", "open", "pending", "solved"],
+                "default": ["new", "open", "pending"],
+            },
+        ],
+    },
+    {
+        "type": "servicenow",
+        "display_name": "ServiceNow",
+        "description": "Import incident tickets and work notes",
+        "auth_method": "oauth2",
+        "icon": "servicenow",
+        "config_fields": [
+            {
+                "key": "instance_url",
+                "label": "Instance URL",
+                "type": "text",
+                "required": True,
+                "help": "e.g., https://mycompany.service-now.com",
+            },
+            {
+                "key": "table_names",
+                "label": "Tables to query",
+                "type": "multi_text",
+                "default": ["incident"],
+            },
+            {
+                "key": "categories",
+                "label": "Filter by category",
+                "type": "multi_text",
+                "required": False,
+            },
+            {
+                "key": "assignment_groups",
+                "label": "Filter by assignment group",
+                "type": "multi_text",
+                "required": False,
+            },
+        ],
+    },
+    {
+        "type": "figma",
+        "display_name": "Figma",
+        "description": "Import design comments and feedback from Figma files",
+        "auth_method": "oauth2",
+        "icon": "figma",
+        "config_fields": [
+            {
+                "key": "file_keys",
+                "label": "Figma file keys",
+                "type": "multi_text",
+                "required": True,
+                "help": "File key from the URL: figma.com/file/{THIS_PART}/...",
+            }
+        ],
+    },
+    {
+        "type": "granola",
+        "display_name": "Granola",
+        "description": "Import AI meeting notes and transcripts",
+        "auth_method": "api_key",
+        "icon": "granola",
+        "config_fields": [
+            {
+                "key": "include_summary_only",
+                "label": "Import summary only (not full transcript)",
+                "type": "boolean",
+                "default": False,
+            }
+        ],
+    },
+    {
+        "type": "intercom",
+        "display_name": "Intercom",
+        "description": "Import customer support conversations",
+        "auth_method": "oauth2",
+        "icon": "intercom",
+        "config_fields": [
+            {
+                "key": "conversation_states",
+                "label": "Conversation states",
+                "type": "multi_select",
+                "options": ["open", "closed", "snoozed"],
+                "default": ["open", "closed"],
+            },
+            {
+                "key": "tag_names",
+                "label": "Filter by tags",
+                "type": "multi_text",
+                "required": False,
+            },
+            {
+                "key": "include_attachments",
+                "label": "Include image attachments",
+                "type": "boolean",
+                "default": True,
+            },
+        ],
+    },
+]

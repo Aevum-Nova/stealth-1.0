@@ -1,0 +1,85 @@
+import { useMemo, useState } from "react";
+
+import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import EmptyState from "@/components/shared/EmptyState";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import SynthesisRunCard from "@/components/synthesis/SynthesisRunCard";
+import SynthesisTriggerButton from "@/components/synthesis/SynthesisTriggerButton";
+import { useEventStream } from "@/hooks/use-event-stream";
+import { useRunSynthesis, useSynthesisRuns } from "@/hooks/use-synthesis";
+
+export default function SynthesisPage() {
+  const runsQuery = useSynthesisRuns();
+  const runMutation = useRunSynthesis();
+  const { events } = useEventStream();
+  const [confirmFull, setConfirmFull] = useState(false);
+
+  const progressByRunId = useMemo(() => {
+    const value = new Map<string, number>();
+    events
+      .filter((event) => event.event === "synthesis_progress")
+      .forEach((event) => {
+        const runId = String(event.data.run_id ?? "");
+        const progress = Number(event.data.progress ?? 0);
+        if (runId) value.set(runId, progress * (progress <= 1 ? 100 : 1));
+      });
+    return value;
+  }, [events]);
+
+  if (runsQuery.isLoading) {
+    return <LoadingSpinner label="Loading synthesis runs" />;
+  }
+
+  if (runsQuery.isError) {
+    return <EmptyState title="Synthesis unavailable" description="Could not load synthesis runs." />;
+  }
+
+  const runs = runsQuery.data?.data ?? [];
+  const active = runs.find((run) => ["pending", "clustering", "synthesizing", "deduplicating", "prioritizing"].includes(run.status));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-3xl">Synthesis</h2>
+        <p className="text-[var(--ink-soft)]">Run incremental or full synthesis and monitor progress in real time.</p>
+      </div>
+
+      <section className="panel elevated flex flex-wrap items-center gap-3 p-4">
+        <SynthesisTriggerButton mode="incremental" onRun={(mode) => runMutation.mutate({ mode })} disabled={runMutation.isPending} />
+        <SynthesisTriggerButton mode="full" onRun={() => setConfirmFull(true)} disabled={runMutation.isPending} />
+      </section>
+
+      {active ? (
+        <section className="panel elevated p-4">
+          <h3 className="mb-2 text-lg">Active Run</h3>
+          <SynthesisRunCard run={active} activeProgress={progressByRunId.get(active.id)} />
+        </section>
+      ) : null}
+
+      <section className="panel elevated p-4">
+        <h3 className="mb-2 text-lg">Past Runs</h3>
+        {runs.length === 0 ? (
+          <p className="text-sm text-[var(--ink-soft)]">No synthesis runs yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {runs.map((run) => (
+              <SynthesisRunCard key={run.id} run={run} activeProgress={progressByRunId.get(run.id)} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <ConfirmDialog
+        open={confirmFull}
+        title="Run Full Re-Synthesis"
+        description="This deletes draft feature requests and reprocesses all completed signals. Continue?"
+        confirmLabel="Run Full"
+        onCancel={() => setConfirmFull(false)}
+        onConfirm={() => {
+          runMutation.mutate({ mode: "full" });
+          setConfirmFull(false);
+        }}
+      />
+    </div>
+  );
+}

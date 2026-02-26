@@ -1,0 +1,108 @@
+import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+import EmptyState from "@/components/shared/EmptyState";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import SignalFilters from "@/components/signals/SignalFilters";
+import SignalSearchBar from "@/components/signals/SignalSearchBar";
+import SignalTable from "@/components/signals/SignalTable";
+import { useSignalSearch, useSignals } from "@/hooks/use-signals";
+import type { SignalFilters as SignalFiltersType } from "@/types/signal";
+
+function fromSearchParams(params: URLSearchParams): SignalFiltersType {
+  return {
+    page: params.get("page") ? Number(params.get("page")) : 1,
+    limit: params.get("limit") ? Number(params.get("limit")) : 20,
+    source: (params.get("source") || undefined) as any,
+    status: (params.get("status") || undefined) as any,
+    sentiment: (params.get("sentiment") || undefined) as any,
+    urgency: (params.get("urgency") || undefined) as any,
+    synthesized: params.get("synthesized") ? params.get("synthesized") === "true" : undefined,
+    since: params.get("since") || undefined,
+    sort: params.get("sort") || "created_at",
+    order: (params.get("order") as "asc" | "desc" | null) || "desc"
+  };
+}
+
+export default function SignalsPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState("");
+
+  const filters = useMemo(() => fromSearchParams(searchParams), [searchParams]);
+  const signalsQuery = useSignals(filters);
+  const searchQuery = useSignalSearch(search);
+
+  const activeRows = search.trim() ? searchQuery.data?.data.map((item) => item.signal) ?? [] : signalsQuery.data?.data ?? [];
+
+  if (signalsQuery.isLoading) {
+    return <LoadingSpinner label="Loading signals" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-3xl">Signals</h2>
+        <p className="text-[var(--ink-soft)]">Inspect ingested evidence with filtering and semantic search.</p>
+      </div>
+
+      <SignalFilters
+        filters={filters}
+        onChange={(next) => {
+          const params = new URLSearchParams();
+          Object.entries(next).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== "") {
+              params.set(key, String(value));
+            }
+          });
+          setSearchParams(params);
+        }}
+      />
+
+      <SignalSearchBar value={search} onChange={setSearch} />
+
+      {activeRows.length === 0 ? (
+        <EmptyState title="No signals found" description="Try changing filters or searching with another phrase." />
+      ) : (
+        <SignalTable rows={activeRows} onOpen={(signal) => navigate(`/signals/${signal.id}`)} />
+      )}
+
+      {!search.trim() ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--ink-soft)]">
+          <span>
+            Showing {(signalsQuery.data?.data?.length ?? 0).toString()} of {signalsQuery.data?.pagination.total ?? 0}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded border border-[var(--line)] px-3 py-1"
+              disabled={(filters.page ?? 1) <= 1}
+              onClick={() => {
+                const next = { ...filters, page: Math.max((filters.page ?? 1) - 1, 1) };
+                const params = new URLSearchParams();
+                Object.entries(next).forEach(([key, value]) => {
+                  if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+                });
+                setSearchParams(params);
+              }}
+            >
+              Prev
+            </button>
+            <button
+              className="rounded border border-[var(--line)] px-3 py-1"
+              onClick={() => {
+                const next = { ...filters, page: (filters.page ?? 1) + 1 };
+                const params = new URLSearchParams();
+                Object.entries(next).forEach(([key, value]) => {
+                  if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+                });
+                setSearchParams(params);
+              }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
