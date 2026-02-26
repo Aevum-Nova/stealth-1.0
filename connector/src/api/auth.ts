@@ -21,6 +21,10 @@ interface LoginPayload {
   password: string;
 }
 
+interface GoogleLoginPayload {
+  id_token: string;
+}
+
 export async function register(payload: RegisterPayload) {
   return api.post("auth/register", { json: payload }).json<
     ApiResponse<{ user: AuthUser; organization: { id: string; name: string }; access_token: string; refresh_token: string }>
@@ -29,6 +33,12 @@ export async function register(payload: RegisterPayload) {
 
 export async function login(payload: LoginPayload) {
   return api.post("auth/login", { json: payload }).json<
+    ApiResponse<{ user: AuthUser; access_token: string; refresh_token: string }>
+  >();
+}
+
+export async function loginWithGoogle(payload: GoogleLoginPayload) {
+  return api.post("auth/google", { json: payload }).json<
     ApiResponse<{ user: AuthUser; access_token: string; refresh_token: string }>
   >();
 }

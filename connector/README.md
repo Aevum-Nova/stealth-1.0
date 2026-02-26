@@ -19,6 +19,7 @@ React + TypeScript frontend for the Ingestion & Synthesis Microservice.
    - `pnpm install`
 2. Copy env:
    - `cp .env.example .env`
+   - Set `VITE_GOOGLE_CLIENT_ID` to enable Google sign-in on the login page.
 3. Start dev server:
    - `pnpm dev`
 

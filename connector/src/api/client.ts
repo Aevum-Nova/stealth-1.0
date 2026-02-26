@@ -22,7 +22,12 @@ const api = ky.create({
         }
 
         const requestUrl = new URL(request.url);
-        if (requestUrl.pathname.endsWith("/auth/login") || requestUrl.pathname.endsWith("/auth/refresh")) {
+        if (
+          requestUrl.pathname.endsWith("/auth/login") ||
+          requestUrl.pathname.endsWith("/auth/register") ||
+          requestUrl.pathname.endsWith("/auth/google") ||
+          requestUrl.pathname.endsWith("/auth/refresh")
+        ) {
           return response;
         }
 

@@ -32,8 +32,12 @@ export default function SignalsPage() {
   const filters = useMemo(() => fromSearchParams(searchParams), [searchParams]);
   const signalsQuery = useSignals(filters);
   const searchQuery = useSignalSearch(search);
+  const normalizedSearch = search.trim();
+  const isSearchActive = normalizedSearch.length >= 2;
+  const isSearchLoading = isSearchActive && searchQuery.isLoading && !searchQuery.data;
+  const isSearchError = isSearchActive && searchQuery.isError;
 
-  const activeRows = search.trim() ? searchQuery.data?.data.map((item) => item.signal) ?? [] : signalsQuery.data?.data ?? [];
+  const activeRows = isSearchActive ? searchQuery.data?.data.map((item) => item.signal) ?? [] : signalsQuery.data?.data ?? [];
 
   if (signalsQuery.isLoading) {
     return <LoadingSpinner label="Loading signals" />;
@@ -60,14 +64,21 @@ export default function SignalsPage() {
       />
 
       <SignalSearchBar value={search} onChange={setSearch} />
+      {normalizedSearch.length > 0 && !isSearchActive ? (
+        <p className="text-xs text-[var(--ink-soft)]">Type at least 2 characters to run search.</p>
+      ) : null}
 
-      {activeRows.length === 0 ? (
+      {isSearchLoading ? (
+        <LoadingSpinner label="Searching signals" />
+      ) : isSearchError ? (
+        <EmptyState title="Search failed" description="Could not run signal search. Try again." />
+      ) : activeRows.length === 0 ? (
         <EmptyState title="No signals found" description="Try changing filters or searching with another phrase." />
       ) : (
         <SignalTable rows={activeRows} onOpen={(signal) => navigate(`/signals/${signal.id}`)} />
       )}
 
-      {!search.trim() ? (
+      {!isSearchActive ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--ink-soft)]">
           <span>
             Showing {(signalsQuery.data?.data?.length ?? 0).toString()} of {signalsQuery.data?.pagination.total ?? 0}

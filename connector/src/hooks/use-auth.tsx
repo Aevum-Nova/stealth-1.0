@@ -16,6 +16,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (email: string, password: string, name: string, orgName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -40,6 +41,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
+    setAccessToken(response.data.access_token);
+    setUser({
+      id: response.data.user.id,
+      email: response.data.user.email,
+      name: response.data.user.name,
+      role: response.data.user.role
+    });
+    await refreshProfile();
+  }, [refreshProfile]);
+
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const response = await authApi.loginWithGoogle({ id_token: idToken });
     setAccessToken(response.data.access_token);
     setUser({
       id: response.data.user.id,
@@ -110,11 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isLoading,
       login,
+      loginWithGoogle,
       register,
       logout,
       refreshProfile
     }),
-    [user, isLoading, login, register, logout, refreshProfile]
+    [user, isLoading, login, loginWithGoogle, register, logout, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

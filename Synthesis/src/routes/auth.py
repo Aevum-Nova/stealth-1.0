@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -12,13 +13,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_db
 from src.middleware.auth import get_current_user
 from src.models.user import Organization, RefreshToken, User
-from src.schemas.auth import LoginRequest, MePayload, RefreshRequest, RegisterRequest
+from src.schemas.auth import (
+    GoogleLoginRequest,
+    LoginRequest,
+    MePayload,
+    RefreshRequest,
+    RegisterRequest,
+)
 from src.schemas.common import ApiResponse
 from src.services.auth import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     hash_password,
+    verify_google_id_token,
     verify_password,
 )
 
@@ -35,6 +43,34 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         max_age=7 * 24 * 60 * 60,
         path="/api/v1/auth",
     )
+
+
+def _default_org_name(name: str, email: str) -> str:
+    trimmed_name = name.strip()
+    if trimmed_name:
+        return f"{trimmed_name}'s Workspace"[:255]
+
+    email_local = email.split("@")[0].strip() if "@" in email else "User"
+    return f"{email_local}'s Workspace"[:255]
+
+
+async def _issue_tokens_for_user(
+    db: AsyncSession, response: Response, user: User
+) -> tuple[str, str]:
+    access_token = create_access_token(str(user.id), str(user.organization_id), user.role)
+    refresh_token, token_hash, expires_at, family = create_refresh_token(str(user.id))
+
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_family=UUID(family),
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+    )
+    await db.commit()
+    _set_refresh_cookie(response, refresh_token)
+    return access_token, refresh_token
 
 
 @router.post("/register", response_model=ApiResponse[dict])
@@ -95,20 +131,52 @@ async def login(payload: LoginRequest, response: Response, db: AsyncSession = De
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    access_token = create_access_token(str(user.id), str(user.organization_id), user.role)
-    refresh_token, token_hash, expires_at, family = create_refresh_token(str(user.id))
-
-    db.add(
-        RefreshToken(
-            user_id=user.id,
-            token_family=UUID(family),
-            token_hash=token_hash,
-            expires_at=expires_at,
-        )
+    access_token, refresh_token = await _issue_tokens_for_user(db, response, user)
+    return ApiResponse(
+        data={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "role": user.role,
+                "organization_id": str(user.organization_id),
+            },
+        }
     )
-    await db.commit()
 
-    _set_refresh_cookie(response, refresh_token)
+
+@router.post("/google", response_model=ApiResponse[dict])
+async def google_login(
+    payload: GoogleLoginRequest, response: Response, db: AsyncSession = Depends(get_db)
+):
+    try:
+        google_profile = await verify_google_id_token(payload.id_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    email = google_profile["email"].lower()
+    name = google_profile["name"].strip()
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if user is None:
+        org = Organization(name=_default_org_name(name, email))
+        db.add(org)
+        await db.flush()
+
+        user = User(
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(48)),
+            name=name or email.split("@")[0],
+            organization_id=org.id,
+            role="admin",
+        )
+        db.add(user)
+        await db.flush()
+
+    access_token, refresh_token = await _issue_tokens_for_user(db, response, user)
     return ApiResponse(
         data={
             "access_token": access_token,

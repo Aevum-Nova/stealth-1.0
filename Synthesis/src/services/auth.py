@@ -2,12 +2,14 @@ import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import jwt
 from passlib.context import CryptContext
 
 from src.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
 
 def hash_password(password: str) -> str:
@@ -51,3 +53,45 @@ def decode_refresh_token(token: str) -> dict:
     if payload.get("type") != "refresh":
         raise jwt.InvalidTokenError("Not a refresh token")
     return payload
+
+
+async def verify_google_id_token(id_token: str) -> dict[str, str]:
+    if not settings.GOOGLE_CLIENT_ID:
+        raise ValueError("Google sign-in is not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(GOOGLE_TOKEN_INFO_URL, params={"id_token": id_token})
+    except httpx.HTTPError as exc:
+        raise ValueError("Unable to verify Google token") from exc
+
+    if response.status_code != 200:
+        raise ValueError("Invalid Google token")
+
+    payload = response.json()
+    if payload.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise ValueError("Google token audience mismatch")
+
+    issuer = str(payload.get("iss", ""))
+    if issuer not in {"https://accounts.google.com", "accounts.google.com"}:
+        raise ValueError("Invalid Google token issuer")
+
+    email = str(payload.get("email", "")).strip().lower()
+    if not email:
+        raise ValueError("Google token missing email")
+
+    if str(payload.get("email_verified", "")).lower() != "true":
+        raise ValueError("Google account email is not verified")
+
+    try:
+        expires_at = int(payload.get("exp", "0"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Google token expiry is invalid") from exc
+
+    now = int(datetime.now(timezone.utc).timestamp())
+    if expires_at <= now:
+        raise ValueError("Google token is expired")
+
+    raw_name = str(payload.get("name", "")).strip()
+    fallback_name = email.split("@")[0] if "@" in email else "User"
+    return {"email": email, "name": raw_name or fallback_name}

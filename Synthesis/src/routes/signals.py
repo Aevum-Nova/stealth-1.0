@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -17,6 +18,75 @@ from src.services.embeddings import embedding_service
 from src.services.r2 import r2_service
 
 router = APIRouter(prefix="/api/v1/signals", tags=["signals"])
+
+
+def _normalize_query(query: str) -> str:
+    return " ".join(query.lower().split())
+
+
+def _query_terms(query: str) -> list[str]:
+    return [term for term in re.split(r"[^a-z0-9]+", query) if len(term) >= 3]
+
+
+def _search_blob(signal: Signal) -> str:
+    parts = [
+        signal.structured_summary,
+        signal.original_text,
+        signal.transcript,
+        signal.extracted_text,
+    ]
+    return " ".join(str(part or "") for part in parts).lower()
+
+
+def _keyword_score(signal: Signal, normalized_query: str, terms: list[str]) -> float:
+    blob = _search_blob(signal)
+    if not blob:
+        return 0.0
+
+    if normalized_query and normalized_query in blob:
+        return 1.0
+
+    if not terms:
+        return 0.0
+
+    matched = sum(1 for term in terms if term in blob)
+    if matched == 0:
+        return 0.0
+    return matched / len(terms)
+
+
+def _semantic_score(signal: Signal, query_embedding: np.ndarray, query_norm: float) -> float:
+    if signal.embedding is None:
+        return 0.0
+
+    emb = np.array(signal.embedding, dtype=np.float32)
+    if emb.size == 0:
+        return 0.0
+
+    emb_norm = float(np.linalg.norm(emb) or 1.0)
+    return float(np.dot(query_embedding, emb) / (emb_norm * query_norm))
+
+
+def _rank_signals(
+    signals: list[Signal],
+    query_embedding: np.ndarray,
+    *,
+    normalized_query: str,
+    threshold: float,
+) -> list[tuple[float, Signal]]:
+    query_norm = float(np.linalg.norm(query_embedding) or 1.0)
+    terms = _query_terms(normalized_query)
+
+    scored: list[tuple[float, Signal]] = []
+    for signal in signals:
+        semantic_score = _semantic_score(signal, query_embedding, query_norm)
+        keyword_score = _keyword_score(signal, normalized_query, terms)
+        score = max(semantic_score, keyword_score)
+        if score >= threshold:
+            scored.append((score, signal))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored
 
 
 @router.get("", response_model=PaginatedResponse[SignalRead])
@@ -78,26 +148,23 @@ async def search_signals(
     org_id: str = Depends(get_current_org),
     db: AsyncSession = Depends(get_db),
 ):
-    query_embedding = np.array(await embedding_service.embed(q), dtype=np.float32)
-    query_norm = np.linalg.norm(query_embedding) or 1.0
+    normalized_query = _normalize_query(q)
+    query_embedding = np.array(await embedding_service.embed(normalized_query), dtype=np.float32)
 
     rows = await db.execute(
         select(Signal).where(
             Signal.organization_id == UUID(org_id),
             Signal.status == "completed",
-            Signal.embedding.is_not(None),
         )
     )
     signals = list(rows.scalars().all())
 
-    scored: list[tuple[float, Signal]] = []
-    for signal in signals:
-        emb = np.array(signal.embedding, dtype=np.float32)
-        score = float(np.dot(query_embedding, emb) / ((np.linalg.norm(emb) or 1.0) * query_norm))
-        if score >= threshold:
-            scored.append((score, signal))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
+    scored = _rank_signals(
+        signals,
+        query_embedding,
+        normalized_query=normalized_query,
+        threshold=threshold,
+    )
     payload = [
         {
             "signal": SignalRead.model_validate(signal).model_dump(mode="json"),
@@ -109,7 +176,11 @@ async def search_signals(
 
 
 @router.get("/{signal_id}", response_model=ApiResponse[SignalRead])
-async def get_signal(signal_id: UUID, org_id: str = Depends(get_current_org), db: AsyncSession = Depends(get_db)):
+async def get_signal(
+    signal_id: UUID,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(Signal).where(Signal.id == signal_id, Signal.organization_id == UUID(org_id))
     )
@@ -133,6 +204,8 @@ async def delete_signal(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Signal not found")
 
     await r2_service.delete(signal.raw_artifact_r2_key)
-    await db.execute(delete(Signal).where(Signal.id == signal_id, Signal.organization_id == UUID(org_id)))
+    await db.execute(
+        delete(Signal).where(Signal.id == signal_id, Signal.organization_id == UUID(org_id))
+    )
     await db.commit()
     return ApiResponse(data={"deleted": True})

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import * as signalsApi from "@/api/signals";
 import type { SignalFilters } from "@/types/signal";
@@ -19,9 +19,11 @@ export function useSignal(id?: string) {
 }
 
 export function useSignalSearch(query: string) {
+  const normalized = query.trim();
   return useQuery({
-    queryKey: ["signals", "search", query],
-    queryFn: () => signalsApi.searchSignals(query),
-    enabled: query.trim().length > 0
+    queryKey: ["signals", "search", normalized],
+    queryFn: () => signalsApi.searchSignals(normalized),
+    enabled: normalized.length >= 2,
+    placeholderData: keepPreviousData
   });
 }
