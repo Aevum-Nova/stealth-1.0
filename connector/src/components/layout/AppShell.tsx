@@ -5,12 +5,14 @@ import TopBar from "@/components/layout/TopBar";
 
 export default function AppShell() {
   return (
-    <div className="mx-auto flex max-w-[1600px] flex-col gap-4 p-3 sm:p-4 lg:flex-row">
+    <div className="flex flex-col lg:h-screen lg:flex-row lg:overflow-hidden bg-white">
       <Sidebar />
-      <main className="min-w-0 flex-1 space-y-4">
+      <div className="flex min-w-0 flex-1 flex-col lg:overflow-hidden">
         <TopBar />
-        <Outlet />
-      </main>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

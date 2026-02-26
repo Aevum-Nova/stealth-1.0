@@ -1,42 +1,74 @@
-import { BarChart3, Boxes, Database, GitMerge, Sparkles, Workflow } from "lucide-react";
+import { BarChart3, Boxes, Database, GitMerge, LogOut, Sparkles, Workflow } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-const nav = [
+import { useAuth } from "@/hooks/use-auth";
+
+const mainNav = [
   { to: "/", label: "Dashboard", icon: BarChart3 },
   { to: "/connectors", label: "Connectors", icon: Boxes },
   { to: "/ingest", label: "Ingest", icon: Database },
-  { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
-  { to: "/signals", label: "Signals", icon: Workflow },
-  { to: "/synthesis", label: "Synthesis", icon: Sparkles }
 ];
 
-export default function Sidebar() {
+const analysisNav = [
+  { to: "/signals", label: "Signals", icon: Workflow },
+  { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
+  { to: "/synthesis", label: "Synthesis", icon: Sparkles },
+];
+
+function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <aside className="panel elevated overflow-hidden lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-72 lg:shrink-0">
-      <div className="border-b border-[var(--line)] bg-[var(--ink)] p-4 text-white sm:p-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-orange-200">Vocalize</p>
-        <h1 className="mt-1 text-xl">Connector Console</h1>
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm lg:gap-3 ${
+          isActive ? "bg-gray-100 text-gray-900" : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+        }`
+      }
+    >
+      <Icon className="size-4" />
+      {label}
+    </NavLink>
+  );
+}
+
+export default function Sidebar() {
+  const { logout } = useAuth();
+
+  return (
+    <aside className="border-b border-gray-200 bg-white lg:border-b-0 lg:border-r lg:w-56 lg:shrink-0 lg:flex lg:flex-col">
+      {/* Header */}
+      <div className="border-b border-gray-200 px-4 py-4 sm:px-5">
+        <p className="text-sm font-semibold text-gray-900">Vocalize</p>
+        <p className="text-xs text-gray-400">Connector Console</p>
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:space-y-1 lg:overflow-visible">
-        {nav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm lg:gap-3 ${
-                  isActive ? "bg-[var(--accent-soft)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-[#f5efdf]"
-                }`
-              }
-            >
-              <Icon className="size-4" />
-              {item.label}
-            </NavLink>
-          );
-        })}
+      {/* Navigation */}
+      <nav className="flex gap-1 overflow-x-auto p-3 lg:block lg:flex-1 lg:space-y-1 lg:overflow-visible">
+        {/* Main section */}
+        {mainNav.map((item) => (
+          <NavItem key={item.to} {...item} />
+        ))}
+
+        {/* Divider + Analysis section */}
+        <div className="hidden lg:block">
+          <div className="my-3 border-t border-gray-200" />
+          <p className="mb-2 px-3 text-[10px] uppercase tracking-widest text-gray-400">Analysis</p>
+        </div>
+        {analysisNav.map((item) => (
+          <NavItem key={item.to} {...item} />
+        ))}
       </nav>
+
+      {/* Footer with logout */}
+      <div className="hidden border-t border-gray-200 p-3 lg:block">
+        <button
+          onClick={() => void logout()}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+        >
+          <LogOut className="size-4" />
+          Logout
+        </button>
+      </div>
     </aside>
   );
 }

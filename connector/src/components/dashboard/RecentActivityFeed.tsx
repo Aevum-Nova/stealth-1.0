@@ -15,7 +15,7 @@ export default function RecentActivityFeed({ activities }: { activities: Activit
           <p className="text-sm text-[var(--ink-soft)]">No recent activity yet.</p>
         ) : (
           activities.map((activity) => (
-            <article key={activity.id} className="rounded-lg border border-[var(--line)] bg-[#fffcf4] px-3 py-2">
+            <article key={activity.id} className="rounded-lg border border-[var(--line)] bg-gray-50 px-3 py-2">
               <p className="text-sm">{activity.label}</p>
               <p className="text-xs text-[var(--ink-soft)]">{timeAgo(new Date(activity.timestamp).toISOString())}</p>
             </article>

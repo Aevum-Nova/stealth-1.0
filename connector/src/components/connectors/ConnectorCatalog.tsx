@@ -19,7 +19,7 @@ export default function ConnectorCatalog({ catalog, existing, onAdd }: Connector
           const unavailable = item.available === false;
           const disabled = unavailable && !alreadyAdded;
           return (
-            <article key={item.type} className="rounded-lg border border-[var(--line)] bg-[#fffaf1] p-3">
+            <article key={item.type} className="rounded-lg border border-[var(--line)] bg-white p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <ConnectorLogo
@@ -32,7 +32,7 @@ export default function ConnectorCatalog({ catalog, existing, onAdd }: Connector
                     <p className="mt-1 text-xs text-[var(--ink-soft)]">{item.description}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[#ece5d6] px-2 py-1 text-[10px] uppercase tracking-wide text-[var(--ink-soft)]">
+                <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-500">
                   {item.auth_method}
                 </span>
               </div>

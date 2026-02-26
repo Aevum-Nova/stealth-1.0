@@ -22,7 +22,7 @@ export default function IngestionHistory({ jobs }: { jobs: JobSummary[] }) {
                   <p className="text-sm font-semibold">Job {job.id.slice(0, 8)}</p>
                   <p className="text-xs text-[var(--ink-soft)]">{formatDate(job.created_at)}</p>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-[#eee4d0]">
+                <div className="mt-2 h-2 rounded-full bg-gray-100">
                   <div className="h-full rounded-full bg-[var(--moss)]" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-[var(--ink-soft)]">

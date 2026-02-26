@@ -65,7 +65,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-sm text-[var(--ink-soft)]">
-          Need an account? <Link to="/register" className="text-[var(--accent)]">Register</Link>
+          Need an account? <Link to="/register" className="font-semibold text-gray-900 underline underline-offset-2">Register</Link>
         </p>
       </form>
     </div>

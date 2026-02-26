@@ -11,7 +11,7 @@ export default function DataTable<T>({ columns, rows, getRowKey, onRowClick }: D
   return (
     <div className="panel overflow-x-auto">
       <table className="min-w-[760px] w-full border-collapse text-left">
-        <thead className="bg-[#f1ebdf] text-sm text-[var(--ink-soft)]">
+        <thead className="bg-gray-50 text-sm text-[var(--ink-soft)]">
           <tr>
             {columns.map((col) => (
               <th key={col.key} className="whitespace-nowrap px-4 py-3 font-medium">
@@ -24,7 +24,7 @@ export default function DataTable<T>({ columns, rows, getRowKey, onRowClick }: D
           {rows.map((row) => (
             <tr
               key={getRowKey(row)}
-              className="border-t border-[var(--line)] hover:bg-[#fcf8ef]"
+              className="border-t border-[var(--line)] hover:bg-gray-50"
               onClick={() => onRowClick?.(row)}
             >
               {columns.map((col) => (

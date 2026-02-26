@@ -5,11 +5,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        canvas: "#f6f2e8",
-        ink: "#1f2a44",
-        accent: "#d94f04",
-        accentSoft: "#f6d8c3",
-        moss: "#35524a"
+        canvas: "#fafafa",
+        ink: "#111827",
+        accent: "#111827",
+        accentSoft: "#f3f4f6",
+        moss: "#374151"
       },
       fontFamily: {
         heading: ["'Space Grotesk'", "sans-serif"],

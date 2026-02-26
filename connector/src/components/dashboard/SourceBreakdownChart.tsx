@@ -11,7 +11,7 @@ export default function SourceBreakdownChart({ data }: { data: Record<string, nu
           <XAxis dataKey="source" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="count" fill="#d94f04" radius={[6, 6, 0, 0]} />
+          <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </section>

@@ -77,7 +77,7 @@ export default function RegisterPage() {
         </button>
 
         <p className="text-sm text-[var(--ink-soft)]">
-          Already have an account? <Link to="/login" className="text-[var(--accent)]">Login</Link>
+          Already have an account? <Link to="/login" className="font-semibold text-gray-900 underline underline-offset-2">Login</Link>
         </p>
       </form>
     </div>

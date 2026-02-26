@@ -36,7 +36,7 @@ const TYPE_LABELS: Record<FeatureRequestType, string> = {
 
 function TypeBadge({ type }: { type: FeatureRequestType }) {
   return (
-    <span className="rounded-full bg-[#e0dcd3] px-2 py-0.5 text-xs font-medium text-[var(--ink)]">
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
       {TYPE_LABELS[type] ?? type}
     </span>
   );
@@ -110,7 +110,7 @@ export default function FeatureRequestCard({ featureRequest, onApprove, onReject
         <div className="flex flex-wrap items-center gap-2">
           <PriorityBadge priority={featureRequest.priority} />
           <TypeBadge type={featureRequest.type} />
-          <span className="rounded-full bg-[#ece5d6] px-2 py-0.5 text-xs">{featureRequest.status}</span>
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{featureRequest.status}</span>
         </div>
         <ScoreRing score={featureRequest.priority_score} />
       </div>
@@ -167,7 +167,7 @@ export default function FeatureRequestCard({ featureRequest, onApprove, onReject
         <div className="flex items-center gap-2">
           <Link
             to={`/feature-requests/${featureRequest.id}`}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm hover:bg-[#ece5d6]"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--line)] px-3 py-1.5 text-sm hover:bg-gray-50"
           >
             <Eye className="h-3.5 w-3.5" />
             View
