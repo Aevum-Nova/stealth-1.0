@@ -51,10 +51,6 @@ export default function RegisterPage() {
     resolver: zodResolver(schema)
   });
 
-  if (!isLoading && isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
   const handleGoogleCredential = useCallback(
     async (response: GoogleCredentialResponse) => {
       if (!response.credential) {
@@ -127,7 +123,9 @@ export default function RegisterPage() {
     }
   };
 
-  return (
+  return !isLoading && isAuthenticated ? (
+    <Navigate to="/" replace />
+  ) : (
     <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center p-6">
       <form onSubmit={handleSubmit(onSubmit)} className="panel elevated w-full space-y-4 p-8">
         <div>
