@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .vite/
 node_modules/
 .env
