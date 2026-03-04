@@ -76,6 +76,20 @@ export default function FeatureRequestDetailPage() {
             <button className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm" onClick={() => setOpenMerge(true)}>
               Merge
             </button>
+            <button
+              className="rounded-lg bg-violet-600 px-3 py-2 text-sm text-white"
+              onClick={() => {
+                actions.sendToAgent.mutate(featureRequest.id);
+              }}
+            >
+              Send to Agent
+            </button>
+            <Link
+              to={`/feature-requests/${featureRequest.id}/context`}
+              className="rounded-lg border border-violet-400 px-3 py-2 text-sm text-violet-600"
+            >
+              Product Context
+            </Link>
           </div>
         </section>
 

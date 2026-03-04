@@ -24,6 +24,8 @@ class EvidenceItem:
 class RepositoryContext:
     path: str
     default_branch: str = "main"
+    owner: str = ""
+    repo: str = ""
 
 
 @dataclass(slots=True)

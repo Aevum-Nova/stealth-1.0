@@ -2,44 +2,27 @@ import ky from "ky";
 
 import { attemptTokenRefresh, clearAuthState, getAccessToken } from "@/lib/auth";
 
-// Store the last request body text so it can be re-sent on 401 retry.
-let lastRequestBody: string | null = null;
-
-const api = ky.create({
-  prefixUrl: import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1",
+const agentApi = ky.create({
+  prefixUrl: import.meta.env.VITE_AGENT_URL || "http://localhost:3002/api/v1",
   timeout: 60_000,
   credentials: "include",
   hooks: {
     beforeRequest: [
-      async (request) => {
+      (request) => {
         const token = getAccessToken();
         if (token) {
           request.headers.set("Authorization", `Bearer ${token}`);
         }
-        // Cache the body text for potential 401 retry
-        lastRequestBody = null;
-        if (request.method !== "GET" && request.method !== "HEAD") {
-          try {
-            lastRequestBody = await request.clone().text();
-          } catch {
-            // ignore
-          }
-        }
       }
     ],
     afterResponse: [
-      async (request, _options, response) => {
+      async (request, options, response) => {
         if (response.status !== 401) {
           return response;
         }
 
         const requestUrl = new URL(request.url);
-        if (
-          requestUrl.pathname.endsWith("/auth/login") ||
-          requestUrl.pathname.endsWith("/auth/register") ||
-          requestUrl.pathname.endsWith("/auth/google") ||
-          requestUrl.pathname.endsWith("/auth/refresh")
-        ) {
+        if (requestUrl.pathname.endsWith("/auth/refresh")) {
           return response;
         }
 
@@ -64,9 +47,8 @@ const api = ky.create({
         }
 
         return ky(request.url, {
-          method: request.method,
+          ...options,
           headers: retryHeaders,
-          body: lastRequestBody,
           credentials: "include"
         });
       }
@@ -74,4 +56,4 @@ const api = ky.create({
   }
 });
 
-export default api;
+export default agentApi;

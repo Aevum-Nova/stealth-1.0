@@ -36,3 +36,10 @@ class ConnectorUpdate(BaseModel):
     auto_synthesize: bool | None = None
     config: dict | None = None
     credentials: dict | None = None
+
+
+class OAuthCompleteRequest(BaseModel):
+    type: str
+    name: str
+    code: str
+    redirect_uri: str

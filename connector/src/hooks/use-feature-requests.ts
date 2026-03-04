@@ -92,6 +92,12 @@ export function useFeatureRequestActions() {
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
       }
+    }),
+    sendToAgent: useMutation({
+      mutationFn: (id: string) => featureRequestsApi.sendToAgent(id),
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+      }
     })
   };
 }

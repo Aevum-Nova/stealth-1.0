@@ -44,6 +44,10 @@ export function mergeFeatureRequest(id: string, targetId: string) {
     .json<ApiResponse<{ merged: boolean; source_id: string; target_id: string }>>();
 }
 
+export function sendToAgent(id: string) {
+  return api.post(`feature-requests/${id}/send-to-agent`).json<ApiResponse<{ id: string; status: string }>>();
+}
+
 export function getFeatureRequestSignals(id: string) {
   return api.get(`feature-requests/${id}/signals`).json<ApiResponse<Signal[]>>();
 }

@@ -28,6 +28,7 @@ export interface ConnectorCatalogItem {
   display_name: string;
   description: string;
   auth_method: "oauth2" | "api_key" | string;
+  category: "input" | "output";
   icon: string;
   available?: boolean;
   missing_env_vars?: string[];

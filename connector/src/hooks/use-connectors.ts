@@ -25,6 +25,22 @@ export function useConnector(id?: string) {
   });
 }
 
+export function useGithubRepos(connectorId?: string) {
+  return useQuery({
+    queryKey: ["connector", connectorId, "github-repos"],
+    queryFn: () => connectorsApi.getGithubRepos(connectorId as string),
+    enabled: Boolean(connectorId)
+  });
+}
+
+export function useGithubBranches(connectorId?: string, repo?: string) {
+  return useQuery({
+    queryKey: ["connector", connectorId, "github-branches", repo],
+    queryFn: () => connectorsApi.getGithubBranches(connectorId as string, repo as string),
+    enabled: Boolean(connectorId && repo)
+  });
+}
+
 export function useConnectorMutations() {
   const queryClient = useQueryClient();
 

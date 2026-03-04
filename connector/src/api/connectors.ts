@@ -41,3 +41,27 @@ export function postConnectorOAuthCallback(id: string, code: string, redirectUri
     .post(`connectors/${id}/oauth-callback`, { searchParams: { code, redirect_uri: redirectUri } })
     .json<ApiResponse<{ connector_id: string; connected: boolean }>>();
 }
+
+export function getOAuthStartUrl(type: string, redirectUri: string, state: string) {
+  return api
+    .get("connectors/oauth-start", { searchParams: { type, redirect_uri: redirectUri, state } })
+    .json<ApiResponse<{ auth_url: string }>>();
+}
+
+export function postOAuthComplete(type: string, name: string, code: string, redirectUri: string) {
+  return api
+    .post("connectors/oauth-complete", { json: { type, name, code, redirect_uri: redirectUri } })
+    .json<ApiResponse<Connector>>();
+}
+
+export function getGithubRepos(connectorId: string) {
+  return api
+    .get(`connectors/${connectorId}/github-repos`)
+    .json<ApiResponse<{ full_name: string; default_branch: string; private: boolean; description: string }[]>>();
+}
+
+export function getGithubBranches(connectorId: string, repo: string) {
+  return api
+    .get(`connectors/${connectorId}/github-branches`, { searchParams: { repo } })
+    .json<ApiResponse<string[]>>();
+}

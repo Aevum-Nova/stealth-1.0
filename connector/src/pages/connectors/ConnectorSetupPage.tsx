@@ -4,14 +4,14 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   createConnector,
   getConnector,
-  getConnectorAuthUrl,
   getConnectorCatalog,
   updateConnector
 } from "@/api/connectors";
 import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
+import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
 import OAuthButton from "@/components/connectors/OAuthButton";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { encodeOAuthState } from "@/lib/auth";
+import { startOAuthFlow } from "@/lib/oauth";
 
 export default function ConnectorSetupPage() {
   const { type = "" } = useParams();
@@ -24,8 +24,11 @@ export default function ConnectorSetupPage() {
   const [authorized, setAuthorized] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [savedRepo, setSavedRepo] = useState<string | null>(null);
 
   const [catalog, setCatalog] = useState<any[] | null>(null);
+
+  const isGitHub = type === "github";
 
   useEffect(() => {
     void (async () => {
@@ -46,11 +49,17 @@ export default function ConnectorSetupPage() {
       try {
         const response = await getConnector(connectorId);
         const creds = response.data.credentials ?? {};
-        setAuthorized(Object.keys(creds).length > 0);
+        const isAuth = Object.keys(creds).length > 0;
+        setAuthorized(isAuth);
+
+        if (isAuth && step === 1) {
+          setStep(2);
+        }
       } catch {
         setAuthorized(false);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectorId]);
 
   if (!item) {
@@ -65,32 +74,9 @@ export default function ConnectorSetupPage() {
 
     setLoading(true);
     setError(null);
-    let id = connectorId;
 
     try {
-      if (!id) {
-        const created = await createConnector({
-          type,
-          name: item.display_name,
-          enabled: true,
-          auto_synthesize: true,
-          config: {},
-          credentials: {}
-        });
-        id = created.data.id;
-        setConnectorId(id);
-      }
-
-      const state = encodeOAuthState({
-        connector_id: id,
-        return_url: `${window.location.origin}/connectors/new/${type}?connectorId=${id}`
-      });
-      const redirectUri = `${window.location.origin}/oauth/callback`;
-      const auth = await getConnectorAuthUrl(id, redirectUri, state);
-      if (!auth.data.auth_url) {
-        throw new Error("Backend did not return an auth URL.");
-      }
-      window.location.href = auth.data.auth_url;
+      await startOAuthFlow(type, item.display_name);
     } catch (err) {
       setError(err instanceof Error ? err.message : "OAuth start failed");
     } finally {
@@ -143,11 +129,30 @@ export default function ConnectorSetupPage() {
     }
   };
 
+  const handleGitHubRepoSelect = async (repo: string, branch: string) => {
+    if (!connectorId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await updateConnector(connectorId, {
+        name: `GitHub - ${repo}`,
+        config: { repository: repo, default_branch: branch },
+        enabled: true,
+      });
+      setSavedRepo(repo);
+      setStep(3);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save repository selection");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
         <Link to="/connectors" className="text-sm text-[var(--accent)]">
-          ← Back to Connectors
+          &larr; Back to Connectors
         </Link>
         <h2 className="mt-1 text-3xl">Set Up {item.display_name}</h2>
       </div>
@@ -160,6 +165,8 @@ export default function ConnectorSetupPage() {
           </p>
         ) : null}
         <p className="text-sm text-[var(--ink-soft)]">Step {step} of 3</p>
+
+        {/* Step 1: Authorize */}
         {step === 1 ? (
           <div className="mt-3 space-y-4">
             <h3 className="text-lg">Authorize</h3>
@@ -178,7 +185,7 @@ export default function ConnectorSetupPage() {
                 </button>
               </div>
             )}
-            {connectorId ? (
+            {connectorId && !isGitHub ? (
               <button
                 className="rounded-lg border border-[var(--line)] px-3 py-2"
                 disabled={item.auth_method === "oauth2" && !authorized}
@@ -190,17 +197,36 @@ export default function ConnectorSetupPage() {
           </div>
         ) : null}
 
+        {/* Step 2: Configure */}
         {step === 2 ? (
           <div className="mt-3 space-y-4">
-            <h3 className="text-lg">Configure</h3>
-            <ConnectorConfigForm catalogItem={item} onSubmit={(values) => void saveConfig(values)} />
+            {isGitHub && connectorId ? (
+              <>
+                <h3 className="text-lg">Select Repository</h3>
+                <GitHubRepoPicker
+                  connectorId={connectorId}
+                  saving={loading}
+                  onSelect={(repo, branch) => void handleGitHubRepoSelect(repo, branch)}
+                />
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg">Configure</h3>
+                <ConnectorConfigForm catalogItem={item} onSubmit={(values) => void saveConfig(values)} />
+              </>
+            )}
           </div>
         ) : null}
 
+        {/* Step 3: Done */}
         {step === 3 ? (
           <div className="mt-3 space-y-3">
             <h3 className="text-lg">Ready</h3>
-            <p className="text-[var(--ink-soft)]">Connector is configured. You can open details and trigger the first sync.</p>
+            <p className="text-[var(--ink-soft)]">
+              {isGitHub
+                ? `Connected to ${savedRepo ?? "repository"}. The agent will create PRs in this repo.`
+                : "Connector is configured. You can open details and trigger the first sync."}
+            </p>
             <button
               className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white"
               onClick={() => navigate(`/connectors/${connectorId}`)}

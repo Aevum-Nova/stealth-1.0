@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     INTERCOM_CLIENT_SECRET: str | None = None
     SERVICENOW_CLIENT_ID: str | None = None
     SERVICENOW_CLIENT_SECRET: str | None = None
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
 
     CREDENTIALS_ENCRYPTION_KEY: str = Field(default="")
 

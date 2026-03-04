@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
-import { postConnectorOAuthCallback } from "@/api/connectors";
+import { postOAuthComplete } from "@/api/connectors";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { decodeOAuthState } from "@/lib/auth";
 
@@ -21,19 +21,27 @@ export default function OAuthCallbackPage() {
       }
 
       const parsedState = decodeOAuthState(state);
-      const connectorId = String(parsedState.connector_id || "");
+      const connectorType = String(parsedState.connector_type || "");
+      const connectorName = String(parsedState.connector_name || connectorType);
       const returnUrl = String(parsedState.return_url || "/connectors");
 
-      if (!connectorId) {
+      if (!connectorType) {
         setError("Invalid OAuth state payload.");
         return;
       }
 
       try {
-        await postConnectorOAuthCallback(connectorId, code, `${window.location.origin}/oauth/callback`);
-        navigate(returnUrl, { replace: true });
-      } catch {
-        setError("OAuth callback failed. Please retry connection.");
+        const redirectUri = `${window.location.origin}/oauth/callback`;
+        const result = await postOAuthComplete(connectorType, connectorName, code, redirectUri);
+        const connectorId = result.data.id;
+        // Redirect back to setup page with the new connector ID
+        const separator = returnUrl.includes("?") ? "&" : "?";
+        navigate(`${returnUrl}${separator}connectorId=${connectorId}`, { replace: true });
+      } catch (err) {
+        console.error("OAuth complete failed:", err);
+        const message =
+          err instanceof Error ? err.message : "OAuth authorization failed. Please try again.";
+        setError(message);
       }
     }
 
@@ -51,6 +59,12 @@ export default function OAuthCallbackPage() {
           <>
             <h1 className="text-2xl">Authorization Failed</h1>
             <p className="mt-2 text-[var(--ink-soft)]">{error}</p>
+            <button
+              className="mt-4 rounded-lg bg-[var(--ink)] px-4 py-2 text-white"
+              onClick={() => navigate("/connectors", { replace: true })}
+            >
+              Back to Connectors
+            </button>
           </>
         ) : (
           <>

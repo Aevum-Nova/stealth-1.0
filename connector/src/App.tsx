@@ -13,6 +13,7 @@ import OAuthCallbackPage from "@/pages/connectors/OAuthCallbackPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import FeatureRequestDetailPage from "@/pages/feature-requests/FeatureRequestDetailPage";
 import FeatureRequestsPage from "@/pages/feature-requests/FeatureRequestsPage";
+import ProductContextPage from "@/pages/feature-requests/ProductContextPage";
 import IngestPage from "@/pages/ingest/IngestPage";
 import SignalDetailPage from "@/pages/signals/SignalDetailPage";
 import SignalsPage from "@/pages/signals/SignalsPage";
@@ -51,6 +52,7 @@ const router = createBrowserRouter([
           { path: "/signals/:id", element: <SignalDetailPage /> },
           { path: "/feature-requests", element: <FeatureRequestsPage /> },
           { path: "/feature-requests/:id", element: <FeatureRequestDetailPage /> },
+          { path: "/feature-requests/:id/context", element: <ProductContextPage /> },
           { path: "/synthesis", element: <SynthesisPage /> }
         ]
       }

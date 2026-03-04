@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.connectors.base import ConnectorConfig
 from src.connectors.catalog import CONNECTOR_CATALOG
 from src.connectors.figma import FigmaConnector
+from src.connectors.github import GitHubConnector
 from src.connectors.google_forms import GoogleFormsConnector
 from src.connectors.granola import GranolaConnector
 from src.connectors.intercom import IntercomConnector
@@ -21,7 +22,7 @@ from src.database import get_db
 from src.middleware.auth import get_current_org
 from src.models.connector import Connector
 from src.schemas.common import ApiResponse
-from src.schemas.connector import ConnectorCreate, ConnectorRead, ConnectorUpdate
+from src.schemas.connector import ConnectorCreate, ConnectorRead, ConnectorUpdate, OAuthCompleteRequest
 from src.services.event_bus import get_event_bus
 
 router = APIRouter(prefix="/api/v1/connectors", tags=["connectors"])
@@ -34,6 +35,7 @@ CONNECTOR_IMPL = {
     "figma": FigmaConnector,
     "granola": GranolaConnector,
     "intercom": IntercomConnector,
+    "github": GitHubConnector,
 }
 
 CONNECTOR_CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
@@ -44,6 +46,7 @@ CONNECTOR_REQUIRED_ENV_VARS = {
     "figma": ("FIGMA_CLIENT_ID", "FIGMA_CLIENT_SECRET"),
     "intercom": ("INTERCOM_CLIENT_ID", "INTERCOM_CLIENT_SECRET"),
     "servicenow": ("SERVICENOW_CLIENT_ID", "SERVICENOW_CLIENT_SECRET"),
+    "github": ("GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"),
 }
 
 
@@ -152,6 +155,89 @@ async def connector_catalog():
             }
         )
     return ApiResponse(data=items)
+
+
+def _build_connector_for_type(connector_type: str):
+    """Build a throwaway connector instance for a type (no DB record needed)."""
+    impl = CONNECTOR_IMPL.get(connector_type)
+    if impl is None:
+        return None
+    return impl(
+        ConnectorConfig(
+            id="",
+            organization_id="",
+            type=connector_type,
+            credentials={},
+            config={},
+        )
+    )
+
+
+@router.get("/oauth-start", response_model=ApiResponse[dict])
+async def oauth_start(
+    type: str = Query(..., alias="type"),
+    redirect_uri: str = Query(...),
+    state: str = Query(...),
+    org_id: str = Depends(get_current_org),
+):
+    """Generate an OAuth authorization URL without creating a connector record."""
+    _ensure_connector_available(type)
+    impl = _build_connector_for_type(type)
+    auth_url = impl.get_auth_url(redirect_uri, state) if impl else None
+    if not auth_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Connector '{type}' does not support OAuth or is not configured.",
+        )
+    return ApiResponse(data={"auth_url": auth_url})
+
+
+@router.post("/oauth-complete", response_model=ApiResponse[ConnectorRead])
+async def oauth_complete(
+    payload: OAuthCompleteRequest,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange the OAuth code and create the connector atomically.
+
+    Only creates a DB record if the token exchange succeeds.
+    """
+    _ensure_connector_available(payload.type)
+    impl = _build_connector_for_type(payload.type)
+    if not impl:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported connector type: {payload.type}",
+        )
+
+    credentials = await impl.handle_oauth_callback(payload.code, payload.redirect_uri)
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"OAuth token exchange failed for '{payload.type}'.",
+        )
+
+    # Delete any existing connector of this type for the org (replace flow)
+    await db.execute(
+        delete(Connector).where(
+            Connector.organization_id == UUID(org_id),
+            Connector.type == payload.type,
+        )
+    )
+
+    connector = Connector(
+        organization_id=UUID(org_id),
+        type=payload.type,
+        name=payload.name,
+        enabled=True,
+        auto_synthesize=True,
+        config={},
+        credentials=credentials,
+    )
+    db.add(connector)
+    await db.commit()
+    await db.refresh(connector)
+    return ApiResponse(data=ConnectorRead.model_validate(connector))
 
 
 @router.get("/{connector_id}", response_model=ApiResponse[ConnectorRead])
@@ -307,3 +393,50 @@ async def connector_oauth_callback(
     await db.commit()
 
     return ApiResponse(data={"connector_id": str(connector.id), "connected": True})
+
+
+@router.get("/{connector_id}/github-repos", response_model=ApiResponse[list[dict]])
+async def list_github_repos(
+    connector_id: UUID,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Connector).where(Connector.id == connector_id, Connector.organization_id == UUID(org_id))
+    )
+    connector = result.scalar_one_or_none()
+    if not connector:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found")
+    if connector.type != "github":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a GitHub connector")
+
+    impl = _build_connector(connector)
+    if not impl or not hasattr(impl, "list_repos"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="GitHub connector unavailable")
+
+    repos = await impl.list_repos()
+    return ApiResponse(data=repos)
+
+
+@router.get("/{connector_id}/github-branches", response_model=ApiResponse[list[str]])
+async def list_github_branches(
+    connector_id: UUID,
+    repo: str = Query(..., description="Full repo name like owner/repo"),
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Connector).where(Connector.id == connector_id, Connector.organization_id == UUID(org_id))
+    )
+    connector = result.scalar_one_or_none()
+    if not connector:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found")
+    if connector.type != "github":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a GitHub connector")
+
+    impl = _build_connector(connector)
+    if not impl or not hasattr(impl, "list_branches"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="GitHub connector unavailable")
+
+    branches = await impl.list_branches(repo)
+    return ApiResponse(data=branches)

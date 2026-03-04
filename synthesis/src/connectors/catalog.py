@@ -4,6 +4,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "Slack",
         "description": "Import messages and threads from Slack channels",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "slack",
         "config_fields": [
             {
@@ -38,6 +39,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "Google Forms",
         "description": "Import survey and feedback form responses",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "google_forms",
         "config_fields": [
             {
@@ -54,6 +56,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "Zendesk",
         "description": "Import support tickets and conversations",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "zendesk",
         "config_fields": [
             {
@@ -89,6 +92,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "ServiceNow",
         "description": "Import incident tickets and work notes",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "servicenow",
         "config_fields": [
             {
@@ -123,6 +127,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "Figma",
         "description": "Import design comments and feedback from Figma files",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "figma",
         "config_fields": [
             {
@@ -139,6 +144,7 @@ CONNECTOR_CATALOG: list[dict] = [
         "display_name": "Granola",
         "description": "Import AI meeting notes and transcripts",
         "auth_method": "api_key",
+        "category": "input",
         "icon": "granola",
         "config_fields": [
             {
@@ -150,10 +156,36 @@ CONNECTOR_CATALOG: list[dict] = [
         ],
     },
     {
+        "type": "github",
+        "display_name": "GitHub",
+        "description": "Connect a GitHub repository for automated PR creation",
+        "auth_method": "oauth2",
+        "category": "output",
+        "icon": "github",
+        "config_fields": [
+            {
+                "key": "repository",
+                "label": "Repository",
+                "type": "text",
+                "required": False,
+                "help": "Selected automatically after authorization.",
+            },
+            {
+                "key": "default_branch",
+                "label": "Default branch",
+                "type": "text",
+                "required": False,
+                "default": "main",
+                "help": "The base branch for new feature branches.",
+            },
+        ],
+    },
+    {
         "type": "intercom",
         "display_name": "Intercom",
         "description": "Import customer support conversations",
         "auth_method": "oauth2",
+        "category": "input",
         "icon": "intercom",
         "config_fields": [
             {

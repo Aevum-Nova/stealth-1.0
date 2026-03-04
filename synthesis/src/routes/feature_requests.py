@@ -185,6 +185,15 @@ async def _set_status(feature_request_id: UUID, org_id: str, db: AsyncSession, v
     return ApiResponse(data={"id": str(fr.id), "status": fr.status})
 
 
+@router.post("/{feature_request_id}/send-to-agent", response_model=ApiResponse[dict])
+async def send_to_agent(
+    feature_request_id: UUID,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _set_status(feature_request_id, org_id, db, "sent_to_agent")
+
+
 @router.post("/{feature_request_id}/merge", response_model=ApiResponse[dict])
 async def merge_feature_request(
     feature_request_id: UUID,
