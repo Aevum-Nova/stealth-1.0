@@ -14,7 +14,6 @@ const ConnectorDetailPage = lazy(() => import("@/pages/connectors/ConnectorDetai
 const ConnectorSetupPage = lazy(() => import("@/pages/connectors/ConnectorSetupPage"));
 const OAuthCallbackPage = lazy(() => import("@/pages/connectors/OAuthCallbackPage"));
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
-const FeatureRequestDetailPage = lazy(() => import("@/pages/feature-requests/FeatureRequestDetailPage"));
 const FeatureRequestsPage = lazy(() => import("@/pages/feature-requests/FeatureRequestsPage"));
 const ProductContextPage = lazy(() => import("@/pages/feature-requests/ProductContextPage"));
 const IngestPage = lazy(() => import("@/pages/ingest/IngestPage"));
@@ -58,8 +57,8 @@ const router = createBrowserRouter([
           { path: "/signals", element: withSuspense(<SignalsPage />) },
           { path: "/signals/:id", element: withSuspense(<SignalDetailPage />) },
           { path: "/feature-requests", element: withSuspense(<FeatureRequestsPage />) },
-          { path: "/feature-requests/:id", element: withSuspense(<FeatureRequestDetailPage />) },
-          { path: "/feature-requests/:id/context", element: withSuspense(<ProductContextPage />) },
+          { path: "/feature-requests/:id", element: withSuspense(<ProductContextPage />) },
+          { path: "/feature-requests/:id/context", element: <Navigate to=".." relative="path" replace /> },
           { path: "/synthesis", element: withSuspense(<SynthesisPage />) }
         ]
       }

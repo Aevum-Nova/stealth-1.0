@@ -32,6 +32,8 @@ export interface OrchestrationResult {
   acceptance_criteria: string[];
   tasks: string[];
   risk_notes: string[];
-  proposed_files: { file_path: string; reason: string }[];
+  proposed_files: { file_path: string; reason: string; additions?: number; deletions?: number }[];
   dry_run: boolean;
+  commit_sha?: string | null;
+  pull_request_url?: string | null;
 }

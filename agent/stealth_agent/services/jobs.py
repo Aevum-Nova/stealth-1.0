@@ -23,6 +23,28 @@ from stealth_agent.services.orchestrator import FeatureToPROrchestrator, Orchest
 log = structlog.get_logger()
 
 
+def _estimate_line_delta(content: str) -> tuple[int, int]:
+    if not content:
+        return (0, 0)
+
+    lines = content.splitlines()
+    has_hunks = any(line.startswith("@@") for line in lines)
+    if has_hunks:
+        additions = 0
+        deletions = 0
+        for line in lines:
+            if line.startswith("+++") or line.startswith("---"):
+                continue
+            if line.startswith("+"):
+                additions += 1
+            elif line.startswith("-"):
+                deletions += 1
+        return (additions, deletions)
+
+    additions = sum(1 for line in lines if line.strip())
+    return (additions, 0)
+
+
 async def create_job(
     db: AsyncSession,
     feature_request_id: str,
@@ -176,6 +198,18 @@ async def _run_orchestration(
                 pr_url = pr_provider.open_draft_pr(pr_draft)
                 log.info("github_pr_created", pr_url=pr_url, commit_sha=commit_sha)
 
+            proposed_files = []
+            for change in changes:
+                additions, deletions = _estimate_line_delta(change.content)
+                proposed_files.append(
+                    {
+                        "file_path": change.file_path,
+                        "reason": change.reason,
+                        "additions": additions,
+                        "deletions": deletions,
+                    }
+                )
+
             result_data = {
                 "feature_name": feature.name,
                 "rationale": feature.rationale,
@@ -184,7 +218,7 @@ async def _run_orchestration(
                 "acceptance_criteria": spec.acceptance_criteria,
                 "tasks": plan.tasks,
                 "risk_notes": plan.risk_notes,
-                "proposed_files": [{"file_path": c.file_path, "reason": c.reason} for c in changes],
+                "proposed_files": proposed_files,
                 "dry_run": dry_run,
                 "commit_sha": commit_sha,
                 "pull_request_url": pr_url,

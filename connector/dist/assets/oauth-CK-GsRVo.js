@@ -1,1 +1,0 @@
-import{b as e}from"./connectors-CPwiveez.js";import{i}from"./index-6LNPvtkD.js";async function h(t,a,u){const o=i({connector_type:t,connector_name:a,return_url:`/connectors/new/${t}`}),n=`${window.location.origin}/oauth/callback`,r=await e(t,n,o);if(!r.data.auth_url)throw new Error("Backend did not return an auth URL.");window.location.href=r.data.auth_url}export{h as s};

@@ -22,11 +22,11 @@ function EditableBlock({
   const [draft, setDraft] = useState(value ?? "");
 
   return (
-    <div className="rounded-lg border border-[var(--line)] p-3">
+    <div className="rounded-xl border border-[var(--line)] bg-white p-3.5">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--ink-soft)]">{label}</h4>
+        <h4 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--ink-muted)]">{label}</h4>
         {!editing ? (
-          <button className="text-[11px] text-[var(--accent)]" onClick={() => setEditing(true)}>
+          <button className="rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] text-[var(--ink-soft)] hover:bg-[var(--accent-soft)]" onClick={() => setEditing(true)}>
             Edit
           </button>
         ) : null}
@@ -34,9 +34,9 @@ function EditableBlock({
       {editing ? (
         <div className="mt-2 space-y-2">
           {multiline ? (
-            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} className="h-28 w-full rounded border border-[var(--line)] p-2" />
+            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} className="h-28 w-full rounded-lg border border-[var(--line)] p-2" />
           ) : (
-            <input value={draft} onChange={(event) => setDraft(event.target.value)} className="w-full rounded border border-[var(--line)] p-2" />
+            <input value={draft} onChange={(event) => setDraft(event.target.value)} className="w-full rounded-lg border border-[var(--line)] p-2" />
           )}
           <div className="flex gap-2">
             <button
@@ -59,7 +59,7 @@ function EditableBlock({
           </div>
         </div>
       ) : (
-        <p className="mt-2 text-[13px] text-[var(--ink-soft)]">{value || "-"}</p>
+        <p className="mt-2 text-[14px] leading-6 text-[var(--ink-soft)]">{value || "-"}</p>
       )}
     </div>
   );
@@ -68,12 +68,12 @@ function EditableBlock({
 export default function FeatureRequestEditor({ featureRequest, onSave }: EditorProps) {
   return (
     <div className="space-y-3">
-      <EditableBlock label="Title" value={featureRequest.title} multiline={false} onSave={(value) => onSave({ title: value })} />
-      <EditableBlock label="Problem Statement" value={featureRequest.problem_statement} onSave={(value) => onSave({ problem_statement: value })} />
-      <EditableBlock label="Proposed Solution" value={featureRequest.proposed_solution} onSave={(value) => onSave({ proposed_solution: value })} />
-      <EditableBlock label="User Story" value={featureRequest.user_story} onSave={(value) => onSave({ user_story: value })} />
-      <EditableBlock label="Technical Notes" value={featureRequest.technical_notes} onSave={(value) => onSave({ technical_notes: value })} />
-      <EditableBlock label="Human Notes" value={featureRequest.human_notes} onSave={(value) => onSave({ human_notes: value })} />
+      <EditableBlock
+        label="Feature Request"
+        value={featureRequest.title}
+        multiline={false}
+        onSave={(value) => onSave({ title: value })}
+      />
     </div>
   );
 }

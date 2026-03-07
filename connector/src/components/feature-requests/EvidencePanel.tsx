@@ -15,13 +15,13 @@ export default function EvidencePanel({ evidence }: { evidence: SupportingEviden
   return (
     <div className="space-y-2">
       {visible.map((item) => (
-        <article key={item.signal_id} className="rounded-lg border border-[var(--line)] bg-[#fef9ef] p-3 text-[13px]">
-          <p className="text-[11px] text-[var(--ink-soft)]">
+        <article key={item.signal_id} className="rounded-xl border border-[var(--line)] bg-[#fcfcfb] p-3 text-[13px]">
+          <p className="text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
             {item.source} · {item.customer_company ?? "Unknown company"} · {item.author_name ?? "Unknown author"}
           </p>
-          <p className="mt-1">"{item.representative_quote}"</p>
+          <p className="mt-1.5 text-[14px] text-[var(--ink-soft)]">"{item.representative_quote}"</p>
           <p className="mt-1 text-[11px] text-[var(--ink-soft)]">Relevance {item.relevance_score.toFixed(2)}</p>
-          <Link to={`/signals/${item.signal_id}`} className="mt-2 inline-block text-[11px] text-[var(--accent)]">
+          <Link to={`/signals/${item.signal_id}`} className="mt-2 inline-block text-[11px] font-medium text-[var(--ink)] underline decoration-[var(--line)] underline-offset-4">
             Open signal →
           </Link>
         </article>
