@@ -28,14 +28,14 @@ export default function MergeDialog({ open, currentId, candidates, onClose, onMe
       }}
     >
       <div className="space-y-2">
-        <label className="text-sm text-[var(--ink-soft)]" htmlFor="merge-target">
+        <label className="text-[13px] text-[var(--ink-soft)]" htmlFor="merge-target">
           Target Feature Request
         </label>
         <select
           id="merge-target"
           value={targetId}
           onChange={(event) => setTargetId(event.target.value)}
-          className="w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-[var(--line)] px-3 py-2 text-[13px]"
         >
           <option value="">Select target</option>
           {candidates

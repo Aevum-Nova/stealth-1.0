@@ -9,8 +9,10 @@ export default function AppShell() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-hidden">
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto bg-[var(--canvas-subtle)] p-5 lg:p-8">
+          <div className="mx-auto max-w-6xl">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

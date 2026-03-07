@@ -37,9 +37,9 @@ export default function ConnectorCatalog({ catalog, existing, category, title, o
   };
 
   return (
-    <section className="panel elevated p-4">
-      <h3 className="mb-3 text-lg">{title}</h3>
-      {error ? <p className="mb-3 text-sm text-red-700">{error}</p> : null}
+    <section className="panel p-4">
+      <h3 className="mb-3 text-[15px] font-medium">{title}</h3>
+      {error ? <p className="mb-3 text-[13px] text-red-700">{error}</p> : null}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((item) => {
           const alreadyAdded = existingTypes.has(item.type);
@@ -56,27 +56,27 @@ export default function ConnectorCatalog({ catalog, existing, category, title, o
                   />
                   <div>
                     <h4 className="capitalize">{item.display_name}</h4>
-                    <p className="mt-1 text-xs text-[var(--ink-soft)]">{item.description}</p>
+                    <p className="mt-1 text-[11px] text-[var(--ink-soft)]">{item.description}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-500">
+                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--ink-soft)]">
                   {item.auth_method}
                 </span>
               </div>
               {unavailable ? (
-                <p className="mt-2 text-xs text-amber-800">
+                <p className="mt-2 text-[11px] text-amber-800">
                   Server setup required
                   {item.missing_env_vars?.length ? ` (${item.missing_env_vars.join(", ")})` : ""}
                 </p>
               ) : null}
               <button
                 disabled={disabled}
-                className={`mt-3 w-full rounded-lg px-3 py-2 text-sm ${
+                className={`mt-3 w-full rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${
                   disabled
-                    ? "cursor-not-allowed bg-slate-200 text-slate-500"
+                    ? "cursor-not-allowed bg-[var(--accent-soft)] text-[var(--ink-muted)]"
                     : alreadyAdded
-                      ? "bg-emerald-100 text-emerald-900"
-                      : "bg-[var(--ink)] text-white"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-[var(--ink)] text-white hover:bg-[var(--accent-hover)]"
                 }`}
                 onClick={() => void handleAdd(item)}
               >

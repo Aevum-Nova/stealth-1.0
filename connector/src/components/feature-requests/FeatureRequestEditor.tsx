@@ -24,9 +24,9 @@ function EditableBlock({
   return (
     <div className="rounded-lg border border-[var(--line)] p-3">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-semibold uppercase tracking-wide text-[var(--ink-soft)]">{label}</h4>
+        <h4 className="text-[12px] font-semibold uppercase tracking-wide text-[var(--ink-soft)]">{label}</h4>
         {!editing ? (
-          <button className="text-xs text-[var(--accent)]" onClick={() => setEditing(true)}>
+          <button className="text-[11px] text-[var(--accent)]" onClick={() => setEditing(true)}>
             Edit
           </button>
         ) : null}
@@ -40,7 +40,7 @@ function EditableBlock({
           )}
           <div className="flex gap-2">
             <button
-              className="rounded bg-[var(--ink)] px-3 py-1 text-sm text-white"
+              className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
               onClick={() => {
                 void onSave(draft).then(() => setEditing(false));
               }}
@@ -48,7 +48,7 @@ function EditableBlock({
               Save
             </button>
             <button
-              className="rounded border border-[var(--line)] px-3 py-1 text-sm"
+              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
               onClick={() => {
                 setDraft(value ?? "");
                 setEditing(false);
@@ -59,7 +59,7 @@ function EditableBlock({
           </div>
         </div>
       ) : (
-        <p className="mt-2 text-sm text-[var(--ink-soft)]">{value || "-"}</p>
+        <p className="mt-2 text-[13px] text-[var(--ink-soft)]">{value || "-"}</p>
       )}
     </div>
   );

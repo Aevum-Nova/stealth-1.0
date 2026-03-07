@@ -151,25 +151,25 @@ export default function ConnectorSetupPage() {
   return (
     <div className="space-y-4">
       <div>
-        <Link to="/connectors" className="text-sm text-[var(--accent)]">
+        <Link to="/connectors" className="text-[13px] text-[var(--accent)]">
           &larr; Back to Connectors
         </Link>
-        <h2 className="mt-1 text-3xl">Set Up {item.display_name}</h2>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">Set Up {item.display_name}</h2>
       </div>
 
-      <div className="panel elevated p-4">
+      <div className="panel p-4">
         {item.available === false ? (
-          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
             This connector is not configured on the server.
             {item.missing_env_vars?.length ? ` Missing env vars: ${item.missing_env_vars.join(", ")}` : ""}
           </p>
         ) : null}
-        <p className="text-sm text-[var(--ink-soft)]">Step {step} of 3</p>
+        <p className="text-[13px] text-[var(--ink-soft)]">Step {step} of 3</p>
 
         {/* Step 1: Authorize */}
         {step === 1 ? (
           <div className="mt-3 space-y-4">
-            <h3 className="text-lg">Authorize</h3>
+            <h3 className="text-[15px] font-medium">Authorize</h3>
             {item.auth_method === "oauth2" ? (
               <OAuthButton label={`Connect with ${item.display_name}`} onClick={startOAuth} disabled={loading} />
             ) : (
@@ -180,14 +180,14 @@ export default function ConnectorSetupPage() {
                   className="w-full rounded-lg border border-[var(--line)] px-3 py-2"
                   placeholder="Enter API key"
                 />
-                <button className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white" onClick={() => void authorizeApiKey()}>
+                <button className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors" onClick={() => void authorizeApiKey()}>
                   Save API Key
                 </button>
               </div>
             )}
             {connectorId && !isGitHub ? (
               <button
-                className="rounded-lg border border-[var(--line)] px-3 py-2"
+                className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
                 disabled={item.auth_method === "oauth2" && !authorized}
                 onClick={() => setStep(2)}
               >
@@ -202,7 +202,7 @@ export default function ConnectorSetupPage() {
           <div className="mt-3 space-y-4">
             {isGitHub && connectorId ? (
               <>
-                <h3 className="text-lg">Select Repository</h3>
+                <h3 className="text-[15px] font-medium">Select Repository</h3>
                 <GitHubRepoPicker
                   connectorId={connectorId}
                   saving={loading}
@@ -211,7 +211,7 @@ export default function ConnectorSetupPage() {
               </>
             ) : (
               <>
-                <h3 className="text-lg">Configure</h3>
+                <h3 className="text-[15px] font-medium">Configure</h3>
                 <ConnectorConfigForm catalogItem={item} onSubmit={(values) => void saveConfig(values)} />
               </>
             )}
@@ -221,14 +221,14 @@ export default function ConnectorSetupPage() {
         {/* Step 3: Done */}
         {step === 3 ? (
           <div className="mt-3 space-y-3">
-            <h3 className="text-lg">Ready</h3>
-            <p className="text-[var(--ink-soft)]">
+            <h3 className="text-[15px] font-medium">Ready</h3>
+            <p className="text-[13px] text-[var(--ink-soft)]">
               {isGitHub
                 ? `Connected to ${savedRepo ?? "repository"}. The agent will create PRs in this repo.`
                 : "Connector is configured. You can open details and trigger the first sync."}
             </p>
             <button
-              className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white"
+              className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
               onClick={() => navigate(`/connectors/${connectorId}`)}
             >
               Open Connector
@@ -237,7 +237,7 @@ export default function ConnectorSetupPage() {
         ) : null}
 
         {loading ? <div className="mt-3"><LoadingSpinner label="Working..." /></div> : null}
-        {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
+        {error ? <p className="mt-3 text-[13px] text-red-500">{error}</p> : null}
       </div>
     </div>
   );

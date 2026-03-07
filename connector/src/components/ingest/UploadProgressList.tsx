@@ -17,11 +17,11 @@ export default function UploadProgressList({
           }`}
         >
           <div>
-            <p className="break-all text-sm font-medium">{item.file.name}</p>
-            <p className="text-xs text-[var(--ink-soft)]">{(item.file.size / 1024).toFixed(1)} KB</p>
-            {!item.valid && item.reason ? <p className="text-xs text-rose-700">{item.reason}</p> : null}
+            <p className="break-all text-[13px] font-medium">{item.file.name}</p>
+            <p className="text-[11px] text-[var(--ink-soft)]">{(item.file.size / 1024).toFixed(1)} KB</p>
+            {!item.valid && item.reason ? <p className="text-[11px] text-rose-700">{item.reason}</p> : null}
           </div>
-          <button className="text-xs text-[var(--ink-soft)] underline" onClick={() => onRemove(item.file.name)}>
+          <button className="text-[11px] text-[var(--ink-soft)] underline" onClick={() => onRemove(item.file.name)}>
             Remove
           </button>
         </article>

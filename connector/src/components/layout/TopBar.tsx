@@ -9,22 +9,27 @@ export default function TopBar() {
   const { connected } = useEventStream();
 
   return (
-    <header className="flex flex-col gap-3 border-b border-gray-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5">
-      <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end sm:gap-4">
-        <span className={`rounded-full px-3 py-1 text-xs ${connected ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-          {connected ? "Live updates connected" : "Reconnecting live updates"}
-        </span>
-        <button className="rounded-lg border border-gray-200 p-2 text-gray-500">
-          <Bell className="size-4" />
-        </button>
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex size-9 items-center justify-center rounded-full bg-[var(--moss)] text-sm font-semibold text-white">
-            {initials(user?.name ?? "U")}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{user?.name ?? "User"}</p>
-            <p className="hidden truncate text-xs text-gray-500 sm:block">{user?.email}</p>
-          </div>
+    <header className="flex items-center justify-end gap-3 border-b border-[var(--line)] bg-white px-4 py-2.5">
+      <span
+        className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+          connected
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-amber-50 text-amber-700"
+        }`}
+      >
+        {connected ? "Live" : "Reconnecting..."}
+      </span>
+
+      <button className="rounded-lg p-1.5 text-[var(--ink-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink-soft)]">
+        <Bell className="size-4" />
+      </button>
+
+      <div className="flex items-center gap-2">
+        <div className="flex size-7 items-center justify-center rounded-full bg-[var(--ink)] text-[11px] font-medium text-white">
+          {initials(user?.name ?? "U")}
+        </div>
+        <div className="hidden min-w-0 sm:block">
+          <p className="truncate text-[13px] font-medium leading-tight">{user?.name ?? "User"}</p>
         </div>
       </div>
     </header>

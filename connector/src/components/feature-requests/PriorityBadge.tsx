@@ -8,5 +8,5 @@ const CLASS_MAP: Record<FeatureRequestPriority, string> = {
 };
 
 export default function PriorityBadge({ priority }: { priority: FeatureRequestPriority }) {
-  return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${CLASS_MAP[priority]}`}>{priority.toUpperCase()}</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${CLASS_MAP[priority]}`}>{priority.toUpperCase()}</span>;
 }

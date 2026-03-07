@@ -46,8 +46,8 @@ export default function SignalsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-3xl">Signals</h2>
-        <p className="text-[var(--ink-soft)]">Inspect ingested evidence with filtering and semantic search.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Signals</h2>
+        <p className="text-[13px] text-[var(--ink-soft)]">Inspect ingested evidence with filtering and semantic search.</p>
       </div>
 
       <SignalFilters
@@ -65,7 +65,7 @@ export default function SignalsPage() {
 
       <SignalSearchBar value={search} onChange={setSearch} />
       {normalizedSearch.length > 0 && !isSearchActive ? (
-        <p className="text-xs text-[var(--ink-soft)]">Type at least 2 characters to run search.</p>
+        <p className="text-[12px] text-[var(--ink-soft)]">Type at least 2 characters to run search.</p>
       ) : null}
 
       {isSearchLoading ? (
@@ -79,13 +79,13 @@ export default function SignalsPage() {
       )}
 
       {!isSearchActive ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--ink-soft)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-[var(--ink-soft)]">
           <span>
             Showing {(signalsQuery.data?.data?.length ?? 0).toString()} of {signalsQuery.data?.pagination.total ?? 0}
           </span>
           <div className="flex flex-wrap gap-2">
             <button
-              className="rounded border border-[var(--line)] px-3 py-1"
+              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
               disabled={(filters.page ?? 1) <= 1}
               onClick={() => {
                 const next = { ...filters, page: Math.max((filters.page ?? 1) - 1, 1) };
@@ -99,7 +99,7 @@ export default function SignalsPage() {
               Prev
             </button>
             <button
-              className="rounded border border-[var(--line)] px-3 py-1"
+              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
               onClick={() => {
                 const next = { ...filters, page: (filters.page ?? 1) + 1 };
                 const params = new URLSearchParams();

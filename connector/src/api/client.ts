@@ -7,7 +7,8 @@ let lastRequestBody: string | null = null;
 
 const api = ky.create({
   prefixUrl: import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1",
-  timeout: 60_000,
+  // Keep UI responsive during backend reloads; fail fast and let queries retry/invalidate.
+  timeout: 15_000,
   credentials: "include",
   hooks: {
     beforeRequest: [

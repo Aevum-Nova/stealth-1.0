@@ -1,23 +1,30 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import AppShell from "@/components/layout/AppShell";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { ToastProvider } from "@/components/shared/Toast";
 import { useAuth } from "@/hooks/use-auth";
-import LoginPage from "@/pages/auth/LoginPage";
-import RegisterPage from "@/pages/auth/RegisterPage";
-import ConnectorsPage from "@/pages/connectors/ConnectorsPage";
-import ConnectorDetailPage from "@/pages/connectors/ConnectorDetailPage";
-import ConnectorSetupPage from "@/pages/connectors/ConnectorSetupPage";
-import OAuthCallbackPage from "@/pages/connectors/OAuthCallbackPage";
-import DashboardPage from "@/pages/dashboard/DashboardPage";
-import FeatureRequestDetailPage from "@/pages/feature-requests/FeatureRequestDetailPage";
-import FeatureRequestsPage from "@/pages/feature-requests/FeatureRequestsPage";
-import ProductContextPage from "@/pages/feature-requests/ProductContextPage";
-import IngestPage from "@/pages/ingest/IngestPage";
-import SignalDetailPage from "@/pages/signals/SignalDetailPage";
-import SignalsPage from "@/pages/signals/SignalsPage";
-import SynthesisPage from "@/pages/synthesis/SynthesisPage";
+
+const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
+const ConnectorsPage = lazy(() => import("@/pages/connectors/ConnectorsPage"));
+const ConnectorDetailPage = lazy(() => import("@/pages/connectors/ConnectorDetailPage"));
+const ConnectorSetupPage = lazy(() => import("@/pages/connectors/ConnectorSetupPage"));
+const OAuthCallbackPage = lazy(() => import("@/pages/connectors/OAuthCallbackPage"));
+const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
+const FeatureRequestDetailPage = lazy(() => import("@/pages/feature-requests/FeatureRequestDetailPage"));
+const FeatureRequestsPage = lazy(() => import("@/pages/feature-requests/FeatureRequestsPage"));
+const ProductContextPage = lazy(() => import("@/pages/feature-requests/ProductContextPage"));
+const IngestPage = lazy(() => import("@/pages/ingest/IngestPage"));
+const SignalDetailPage = lazy(() => import("@/pages/signals/SignalDetailPage"));
+const SignalsPage = lazy(() => import("@/pages/signals/SignalsPage"));
+const SynthesisPage = lazy(() => import("@/pages/synthesis/SynthesisPage"));
+
+function withSuspense(element: React.ReactNode) {
+  return <Suspense fallback={<LoadingSpinner label="Loading page" />}>{element}</Suspense>;
+}
 
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,26 +41,26 @@ function ProtectedRoute() {
 }
 
 const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
-  { path: "/register", element: <RegisterPage /> },
-  { path: "/oauth/callback", element: <OAuthCallbackPage /> },
+  { path: "/login", element: withSuspense(<LoginPage />) },
+  { path: "/register", element: withSuspense(<RegisterPage />) },
+  { path: "/oauth/callback", element: withSuspense(<OAuthCallbackPage />) },
   {
     element: <ProtectedRoute />,
     children: [
       {
         element: <AppShell />,
         children: [
-          { path: "/", element: <DashboardPage /> },
-          { path: "/connectors", element: <ConnectorsPage /> },
-          { path: "/connectors/new/:type", element: <ConnectorSetupPage /> },
-          { path: "/connectors/:id", element: <ConnectorDetailPage /> },
-          { path: "/ingest", element: <IngestPage /> },
-          { path: "/signals", element: <SignalsPage /> },
-          { path: "/signals/:id", element: <SignalDetailPage /> },
-          { path: "/feature-requests", element: <FeatureRequestsPage /> },
-          { path: "/feature-requests/:id", element: <FeatureRequestDetailPage /> },
-          { path: "/feature-requests/:id/context", element: <ProductContextPage /> },
-          { path: "/synthesis", element: <SynthesisPage /> }
+          { path: "/", element: withSuspense(<DashboardPage />) },
+          { path: "/connectors", element: withSuspense(<ConnectorsPage />) },
+          { path: "/connectors/new/:type", element: withSuspense(<ConnectorSetupPage />) },
+          { path: "/connectors/:id", element: withSuspense(<ConnectorDetailPage />) },
+          { path: "/ingest", element: withSuspense(<IngestPage />) },
+          { path: "/signals", element: withSuspense(<SignalsPage />) },
+          { path: "/signals/:id", element: withSuspense(<SignalDetailPage />) },
+          { path: "/feature-requests", element: withSuspense(<FeatureRequestsPage />) },
+          { path: "/feature-requests/:id", element: withSuspense(<FeatureRequestDetailPage />) },
+          { path: "/feature-requests/:id/context", element: withSuspense(<ProductContextPage />) },
+          { path: "/synthesis", element: withSuspense(<SynthesisPage />) }
         ]
       }
     ]

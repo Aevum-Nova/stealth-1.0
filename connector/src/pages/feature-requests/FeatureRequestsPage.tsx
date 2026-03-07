@@ -45,11 +45,11 @@ export default function FeatureRequestsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl">Feature Requests</h2>
-          <p className="text-[var(--ink-soft)]">Review and manage synthesized product requests.</p>
+          <h2 className="text-xl font-semibold tracking-tight">Feature Requests</h2>
+          <p className="text-[13px] text-[var(--ink-soft)]">Review and manage synthesized product requests.</p>
         </div>
         <button
-          className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white"
+          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
           onClick={async () => {
             await runSynthesis("incremental");
             navigate("/synthesis");
@@ -59,9 +59,9 @@ export default function FeatureRequestsPage() {
         </button>
       </div>
 
-      <div className="panel elevated grid grid-cols-1 gap-2 p-3 md:grid-cols-6">
+      <div className="panel grid grid-cols-1 gap-2 p-3 md:grid-cols-6">
         <select
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           value={filters.status ?? ""}
           onChange={(event) => {
             const value = event.target.value;
@@ -80,7 +80,7 @@ export default function FeatureRequestsPage() {
         </select>
 
         <select
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           value={filters.type ?? ""}
           onChange={(event) => {
             const value = event.target.value;
@@ -99,7 +99,7 @@ export default function FeatureRequestsPage() {
         </select>
 
         <select
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           value={filters.priority ?? ""}
           onChange={(event) => {
             const value = event.target.value;
@@ -117,7 +117,7 @@ export default function FeatureRequestsPage() {
         </select>
 
         <input
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           type="number"
           value={filters.min_score ?? ""}
           onChange={(event) => {
@@ -130,7 +130,7 @@ export default function FeatureRequestsPage() {
         />
 
         <select
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           value={filters.sort ?? "priority_score"}
           onChange={(event) => {
             const next = new URLSearchParams(searchParams);
@@ -144,7 +144,7 @@ export default function FeatureRequestsPage() {
         </select>
 
         <select
-          className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+          className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
           value={filters.order ?? "desc"}
           onChange={(event) => {
             const next = new URLSearchParams(searchParams);
@@ -180,7 +180,7 @@ export default function FeatureRequestsPage() {
         }}
       />
 
-      <button className="rounded-lg border border-[var(--line)] px-3 py-2 text-sm" onClick={() => setOpenConfirm(true)}>
+      <button className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenConfirm(true)}>
         Run Full Re-Synthesis
       </button>
     </div>

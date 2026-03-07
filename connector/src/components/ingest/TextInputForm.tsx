@@ -58,12 +58,12 @@ export default function TextInputForm({ onSubmit }: TextInputFormProps) {
           className="rounded-lg border border-[var(--line)] px-3 py-2"
         />
       </div>
-      <button className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white" disabled={!text.trim() || busy}>
+      <button className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors" disabled={!text.trim() || busy}>
         {busy ? "Submitting..." : "Submit Text"}
       </button>
-      <p className="text-xs text-[var(--ink-soft)]">Single text submits create signals directly. Check the Signals page for results.</p>
-      {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      <p className="text-[11px] text-[var(--ink-soft)]">Single text submits create signals directly. Check the Signals page for results.</p>
+      {success ? <p className="text-[13px] text-emerald-700">{success}</p> : null}
+      {error ? <p className="text-[13px] text-red-700">{error}</p> : null}
     </form>
   );
 }

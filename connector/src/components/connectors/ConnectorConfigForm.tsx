@@ -54,7 +54,7 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
 
         return (
           <label key={field.key} className="block space-y-1">
-            <span className="text-sm text-[var(--ink-soft)]">{field.label}</span>
+            <span className="text-[13px] text-[var(--ink-soft)]">{field.label}</span>
 
             {field.type === "boolean" ? (
               <input type="checkbox" className="size-4" {...register(field.key)} defaultChecked={Boolean(defaults[field.key])} />
@@ -69,7 +69,7 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
                 {(field.options ?? []).map((option) => {
                   const selected = Array.isArray(value) ? value.includes(option) : false;
                   return (
-                    <label key={option} className="flex items-center gap-2 text-sm">
+                    <label key={option} className="flex items-center gap-2 text-[13px]">
                       <input
                         type="checkbox"
                         checked={selected}
@@ -102,12 +102,12 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
               />
             )}
 
-            {field.help ? <p className="text-xs text-[var(--ink-soft)]">{field.help}</p> : null}
+            {field.help ? <p className="text-[11px] text-[var(--ink-soft)]">{field.help}</p> : null}
           </label>
         );
       })}
 
-      <button className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white" type="submit">
+      <button className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors" type="submit">
         Save Configuration
       </button>
     </form>

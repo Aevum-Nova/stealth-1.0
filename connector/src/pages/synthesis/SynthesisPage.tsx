@@ -40,26 +40,26 @@ export default function SynthesisPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-3xl">Synthesis</h2>
-        <p className="text-[var(--ink-soft)]">Run incremental or full synthesis and monitor progress in real time.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Synthesis</h2>
+        <p className="text-[13px] text-[var(--ink-soft)]">Run incremental or full synthesis and monitor progress in real time.</p>
       </div>
 
-      <section className="panel elevated flex flex-wrap items-center gap-3 p-4">
+      <section className="panel flex flex-wrap items-center gap-3 p-4">
         <SynthesisTriggerButton mode="incremental" onRun={(mode) => runMutation.mutate({ mode })} disabled={runMutation.isPending} />
         <SynthesisTriggerButton mode="full" onRun={() => setConfirmFull(true)} disabled={runMutation.isPending} />
       </section>
 
       {active ? (
-        <section className="panel elevated p-4">
-          <h3 className="mb-2 text-lg">Active Run</h3>
+        <section className="panel p-4">
+          <h3 className="mb-2 text-[15px] font-medium">Active Run</h3>
           <SynthesisRunCard run={active} activeProgress={progressByRunId.get(active.id)} />
         </section>
       ) : null}
 
-      <section className="panel elevated p-4">
-        <h3 className="mb-2 text-lg">Past Runs</h3>
+      <section className="panel p-4">
+        <h3 className="mb-2 text-[15px] font-medium">Past Runs</h3>
         {runs.length === 0 ? (
-          <p className="text-sm text-[var(--ink-soft)]">No synthesis runs yet.</p>
+          <p className="text-[13px] text-[var(--ink-soft)]">No synthesis runs yet.</p>
         ) : (
           <div className="space-y-2">
             {runs.map((run) => (

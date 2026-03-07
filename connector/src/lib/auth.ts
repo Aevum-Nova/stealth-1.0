@@ -4,6 +4,7 @@ const FALLBACK_API_URL = "http://localhost:3001/api/v1";
 
 let accessToken: string | null = null;
 let refreshPromise: Promise<boolean> | null = null;
+const REFRESH_TIMEOUT_MS = 6000;
 
 function apiBase(): string {
   return import.meta.env.VITE_API_URL || FALLBACK_API_URL;
@@ -27,6 +28,8 @@ export async function attemptTokenRefresh(): Promise<boolean> {
   }
 
   refreshPromise = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
     try {
       const response = await fetch(`${apiBase()}/auth/refresh`, {
         method: "POST",
@@ -34,7 +37,8 @@ export async function attemptTokenRefresh(): Promise<boolean> {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        signal: controller.signal
       });
 
       if (!response.ok) {
@@ -49,6 +53,7 @@ export async function attemptTokenRefresh(): Promise<boolean> {
       clearAuthState();
       return false;
     } finally {
+      clearTimeout(timeout);
       refreshPromise = null;
     }
   })();

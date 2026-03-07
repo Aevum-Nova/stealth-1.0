@@ -11,12 +11,12 @@ const statusColors: Record<string, string> = {
 
 function JobCard({ job }: { job: AgentJob }) {
   return (
-    <div className="rounded-lg border border-[var(--line)] p-3 text-sm">
+    <div className="rounded-lg border border-[var(--line)] p-3 text-[13px]">
       <div className="flex items-center justify-between">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[job.status] ?? ""}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColors[job.status] ?? ""}`}>
           {job.status}
         </span>
-        <time className="text-xs text-[var(--ink-soft)]">
+        <time className="text-[11px] text-[var(--ink-soft)]">
           {new Date(job.created_at).toLocaleString()}
         </time>
       </div>
@@ -28,19 +28,19 @@ function JobCard({ job }: { job: AgentJob }) {
           <p className="font-medium">{job.result.feature_name}</p>
           <p className="text-[var(--ink-soft)]">{job.result.spec_summary}</p>
           {job.result.dry_run && (
-            <span className="inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">Dry run</span>
+            <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Dry run</span>
           )}
           {job.result.tasks.length > 0 && (
-            <ul className="ml-4 list-disc text-xs text-[var(--ink-soft)]">
-              {job.result.tasks.map((t, i) => (
+            <ul className="ml-4 list-disc text-[11px] text-[var(--ink-soft)]">
+                {job.result.tasks.map((t, i) => (
                 <li key={i}>{t}</li>
               ))}
             </ul>
           )}
           {job.result.proposed_files.length > 0 && (
             <div className="mt-1">
-              <p className="text-xs font-medium">Proposed files:</p>
-              <ul className="ml-4 list-disc text-xs text-[var(--ink-soft)]">
+              <p className="text-[11px] font-medium">Proposed files:</p>
+              <ul className="ml-4 list-disc text-[11px] text-[var(--ink-soft)]">
                 {job.result.proposed_files.map((f, i) => (
                   <li key={i}>
                     <code>{f.file_path}</code> — {f.reason}
@@ -65,19 +65,19 @@ export default function AgentJobStatus({ featureRequestId }: { featureRequestId:
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Agent Jobs</h3>
+        <h3 className="text-[15px] font-medium">Agent Jobs</h3>
       </div>
 
       <div className="flex gap-2">
         <button
-          className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm text-white disabled:opacity-50"
+          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
           disabled={hasActiveJob || triggerMutation.isPending}
           onClick={() => triggerMutation.mutate(true)}
         >
           {triggerMutation.isPending ? "Starting..." : "Generate PR (Dry Run)"}
         </button>
         <button
-          className="rounded-lg border border-[var(--accent)] px-3 py-2 text-sm text-[var(--accent)] disabled:opacity-50"
+          className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors disabled:opacity-50"
           disabled={hasActiveJob || triggerMutation.isPending}
           onClick={() => triggerMutation.mutate(false)}
         >
@@ -86,7 +86,7 @@ export default function AgentJobStatus({ featureRequestId }: { featureRequestId:
       </div>
 
       {triggerMutation.isError && (
-        <p className="text-sm text-rose-500">Failed to trigger orchestration.</p>
+        <p className="text-[13px] text-rose-500">Failed to trigger orchestration.</p>
       )}
 
       {jobsQuery.isLoading && <LoadingSpinner label="Loading jobs..." />}
@@ -96,7 +96,7 @@ export default function AgentJobStatus({ featureRequestId }: { featureRequestId:
           <JobCard key={job.id} job={job} />
         ))}
         {jobs.length === 0 && !jobsQuery.isLoading && (
-          <p className="text-sm text-[var(--ink-soft)]">No jobs yet.</p>
+          <p className="text-[13px] text-[var(--ink-soft)]">No jobs yet.</p>
         )}
       </div>
     </div>

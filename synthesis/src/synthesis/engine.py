@@ -32,6 +32,13 @@ class SynthesisEngine:
 
         return embedding if embedding else None
 
+    @staticmethod
+    def _with_fallback_embedding(value: object, dimension: int) -> list[float]:
+        embedding = SynthesisEngine._coerce_embedding(value)
+        if embedding is not None:
+            return embedding
+        return [0.0] * max(dimension, 1)
+
     async def start_run(self, db: AsyncSession, organization_id: str, mode: str = "incremental") -> SynthesisRun:
         run = SynthesisRun(
             organization_id=UUID(organization_id),
@@ -70,11 +77,15 @@ class SynthesisEngine:
                 )
                 return
 
-            digests: list[SignalDigest] = []
+            fallback_dimension = settings.EMBEDDING_DIMENSION
             for s in signals:
                 embedding = self._coerce_embedding(s.embedding)
-                if embedding is None:
-                    continue
+                if embedding is not None:
+                    fallback_dimension = len(embedding)
+                    break
+
+            digests: list[SignalDigest] = []
+            for s in signals:
                 digests.append(
                     SignalDigest(
                         id=str(s.id),
@@ -86,7 +97,7 @@ class SynthesisEngine:
                         source_data_type=s.source_data_type,
                         raw_artifact_r2_key=s.raw_artifact_r2_key,
                         source_metadata=s.source_metadata or {},
-                        embedding=embedding,
+                        embedding=self._with_fallback_embedding(s.embedding, fallback_dimension),
                     )
                 )
 

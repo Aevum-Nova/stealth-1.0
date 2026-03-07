@@ -53,13 +53,13 @@ export default function ConnectorsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl">Connectors</h2>
-        <p className="text-[var(--ink-soft)]">Manage data sources and output integrations.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Connectors</h2>
+        <p className="text-[13px] text-[var(--ink-soft)]">Manage data sources and output integrations.</p>
       </div>
 
       {/* Input sources */}
       <section className="space-y-3">
-        <h3 className="text-lg">Data Sources</h3>
+        <h3 className="text-[15px] font-medium">Data Sources</h3>
         {inputConnectors.length === 0 ? (
           <EmptyState
             title="No data sources connected"
@@ -82,7 +82,7 @@ export default function ConnectorsPage() {
 
       {/* Output connections */}
       <section className="space-y-3">
-        <h3 className="text-lg">Output Connections</h3>
+        <h3 className="text-[15px] font-medium">Output Connections</h3>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {outputConnectors.map((connector) => (
             <ConnectorCard
@@ -97,7 +97,7 @@ export default function ConnectorsPage() {
           {outputCatalog
             .filter((item) => !outputConnectors.some((c) => c.type === item.type))
             .map((item) => (
-              <article key={item.type} className="panel elevated p-4">
+              <article key={item.type} className="panel p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <ConnectorLogo
@@ -106,17 +106,17 @@ export default function ConnectorsPage() {
                       className="size-9 shrink-0 object-contain"
                     />
                     <div>
-                      <h4 className="text-lg capitalize">{item.display_name}</h4>
-                      <p className="text-sm text-[var(--ink-soft)]">{item.description}</p>
+                      <h4 className="text-[15px] font-medium capitalize">{item.display_name}</h4>
+                      <p className="text-[13px] text-[var(--ink-soft)]">{item.description}</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] uppercase tracking-wide text-gray-500">
+                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">
                     {item.auth_method}
                   </span>
                 </div>
                 <div className="mt-4">
                   <button
-                    className="rounded-lg bg-[var(--ink)] px-4 py-2 text-sm text-white"
+                    className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
                     disabled={item.available === false || connectingType === item.type}
                     onClick={() => void handleOutputConnect(item)}
                   >
@@ -128,10 +128,10 @@ export default function ConnectorsPage() {
                   </button>
                 </div>
                 {oauthError && connectingType === null ? (
-                  <p className="mt-2 text-xs text-red-700">{oauthError}</p>
+                  <p className="mt-2 text-[12px] text-red-500">{oauthError}</p>
                 ) : null}
                 {item.available === false && item.missing_env_vars?.length ? (
-                  <p className="mt-2 text-xs text-amber-800">
+                  <p className="mt-2 text-[12px] text-amber-700">
                     Missing: {item.missing_env_vars.join(", ")}
                   </p>
                 ) : null}

@@ -4,14 +4,21 @@ export default function SourceBreakdownChart({ data }: { data: Record<string, nu
   const items = Object.entries(data).map(([source, count]) => ({ source, count }));
 
   return (
-    <section className="panel elevated h-80 p-4">
-      <h3 className="mb-3 text-lg">Source Breakdown</h3>
-      <ResponsiveContainer width="100%" height="90%">
+    <section className="panel h-72 p-4">
+      <h3 className="mb-3 text-[13px] font-medium">Source Breakdown</h3>
+      <ResponsiveContainer width="100%" height="85%">
         <BarChart data={items}>
-          <XAxis dataKey="source" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+          <XAxis dataKey="source" tick={{ fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} />
+          <Tooltip
+            contentStyle={{
+              fontSize: 12,
+              borderRadius: 8,
+              border: "1px solid var(--line)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+            }}
+          />
+          <Bar dataKey="count" fill="#1a1a1a" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </section>

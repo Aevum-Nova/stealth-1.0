@@ -13,11 +13,11 @@ interface SignalFiltersProps {
 
 export default function SignalFilters({ filters, onChange }: SignalFiltersProps) {
   return (
-    <div className="panel elevated grid grid-cols-1 gap-2 p-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="panel grid grid-cols-1 gap-2 p-3 md:grid-cols-3 xl:grid-cols-6">
       <select
         value={filters.source ?? ""}
         onChange={(event) => onChange({ ...filters, source: (event.target.value || undefined) as any })}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       >
         <option value="">All sources</option>
         {SOURCES.map((source) => (
@@ -30,7 +30,7 @@ export default function SignalFilters({ filters, onChange }: SignalFiltersProps)
       <select
         value={filters.status ?? ""}
         onChange={(event) => onChange({ ...filters, status: (event.target.value || undefined) as any })}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       >
         <option value="">All statuses</option>
         {STATUSES.map((status) => (
@@ -43,7 +43,7 @@ export default function SignalFilters({ filters, onChange }: SignalFiltersProps)
       <select
         value={filters.sentiment ?? ""}
         onChange={(event) => onChange({ ...filters, sentiment: (event.target.value || undefined) as any })}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       >
         <option value="">All sentiment</option>
         {SENTIMENTS.map((sentiment) => (
@@ -56,7 +56,7 @@ export default function SignalFilters({ filters, onChange }: SignalFiltersProps)
       <select
         value={filters.urgency ?? ""}
         onChange={(event) => onChange({ ...filters, urgency: (event.target.value || undefined) as any })}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       >
         <option value="">All urgency</option>
         {URGENCIES.map((urgency) => (
@@ -72,7 +72,7 @@ export default function SignalFilters({ filters, onChange }: SignalFiltersProps)
           const value = event.target.value;
           onChange({ ...filters, synthesized: value === "" ? undefined : value === "true" });
         }}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       >
         <option value="">All synthesis states</option>
         <option value="true">Synthesized</option>
@@ -83,7 +83,7 @@ export default function SignalFilters({ filters, onChange }: SignalFiltersProps)
         type="date"
         value={filters.since ? filters.since.slice(0, 10) : ""}
         onChange={(event) => onChange({ ...filters, since: event.target.value || undefined })}
-        className="rounded-lg border border-[var(--line)] px-2 py-2 text-sm"
+        className="rounded-lg border border-[var(--line)] px-2 py-2 text-[13px]"
       />
     </div>
   );

@@ -5,7 +5,7 @@ export default function OAuthButton({ label, onClick, disabled }: { label: strin
     <button
       type="button"
       disabled={disabled}
-      className="rounded-lg bg-[var(--ink)] px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       onClick={onClick}
     >
       <span className="inline-flex items-center gap-2">

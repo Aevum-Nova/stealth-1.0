@@ -10,10 +10,10 @@ export default function SynthesisRunCard({ run, activeProgress }: { run: Synthes
     <article className="rounded-lg border border-[var(--line)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-semibold">Run {run.id.slice(0, 8)}</p>
-        <span className="rounded-full bg-[#ece5d6] px-2 py-1 text-xs">{run.status}</span>
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium">{run.status}</span>
       </div>
 
-      <p className="mt-1 text-xs text-[var(--ink-soft)]">
+      <p className="mt-1 text-[11px] text-[var(--ink-soft)]">
         {formatDate(run.created_at)} · {run.signal_count} signals · {run.feature_request_count} feature requests
       </p>
 

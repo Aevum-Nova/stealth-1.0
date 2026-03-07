@@ -23,7 +23,7 @@ export default function SignalTable({ rows, onOpen }: SignalTableProps) {
         {
           key: "summary",
           title: "Summary",
-          render: (row) => <span className="line-clamp-2 max-w-xl text-sm">{row.structured_summary ?? "-"}</span>
+          render: (row) => <span className="line-clamp-2 max-w-xl text-[13px]">{row.structured_summary ?? "-"}</span>
         },
         { key: "sentiment", title: "Sentiment", render: (row) => row.sentiment ?? "-" },
         { key: "urgency", title: "Urgency", render: (row) => row.urgency ?? "-" },

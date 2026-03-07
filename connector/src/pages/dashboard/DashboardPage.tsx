@@ -50,20 +50,25 @@ export default function DashboardPage() {
   const stats = statsQuery.data.data;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-3xl">Platform Overview</h2>
-          <p className="text-[var(--ink-soft)]">Monitor ingestion and synthesis status at a glance.</p>
+          <h2 className="text-xl font-semibold tracking-tight">Overview</h2>
+          <p className="mt-0.5 text-[13px] text-[var(--ink-soft)]">
+            Monitor ingestion and synthesis at a glance.
+          </p>
         </div>
-        <button className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white" onClick={() => runMutation.mutate()}>
+        <button
+          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+          onClick={() => runMutation.mutate()}
+        >
           Run Synthesis
         </button>
       </div>
 
       <StatsGrid stats={stats} />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <SourceBreakdownChart data={stats.sources_breakdown} />
         <PriorityDistribution data={stats.feature_requests_by_priority} />
       </div>

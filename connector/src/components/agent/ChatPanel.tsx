@@ -31,7 +31,7 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {chatQuery.isLoading && <LoadingSpinner label="Loading chat..." />}
         {messages.length === 0 && !chatQuery.isLoading && (
-          <p className="text-center text-sm text-[var(--ink-soft)]">
+          <p className="text-center text-[13px] text-[var(--ink-soft)]">
             No messages yet. Ask about this feature request.
           </p>
         )}
@@ -40,13 +40,13 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
         ))}
         {sendMutation.isPending && (
           <div className="flex justify-start">
-            <div className="max-w-[80%] rounded-lg bg-[var(--surface-2)] px-4 py-2 text-sm text-[var(--ink-soft)]">
+            <div className="max-w-[80%] rounded-lg bg-[var(--surface-2)] px-4 py-2 text-[13px] text-[var(--ink-soft)]">
               Thinking...
             </div>
           </div>
         )}
         {sendMutation.isError && (
-          <div className="text-center text-sm text-rose-500">
+          <div className="text-center text-[13px] text-rose-500">
             Failed to send message.{" "}
             <button
               className="underline"
@@ -62,7 +62,7 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
         <div className="flex gap-2">
           <input
             type="text"
-            className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            className="flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] outline-none focus:border-[var(--accent)]"
             placeholder="Ask about this feature..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -75,7 +75,7 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
             disabled={sendMutation.isPending}
           />
           <button
-            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm text-white disabled:opacity-50"
+            className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
             onClick={handleSend}
             disabled={!input.trim() || sendMutation.isPending}
           >

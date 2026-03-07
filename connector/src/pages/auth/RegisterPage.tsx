@@ -126,49 +126,66 @@ export default function RegisterPage() {
   return !isLoading && isAuthenticated ? (
     <Navigate to="/" replace />
   ) : (
-    <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center p-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="panel elevated w-full space-y-4 p-8">
+    <div className="flex min-h-screen items-center justify-center bg-white p-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--ink-soft)]">Create Workspace</p>
-          <h1 className="mt-1 text-3xl">Register</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Create account</h1>
+          <p className="mt-1 text-[13px] text-[var(--ink-soft)]">Set up your workspace</p>
         </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-[var(--ink-soft)]">Name</span>
-          <input className="w-full rounded-lg border border-[var(--line)] px-3 py-2" {...register("name")} />
-          {errors.name ? <p className="text-sm text-red-700">{errors.name.message}</p> : null}
+        <label className="block space-y-1.5">
+          <span className="text-[13px] font-medium text-[var(--ink-soft)]">Name</span>
+          <input
+            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            placeholder="Jane Smith"
+            {...register("name")}
+          />
+          {errors.name ? <p className="text-[12px] text-red-500">{errors.name.message}</p> : null}
         </label>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-[var(--ink-soft)]">Organization Name</span>
-          <input className="w-full rounded-lg border border-[var(--line)] px-3 py-2" {...register("organizationName")} />
-          {errors.organizationName ? <p className="text-sm text-red-700">{errors.organizationName.message}</p> : null}
+        <label className="block space-y-1.5">
+          <span className="text-[13px] font-medium text-[var(--ink-soft)]">Organization</span>
+          <input
+            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            placeholder="Acme Inc."
+            {...register("organizationName")}
+          />
+          {errors.organizationName ? <p className="text-[12px] text-red-500">{errors.organizationName.message}</p> : null}
         </label>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-[var(--ink-soft)]">Email</span>
-          <input className="w-full rounded-lg border border-[var(--line)] px-3 py-2" {...register("email")} />
-          {errors.email ? <p className="text-sm text-red-700">{errors.email.message}</p> : null}
+        <label className="block space-y-1.5">
+          <span className="text-[13px] font-medium text-[var(--ink-soft)]">Email</span>
+          <input
+            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            placeholder="you@company.com"
+            {...register("email")}
+          />
+          {errors.email ? <p className="text-[12px] text-red-500">{errors.email.message}</p> : null}
         </label>
 
-        <label className="block space-y-1">
-          <span className="text-sm text-[var(--ink-soft)]">Password</span>
-          <input type="password" className="w-full rounded-lg border border-[var(--line)] px-3 py-2" {...register("password")} />
-          {errors.password ? <p className="text-sm text-red-700">{errors.password.message}</p> : null}
+        <label className="block space-y-1.5">
+          <span className="text-[13px] font-medium text-[var(--ink-soft)]">Password</span>
+          <input
+            type="password"
+            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px]"
+            placeholder="••••••••"
+            {...register("password")}
+          />
+          {errors.password ? <p className="text-[12px] text-red-500">{errors.password.message}</p> : null}
         </label>
 
         <button
           type="submit"
           disabled={isSubmitting || isGoogleSubmitting}
-          className="w-full rounded-lg bg-[var(--ink)] px-4 py-2 text-white disabled:opacity-70"
+          className="w-full rounded-lg bg-[var(--ink)] px-4 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
         >
-          {isSubmitting ? <LoadingSpinner label="Creating account" /> : "Register"}
+          {isSubmitting ? <LoadingSpinner label="Creating account" /> : "Create account"}
         </button>
 
         <div className="relative py-1">
           <div className="border-t border-[var(--line)]" />
-          <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-[var(--surface)] px-2 text-xs uppercase text-[var(--ink-soft)]">
-            Or
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">
+            or
           </span>
         </div>
 
@@ -177,13 +194,13 @@ export default function RegisterPage() {
             type="button"
             disabled={!isGoogleReady || isSubmitting || isGoogleSubmitting}
             onClick={() => googleRef.current?.accounts.id.prompt()}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)] disabled:opacity-50"
           >
             {isGoogleSubmitting ? (
               <LoadingSpinner label="Signing up with Google" />
             ) : (
               <>
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" />
@@ -194,13 +211,16 @@ export default function RegisterPage() {
             )}
           </button>
         ) : (
-          <p className="text-sm text-[var(--ink-soft)]">Set `VITE_GOOGLE_CLIENT_ID` to enable Google sign-up.</p>
+          <p className="text-center text-[12px] text-[var(--ink-muted)]">Google sign-up not configured</p>
         )}
 
-        {authError ? <p className="text-sm text-red-700">{authError}</p> : null}
+        {authError ? <p className="text-[13px] text-red-500">{authError}</p> : null}
 
-        <p className="text-sm text-[var(--ink-soft)]">
-          Already have an account? <Link to="/login" className="font-semibold text-gray-900 underline underline-offset-2">Login</Link>
+        <p className="text-center text-[13px] text-[var(--ink-soft)]">
+          Already have an account?{" "}
+          <Link to="/login" className="font-medium text-[var(--ink)] underline underline-offset-2">
+            Sign in
+          </Link>
         </p>
       </form>
     </div>

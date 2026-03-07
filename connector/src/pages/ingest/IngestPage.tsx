@@ -58,11 +58,11 @@ export default function IngestPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-3xl">Ingest Customer Data</h2>
-        <p className="text-[var(--ink-soft)]">Upload files, paste text, and monitor ingestion progress.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Ingest Customer Data</h2>
+        <p className="text-[13px] text-[var(--ink-soft)]">Upload files, paste text, and monitor ingestion progress.</p>
       </div>
 
-      <div className="panel elevated p-4">
+      <div className="panel p-4">
         <div className="mb-4 flex flex-wrap gap-2">
           {[
             ["files", "Upload Files"],
@@ -71,7 +71,7 @@ export default function IngestPage() {
           ].map(([value, label]) => (
             <button
               key={value}
-              className={`rounded-lg px-3 py-2 text-sm ${tab === value ? "bg-[var(--ink)] text-white" : "border border-[var(--line)]"}`}
+              className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${tab === value ? "bg-[var(--ink)] text-white" : "border border-[var(--line)] hover:bg-[var(--accent-soft)]"}`}
               onClick={() => setTab(value as "files" | "text" | "batch")}
             >
               {label}
@@ -98,7 +98,7 @@ export default function IngestPage() {
               />
             </div>
             <button
-              className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white"
+              className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
               disabled={upload.acceptedFiles.length === 0 || upload.isUploading}
               onClick={() => void uploadFiles()}
             >
@@ -141,7 +141,7 @@ export default function IngestPage() {
       </div>
 
       <IngestionHistory jobs={jobs} />
-      {jobsQueryData.isFetching ? <p className="text-sm text-[var(--ink-soft)]">Refreshing jobs...</p> : null}
+      {jobsQueryData.isFetching ? <p className="text-[13px] text-[var(--ink-soft)]">Refreshing jobs...</p> : null}
     </div>
   );
 }

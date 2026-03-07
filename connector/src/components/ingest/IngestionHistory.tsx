@@ -6,11 +6,11 @@ export default function IngestionHistory({ jobs }: { jobs: JobSummary[] }) {
   const ingestionJobs = jobs.filter((job) => job.type === "ingestion").slice(0, 10);
 
   return (
-    <section className="panel elevated p-4">
-      <h3 className="mb-3 text-lg">Recent Uploads</h3>
+    <section className="panel p-4">
+      <h3 className="mb-3 text-[15px] font-medium">Recent Uploads</h3>
       <div className="space-y-2">
         {ingestionJobs.length === 0 ? (
-          <p className="text-sm text-[var(--ink-soft)]">No ingestion jobs yet.</p>
+          <p className="text-[13px] text-[var(--ink-soft)]">No ingestion jobs yet.</p>
         ) : (
           ingestionJobs.map((job) => {
             const total = job.total_items ?? 0;
@@ -19,13 +19,13 @@ export default function IngestionHistory({ jobs }: { jobs: JobSummary[] }) {
             return (
               <article key={job.id} className="rounded-lg border border-[var(--line)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">Job {job.id.slice(0, 8)}</p>
-                  <p className="text-xs text-[var(--ink-soft)]">{formatDate(job.created_at)}</p>
+                  <p className="text-[13px] font-semibold">Job {job.id.slice(0, 8)}</p>
+                  <p className="text-[11px] text-[var(--ink-soft)]">{formatDate(job.created_at)}</p>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-gray-100">
+                <div className="mt-2 h-2 rounded-full bg-[var(--accent-soft)]">
                   <div className="h-full rounded-full bg-[var(--moss)]" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="mt-1 text-xs text-[var(--ink-soft)]">
+                <p className="mt-1 text-[11px] text-[var(--ink-soft)]">
                   {processed}/{total} processed · {job.failed_items ?? 0} failed · {job.status}
                 </p>
               </article>

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,6 +91,41 @@ def _build_connector(connector: Connector):
             config=connector.config or {},
         )
     )
+
+
+def _raise_github_fetch_error(exc: Exception, action: str) -> None:
+    if isinstance(exc, httpx.HTTPStatusError):
+        status_code = exc.response.status_code
+        if status_code == 401:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"GitHub authorization expired. Reconnect GitHub and retry {action}.",
+            ) from exc
+        if status_code == 403:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"GitHub denied access while attempting to {action}. Check app scopes/permissions.",
+            ) from exc
+        if status_code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"GitHub resource not found while attempting to {action}.",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"GitHub returned HTTP {status_code} while attempting to {action}.",
+        ) from exc
+
+    if isinstance(exc, httpx.RequestError):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Network error while connecting to GitHub to {action}.",
+        ) from exc
+
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"Unexpected error while attempting to {action}.",
+    ) from exc
 
 
 @router.get("", response_model=ApiResponse[list[ConnectorRead]])
@@ -414,7 +450,10 @@ async def list_github_repos(
     if not impl or not hasattr(impl, "list_repos"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="GitHub connector unavailable")
 
-    repos = await impl.list_repos()
+    try:
+        repos = await impl.list_repos()
+    except Exception as exc:
+        _raise_github_fetch_error(exc, "list repositories")
     return ApiResponse(data=repos)
 
 
@@ -438,5 +477,8 @@ async def list_github_branches(
     if not impl or not hasattr(impl, "list_branches"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="GitHub connector unavailable")
 
-    branches = await impl.list_branches(repo)
+    try:
+        branches = await impl.list_branches(repo)
+    except Exception as exc:
+        _raise_github_fetch_error(exc, "list branches")
     return ApiResponse(data=branches)

@@ -65,7 +65,9 @@ class FeatureExtractor:
         ungrouped = [c for c in clusters if len(c.signals) == 1]
         for batch in self._chunk(ungrouped, 30):
             payload = await llm_service.json_completion(UNGROUPED_EXTRACTION_PROMPT, self._format_ungrouped(batch))
-            for item in (payload.get("feature_requests") if isinstance(payload, dict) else []) or []:
+            batch_items = (payload.get("feature_requests") if isinstance(payload, dict) else []) or []
+            created_from_batch = 0
+            for item in batch_items:
                 supporting = item.get("supporting_signal_ids") or []
                 if not supporting:
                     continue
@@ -84,6 +86,12 @@ class FeatureExtractor:
                         confidence=float(item.get("confidence", 0.4)),
                     )
                 )
+                created_from_batch += 1
+
+            # If the LLM returns nothing for ungrouped signals, keep each signal
+            # as a separate fallback request to avoid merging unrelated asks.
+            if created_from_batch == 0 and len(batch) > 0:
+                drafts.extend(self._fallback_from_singleton(c) for c in batch)
 
         return drafts
 
@@ -132,6 +140,29 @@ class FeatureExtractor:
             supporting_signal_ids=cluster.signal_ids,
             representative_quotes={sid: cluster.signals[0].structured_summary[:200] for sid in cluster.signal_ids},
             confidence=0.45,
+        )
+
+    @staticmethod
+    def _fallback_from_singleton(cluster: SignalCluster) -> DraftFeatureRequest:
+        signal = cluster.signals[0]
+        summary = (signal.structured_summary or "").strip() or "A customer reported a specific product need."
+        title = summary[:90] if len(summary) > 12 else f"Address request from {signal.source}"
+
+        return DraftFeatureRequest(
+            title=title,
+            type="improvement",
+            problem_statement=summary,
+            proposed_solution=f"Implement support for: {summary}",
+            user_story=f"As a customer, I want {summary.lower()}",
+            acceptance_criteria=[
+                "The requested capability in the supporting signal is implemented.",
+                "The original customer workflow no longer requires a workaround.",
+            ],
+            technical_notes=None,
+            affected_product_areas=["core_product"],
+            supporting_signal_ids=[signal.id],
+            representative_quotes={signal.id: summary[:200]},
+            confidence=0.35,
         )
 
 

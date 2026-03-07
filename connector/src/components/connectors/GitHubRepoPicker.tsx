@@ -57,12 +57,12 @@ export default function GitHubRepoPicker({
   }
 
   if (reposQuery.isError) {
-    return <p className="text-sm text-red-700">Failed to load repositories. Please try again.</p>;
+    return <p className="text-[13px] text-red-700">Failed to load repositories. Please try again.</p>;
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-[var(--ink-soft)]">
+      <p className="text-[13px] text-[var(--ink-soft)]">
         Choose the repository where the agent will create feature branches and pull requests.
       </p>
 
@@ -80,35 +80,35 @@ export default function GitHubRepoPicker({
             className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
               selectedRepo === repo.full_name
                 ? "border-[var(--accent)] bg-blue-50"
-                : "border-[var(--line)] hover:bg-gray-50"
+                : "border-[var(--line)] hover:bg-[var(--accent-soft)]"
             }`}
             onClick={() => handleSelectRepo(repo)}
           >
             <div className="flex items-center justify-between">
               <span className="font-medium">{repo.full_name}</span>
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase text-gray-500">
+              <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] uppercase text-[var(--ink-soft)]">
                 {repo.private ? "private" : "public"}
               </span>
             </div>
             {repo.description ? (
-              <p className="mt-0.5 text-xs text-[var(--ink-soft)]">{repo.description}</p>
+              <p className="mt-0.5 text-[11px] text-[var(--ink-soft)]">{repo.description}</p>
             ) : null}
           </button>
         ))}
         {filtered.length === 0 ? (
-          <p className="py-4 text-center text-sm text-[var(--ink-soft)]">No repositories found.</p>
+          <p className="py-4 text-center text-[13px] text-[var(--ink-soft)]">No repositories found.</p>
         ) : null}
       </div>
 
       {selectedRepo ? (
         <div className="space-y-3 rounded-lg border border-[var(--line)] p-3">
           <div>
-            <label className="text-sm font-medium">Selected Repository</label>
-            <p className="text-sm">{selectedRepo}</p>
+            <label className="text-[13px] font-medium">Selected Repository</label>
+            <p className="text-[13px]">{selectedRepo}</p>
           </div>
 
           <div>
-            <label className="text-sm font-medium">Base Branch</label>
+            <label className="text-[13px] font-medium">Base Branch</label>
             {branchesQuery.isLoading ? (
               <LoadingSpinner label="Loading branches..." />
             ) : (
@@ -128,7 +128,7 @@ export default function GitHubRepoPicker({
 
           <div className="flex gap-2">
             <button
-              className="rounded-lg bg-[var(--ink)] px-4 py-2 text-white disabled:opacity-50"
+              className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
               disabled={saving}
               onClick={handleConfirm}
             >
@@ -136,7 +136,7 @@ export default function GitHubRepoPicker({
             </button>
             {onCancel ? (
               <button
-                className="rounded-lg border border-[var(--line)] px-4 py-2"
+                className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
                 onClick={onCancel}
               >
                 Cancel
