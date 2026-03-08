@@ -15,7 +15,7 @@ export default function EvidencePanel({ evidence }: { evidence: SupportingEviden
   return (
     <div className="space-y-2">
       {visible.map((item) => (
-        <article key={item.signal_id} className="rounded-xl border border-[var(--line)] bg-[#fcfcfb] p-3 text-[13px]">
+        <article key={item.signal_id} className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-3 text-[13px]">
           <p className="text-[11px] uppercase tracking-[0.06em] text-[var(--ink-muted)]">
             {item.source} · {item.customer_company ?? "Unknown company"} · {item.author_name ?? "Unknown author"}
           </p>

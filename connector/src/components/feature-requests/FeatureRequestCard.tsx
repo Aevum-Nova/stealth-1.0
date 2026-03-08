@@ -153,7 +153,7 @@ export default function FeatureRequestCard({ featureRequest, onApprove, onReject
             View
           </Link>
           <button
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--ink)] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+            className="inline-flex items-center gap-1 rounded-lg bg-[var(--action-primary)] px-2.5 py-1 text-[12px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
             onClick={() => onApprove(featureRequest.id)}
           >
             <Check className="h-3 w-3" />

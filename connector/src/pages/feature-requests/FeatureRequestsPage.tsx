@@ -49,7 +49,7 @@ export default function FeatureRequestsPage() {
           <p className="text-[13px] text-[var(--ink-soft)]">Review and manage synthesized product requests.</p>
         </div>
         <button
-          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
           onClick={async () => {
             await runSynthesis("incremental");
             navigate("/synthesis");
@@ -180,7 +180,7 @@ export default function FeatureRequestsPage() {
         }}
       />
 
-      <button className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenConfirm(true)}>
+      <button className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-[var(--accent-soft)]" onClick={() => setOpenConfirm(true)}>
         Run Full Re-Synthesis
       </button>
     </div>

@@ -37,7 +37,7 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="border-b border-[var(--line)] bg-white lg:border-b-0 lg:border-r lg:w-52 lg:shrink-0 lg:flex lg:flex-col">
+    <aside className="border-b border-[var(--line)] bg-[var(--surface)] lg:border-b-0 lg:border-r lg:w-52 lg:shrink-0 lg:flex lg:flex-col">
       <div className="px-4 py-3.5">
         <p className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">Vocalize</p>
       </div>

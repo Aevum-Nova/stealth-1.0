@@ -6,7 +6,7 @@ export default function ImpactMetricsDisplay({ metrics }: { metrics?: ImpactMetr
   }
 
   return (
-    <div className="rounded-xl border border-[var(--line)] bg-[#fcfcfb] p-3 text-[13px]">
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-muted)] p-3 text-[13px]">
       <p>
         <strong>{metrics.signal_count}</strong> signals · <strong>{metrics.unique_customers}</strong> customers · <strong>{metrics.unique_companies}</strong> companies
       </p>
@@ -15,7 +15,7 @@ export default function ImpactMetricsDisplay({ metrics }: { metrics?: ImpactMetr
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         {Object.entries(metrics.source_breakdown).map(([source, count]) => (
-          <span key={source} className="rounded-full border border-[var(--line)] bg-white px-2 py-0.5 text-[11px] font-medium">
+          <span key={source} className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium">
             {source}: {count}
           </span>
         ))}

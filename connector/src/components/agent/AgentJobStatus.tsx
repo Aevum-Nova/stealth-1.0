@@ -70,7 +70,7 @@ export default function AgentJobStatus({ featureRequestId }: { featureRequestId:
 
       <div className="flex gap-2">
         <button
-          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
+          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
           disabled={hasActiveJob || triggerMutation.isPending}
           onClick={() => triggerMutation.mutate(true)}
         >

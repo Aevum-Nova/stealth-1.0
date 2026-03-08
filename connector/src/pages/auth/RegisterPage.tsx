@@ -5,6 +5,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { extractApiErrorMessage } from "@/lib/api-error";
 import { loadGoogleIdentityScript } from "@/lib/google-identity";
@@ -126,7 +127,11 @@ export default function RegisterPage() {
   return !isLoading && isAuthenticated ? (
     <Navigate to="/" replace />
   ) : (
-    <div className="flex min-h-screen items-center justify-center bg-white p-6">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Create account</h1>
@@ -136,7 +141,7 @@ export default function RegisterPage() {
         <label className="block space-y-1.5">
           <span className="text-[13px] font-medium text-[var(--ink-soft)]">Name</span>
           <input
-            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
             placeholder="Jane Smith"
             {...register("name")}
           />
@@ -146,7 +151,7 @@ export default function RegisterPage() {
         <label className="block space-y-1.5">
           <span className="text-[13px] font-medium text-[var(--ink-soft)]">Organization</span>
           <input
-            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
             placeholder="Acme Inc."
             {...register("organizationName")}
           />
@@ -156,7 +161,7 @@ export default function RegisterPage() {
         <label className="block space-y-1.5">
           <span className="text-[13px] font-medium text-[var(--ink-soft)]">Email</span>
           <input
-            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[14px] placeholder:text-[var(--ink-muted)]"
             placeholder="you@company.com"
             {...register("email")}
           />
@@ -167,7 +172,7 @@ export default function RegisterPage() {
           <span className="text-[13px] font-medium text-[var(--ink-soft)]">Password</span>
           <input
             type="password"
-            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[14px]"
+            className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[14px]"
             placeholder="••••••••"
             {...register("password")}
           />
@@ -177,14 +182,14 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isSubmitting || isGoogleSubmitting}
-          className="w-full rounded-lg bg-[var(--ink)] px-4 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
+          className="w-full rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
         >
           {isSubmitting ? <LoadingSpinner label="Creating account" /> : "Create account"}
         </button>
 
         <div className="relative py-1">
           <div className="border-t border-[var(--line)]" />
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--canvas)] px-3 text-[11px] uppercase tracking-wide text-[var(--ink-muted)]">
             or
           </span>
         </div>
@@ -194,7 +199,7 @@ export default function RegisterPage() {
             type="button"
             disabled={!isGoogleReady || isSubmitting || isGoogleSubmitting}
             onClick={() => googleRef.current?.accounts.id.prompt()}
-            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--line)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)] disabled:opacity-50"
           >
             {isGoogleSubmitting ? (
               <LoadingSpinner label="Signing up with Google" />

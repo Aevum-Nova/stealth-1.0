@@ -59,7 +59,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
-          className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
           onClick={() => runMutation.mutate()}
         >
           Run Synthesis

@@ -6,14 +6,14 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[80%] rounded-lg px-4 py-2 text-[13px] ${
+        className={`max-w-[85%] rounded-lg px-3 py-2 ${
           isUser
-            ? "bg-[var(--accent)] text-white"
-            : "bg-[var(--surface-2)] text-[var(--ink)]"
+            ? "bg-[var(--message-user)] text-white"
+            : "bg-[var(--message-assistant)] text-[var(--ink)]"
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
-        <time className={`mt-1 block text-[11px] ${isUser ? "text-white/70" : "text-[var(--ink-soft)]"}`}>
+        <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{message.content}</p>
+        <time className={`mt-1 block text-[10px] ${isUser ? "text-[var(--message-user-muted)]" : "text-[var(--ink-muted)]"}`}>
           {new Date(message.created_at).toLocaleTimeString()}
         </time>
       </div>

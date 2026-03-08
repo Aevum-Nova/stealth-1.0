@@ -51,7 +51,10 @@ export default function FeatureRequestDetailPage() {
         ← Back to Feature Requests
       </Link>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-gradient-to-b from-[#fffdfa] to-[#ffffff] p-4 sm:p-5">
+      <div
+        className="rounded-2xl border border-[var(--line)] p-4 sm:p-5"
+        style={{ backgroundImage: "linear-gradient(to bottom, var(--surface-hero-start), var(--surface-hero-end))" }}
+      >
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--line-soft)] pb-4">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.09em] text-[var(--ink-muted)]">Feature Request</p>
@@ -77,23 +80,23 @@ export default function FeatureRequestDetailPage() {
           </section>
 
           <section className="space-y-3 xl:col-span-5">
-            <article className="rounded-xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
               <h3 className="mb-2 text-[14px] font-semibold">Impact Metrics</h3>
               <ImpactMetricsDisplay metrics={featureRequest.impact_metrics} />
             </article>
 
-            <article className="rounded-xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
               <h3 className="mb-2 text-[14px] font-semibold">Supporting Evidence</h3>
               <EvidencePanel evidence={featureRequest.supporting_evidence} />
               <p className="mt-3 text-[12px] text-[var(--ink-soft)]">Linked signals: {supportingSignals.length}</p>
             </article>
 
-            <article className="rounded-xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
               <h3 className="mb-2 text-[14px] font-semibold">Images</h3>
               <ImageGallery images={images} />
             </article>
 
-            <article className="rounded-xl border border-[var(--line)] bg-white p-4 text-[13px]">
+            <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-[13px]">
               <h3 className="mb-2 text-[14px] font-semibold">Synthesis Info</h3>
               <p>Model: {featureRequest.synthesis_model ?? "-"}</p>
               <p>Confidence: {featureRequest.synthesis_confidence ?? 0}</p>
@@ -110,11 +113,11 @@ export default function FeatureRequestDetailPage() {
           <button className="rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-rose-700 transition-colors" onClick={() => setConfirmAction("reject")}>
             Reject
           </button>
-          <button className="rounded-lg border border-[var(--line)] bg-white px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenMerge(true)}>
+          <button className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenMerge(true)}>
             Merge
           </button>
           <button
-            className="rounded-lg border border-[var(--line)] bg-[#1f2937] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[#111827] transition-colors"
+            className="rounded-lg border border-[var(--line)] bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
             onClick={() => {
               actions.sendToAgent.mutate(featureRequest.id);
             }}
@@ -123,7 +126,7 @@ export default function FeatureRequestDetailPage() {
           </button>
           <Link
             to={`/feature-requests/${featureRequest.id}/context`}
-            className="rounded-lg border border-[var(--line)] bg-white px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
+            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
           >
             Product Context
           </Link>

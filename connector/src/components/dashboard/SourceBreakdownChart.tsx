@@ -8,17 +8,19 @@ export default function SourceBreakdownChart({ data }: { data: Record<string, nu
       <h3 className="mb-3 text-[13px] font-medium">Source Breakdown</h3>
       <ResponsiveContainer width="100%" height="85%">
         <BarChart data={items}>
-          <XAxis dataKey="source" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} />
+          <XAxis dataKey="source" tick={{ fontSize: 12, fill: "var(--ink-soft)" }} axisLine={{ stroke: "var(--line)" }} tickLine={{ stroke: "var(--line)" }} />
+          <YAxis tick={{ fontSize: 12, fill: "var(--ink-soft)" }} axisLine={{ stroke: "var(--line)" }} tickLine={{ stroke: "var(--line)" }} />
           <Tooltip
             contentStyle={{
               fontSize: 12,
               borderRadius: 8,
+              backgroundColor: "var(--surface)",
+              color: "var(--ink)",
               border: "1px solid var(--line)",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+              boxShadow: "0 2px 8px var(--shadow-soft)"
             }}
           />
-          <Bar dataKey="count" fill="#1a1a1a" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="count" fill="var(--chart-bar)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </section>

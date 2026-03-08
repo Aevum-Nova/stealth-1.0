@@ -1,1 +1,0 @@
-import{j as t}from"./index-D7NfhopR.js";function x({title:s,description:a,action:e}){return t.jsxs("div",{className:"panel p-10 text-center",children:[t.jsx("h3",{className:"text-base font-medium",children:s}),t.jsx("p",{className:"mx-auto mt-1.5 max-w-md text-[13px] text-[var(--ink-soft)]",children:a}),e?t.jsx("div",{className:"mt-5",children:e}):null]})}export{x as E};

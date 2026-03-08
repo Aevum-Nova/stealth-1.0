@@ -1,1 +1,0 @@
-import{j as t}from"./index-D7NfhopR.js";const r={critical:"bg-rose-100 text-rose-800",high:"bg-orange-100 text-orange-800",medium:"bg-amber-100 text-amber-800",low:"bg-emerald-100 text-emerald-800"};function o({priority:e}){return t.jsx("span",{className:`rounded-full px-2 py-0.5 text-[11px] font-medium ${r[e]}`,children:e.toUpperCase()})}export{o as P};

@@ -13,7 +13,7 @@ export default function ConnectorLogo({ icon, alt, className = "" }: ConnectorLo
   if (hasError) {
     return (
       <div
-        className={`inline-flex items-center justify-center rounded-md bg-[#ece5d6] text-xs font-semibold uppercase text-[var(--ink-soft)] ${className}`}
+        className={`inline-flex items-center justify-center rounded-md bg-[var(--surface-brand)] text-xs font-semibold uppercase text-[var(--ink-soft)] ${className}`}
         aria-label={alt}
       >
         {alt.slice(0, 1)}

@@ -1,12 +1,16 @@
 import type { FeatureRequestPriority } from "@/types/feature-request";
 
-const CLASS_MAP: Record<FeatureRequestPriority, string> = {
-  critical: "bg-rose-100 text-rose-800",
-  high: "bg-orange-100 text-orange-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-emerald-100 text-emerald-800"
+const STYLES: Record<FeatureRequestPriority, string> = {
+  critical: "bg-rose-50 text-rose-700 border-rose-200",
+  high: "bg-orange-50 text-orange-700 border-orange-200",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 export default function PriorityBadge({ priority }: { priority: FeatureRequestPriority }) {
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${CLASS_MAP[priority]}`}>{priority.toUpperCase()}</span>;
+  return (
+    <span className={`inline-block rounded-full border px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wider ${STYLES[priority]}`}>
+      {priority}
+    </span>
+  );
 }

@@ -1,5 +1,6 @@
 import { Bell } from "lucide-react";
 
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { useEventStream } from "@/hooks/use-event-stream";
 import { initials } from "@/lib/utils";
@@ -9,7 +10,7 @@ export default function TopBar() {
   const { connected } = useEventStream();
 
   return (
-    <header className="flex items-center justify-end gap-3 border-b border-[var(--line)] bg-white px-4 py-2.5">
+    <header className="flex items-center justify-end gap-3 border-b border-[var(--line)] bg-[var(--surface)] px-4 py-2.5">
       <span
         className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
           connected
@@ -20,12 +21,14 @@ export default function TopBar() {
         {connected ? "Live" : "Reconnecting..."}
       </span>
 
+      <ThemeToggle compact />
+
       <button className="rounded-lg p-1.5 text-[var(--ink-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--ink-soft)]">
         <Bell className="size-4" />
       </button>
 
       <div className="flex items-center gap-2">
-        <div className="flex size-7 items-center justify-center rounded-full bg-[var(--ink)] text-[11px] font-medium text-white">
+        <div className="flex size-7 items-center justify-center rounded-full bg-[var(--action-primary)] text-[11px] font-medium text-white">
           {initials(user?.name ?? "U")}
         </div>
         <div className="hidden min-w-0 sm:block">

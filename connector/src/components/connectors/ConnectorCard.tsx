@@ -62,7 +62,7 @@ export default function ConnectorCard({ connector, icon, onSync, onOpen, hideSyn
           </button>
         ) : null}
         <button
-          className="rounded-lg bg-[var(--ink)] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+          className="rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
           onClick={() => onOpen(connector.id)}
         >
           <span className="inline-flex items-center gap-1.5">

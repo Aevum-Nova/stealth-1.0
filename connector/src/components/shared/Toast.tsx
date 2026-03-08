@@ -35,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : toast.tone === "error"
                   ? "border-red-200 bg-red-50 text-red-800"
-                  : "border-[var(--line)] bg-white text-[var(--ink)]"
+                  : "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]"
             }`}
           >
             {toast.message}
