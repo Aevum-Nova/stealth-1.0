@@ -1,13 +1,15 @@
 """SQLAlchemy models.
 
 Read-only mirrors of synthesis tables (feature_requests, feature_request_signals).
-Agent-owned tables: agent_conversations, agent_messages, agent_jobs.
+Agent-owned tables: agent_conversations, agent_messages, agent_jobs,
+                    code_index_status, code_chunks.
 """
 
 from __future__ import annotations
 
 import uuid
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     Column,
@@ -110,6 +112,7 @@ class AgentMessage(Base):
         nullable=False,
     )
     content = Column(Text, nullable=False)
+    proposed_changes = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
@@ -136,4 +139,50 @@ class AgentJob(Base):
     __table_args__ = (
         Index("idx_agent_job_fr", "feature_request_id"),
         Index("idx_agent_job_org", "organization_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Codebase indexing tables
+# ---------------------------------------------------------------------------
+
+
+class CodeIndexStatus(Base):
+    __tablename__ = "code_index_status"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    connector_id = Column(UUID(as_uuid=True), ForeignKey("connectors.id", ondelete="CASCADE"), nullable=False, unique=True)
+    organization_id = Column(UUID(as_uuid=True), nullable=False)
+    commit_sha = Column(Text, nullable=True)
+    total_files = Column(Integer, nullable=False, default=0)
+    indexed_files = Column(Integer, nullable=False, default=0)
+    status = Column(
+        SAEnum("pending", "indexing", "ready", "failed", name="code_index_status_enum"),
+        nullable=False,
+        default="pending",
+    )
+    error = Column(Text, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class CodeChunk(Base):
+    __tablename__ = "code_chunks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    connector_id = Column(UUID(as_uuid=True), ForeignKey("connectors.id", ondelete="CASCADE"), nullable=False)
+    organization_id = Column(UUID(as_uuid=True), nullable=False)
+    file_path = Column(Text, nullable=False)
+    start_line = Column(Integer, nullable=False)
+    end_line = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    language = Column(Text, nullable=True)
+    content_hash = Column(Text, nullable=False)
+    embedding = Column(Vector(1536), nullable=True)
+    indexed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index("idx_code_chunks_connector", "connector_id"),
+        Index("idx_code_chunks_org", "organization_id"),
+        Index("idx_code_chunks_path", "connector_id", "file_path"),
     )

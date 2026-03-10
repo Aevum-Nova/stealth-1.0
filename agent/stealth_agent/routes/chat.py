@@ -9,8 +9,7 @@ from stealth_agent.adapters.llm import LLMProvider, create_llm_provider
 from stealth_agent.config import settings
 from stealth_agent.database import get_db
 from stealth_agent.middleware.auth import get_current_org
-from stealth_agent.models import AgentConversation, AgentMessage
-from stealth_agent.schemas import ApiResponse, ChatMessageIn, ChatMessageOut, ConversationOut
+from stealth_agent.schemas import ApiResponse, ChatMessageIn, ChatMessageOut, ConversationOut, ProposedChange
 from stealth_agent.services import chat as chat_service
 
 router = APIRouter(prefix="/api/v1/feature-requests", tags=["chat"])
@@ -18,6 +17,29 @@ router = APIRouter(prefix="/api/v1/feature-requests", tags=["chat"])
 
 def _get_llm() -> LLMProvider:
     return create_llm_provider(settings.LLM_PROVIDER, settings.ANTHROPIC_API_KEY, settings.OPENAI_API_KEY)
+
+
+def _map_proposed_changes(raw: list[dict] | None) -> list[ProposedChange] | None:
+    if not raw:
+        return None
+    return [
+        ProposedChange(
+            file_path=c.get("file_path", ""),
+            content=c.get("content", ""),
+            reason=c.get("reason", ""),
+        )
+        for c in raw
+    ]
+
+
+def _message_out(m) -> ChatMessageOut:
+    return ChatMessageOut(
+        id=str(m.id),
+        role=m.role,
+        content=m.content,
+        proposed_changes=_map_proposed_changes(m.proposed_changes),
+        created_at=m.created_at,
+    )
 
 
 @router.post("/{feature_request_id}/chat", response_model=ApiResponse)
@@ -42,14 +64,7 @@ async def send_chat_message(
             detail=f"LLM call failed: {exc}",
         ) from exc
 
-    return ApiResponse(
-        data=ChatMessageOut(
-            id=str(assistant_msg.id),
-            role=assistant_msg.role,
-            content=assistant_msg.content,
-            created_at=assistant_msg.created_at,
-        )
-    )
+    return ApiResponse(data=_message_out(assistant_msg))
 
 
 @router.get("/{feature_request_id}/chat", response_model=ApiResponse)
@@ -65,15 +80,7 @@ async def get_chat_history(
         data=ConversationOut(
             id=str(conversation.id),
             feature_request_id=feature_request_id,
-            messages=[
-                ChatMessageOut(
-                    id=str(m.id),
-                    role=m.role,
-                    content=m.content,
-                    created_at=m.created_at,
-                )
-                for m in messages
-            ],
+            messages=[_message_out(m) for m in messages],
             created_at=conversation.created_at,
         )
     )

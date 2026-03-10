@@ -1,22 +1,186 @@
-import type { ChatMessage as ChatMessageType } from "@/types/agent";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, FileCode, Copy, Check } from "lucide-react";
+
+import { highlightLine } from "@/lib/syntax-highlight";
+import type { ChatMessage as ChatMessageType, ProposedChange } from "@/types/agent";
+
+function stripJsonBlocks(text: string): string {
+  let cleaned = text.replace(/```json\s*\n\[[\s\S]*?\]\s*\n```/g, "").trim();
+  cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "").trim();
+  return cleaned;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderMarkdown(text: string): string {
+  let html = escapeHtml(text);
+
+  // Fenced code blocks with syntax highlighting
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) => {
+    const rawCode = code
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    const lines = rawCode.trimEnd().split("\n");
+    const rendered = lines.map((line: string, i: number) => {
+      const highlighted = highlightLine(line);
+      return `<div class="chat-code-line"><span class="chat-line-num">${i + 1}</span><span class="chat-line-content">${highlighted}</span></div>`;
+    }).join("");
+    return `<div class="chat-code-block">${rendered}</div>`;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
+
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<strong class="chat-h3">$1</strong>');
+  html = html.replace(/^## (.+)$/gm, '<strong class="chat-h2">$1</strong>');
+
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // Lists
+  html = html.replace(/^- (.+)$/gm, '<span class="chat-li">$1</span>');
+  html = html.replace(/^\d+\.\s+(.+)$/gm, '<span class="chat-li">$1</span>');
+
+  // Line breaks
+  html = html.replace(/\n\n/g, '<br class="chat-break"/><br class="chat-break"/>');
+  html = html.replace(/\n/g, "<br/>");
+
+  return html;
+}
+
+function estimateLines(content: string): number {
+  return content.split("\n").length;
+}
+
+function HighlightedCodeBlock({
+  code,
+  maxHeight = "400px",
+}: {
+  code: string;
+  maxHeight?: string;
+}) {
+  const lines = code.split("\n");
+  const highlighted = useMemo(() => lines.map((l) => highlightLine(l)), [code]);
+
+  return (
+    <div className={`overflow-auto bg-[var(--surface-muted)]`} style={{ maxHeight }}>
+      {highlighted.map((html, i) => (
+        <div key={i} className="flex text-[11px] leading-[20px]">
+          <span className="w-9 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">
+            {i + 1}
+          </span>
+          <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono">
+            <code dangerouslySetInnerHTML={{ __html: html }} />
+          </pre>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FileChangeCard({ change }: { change: ProposedChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const lineCount = estimateLines(change.content);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(change.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--line-strong)]">
+      <button
+        className="flex w-full items-center gap-2 bg-[var(--surface-contrast)] px-3 py-2 text-left transition-colors hover:bg-[var(--surface-hover)]"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded
+          ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+          : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
+        <FileCode className="size-3.5 shrink-0 text-[var(--ink-soft)]" />
+        <code className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--ink)]">
+          {change.file_path}
+        </code>
+        <span className="shrink-0 text-[10px] tabular-nums text-emerald-600">+{lineCount}</span>
+      </button>
+
+      {change.reason && (
+        <div className="border-t border-[var(--line-soft)] bg-[var(--surface-contrast)] px-3 py-1.5">
+          <p className="text-[11px] leading-snug text-[var(--ink-muted)]">{change.reason}</p>
+        </div>
+      )}
+
+      {expanded && (
+        <div className="relative border-t border-[var(--line-strong)]">
+          <button
+            className="absolute right-2 top-2 z-10 rounded-md border border-[var(--line)] bg-[var(--surface)] p-1 text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+            onClick={handleCopy}
+            title="Copy to clipboard"
+          >
+            {copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+          </button>
+          <HighlightedCodeBlock code={change.content} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ChatMessage({ message }: { message: ChatMessageType }) {
   const isUser = message.role === "user";
+  const changes = message.proposed_changes;
+  const hasChanges = changes && changes.length > 0;
+
+  const displayContent = isUser || !hasChanges
+    ? message.content
+    : stripJsonBlocks(message.content);
+
+  const renderedHtml = useMemo(
+    () => (!isUser && displayContent ? renderMarkdown(displayContent) : ""),
+    [isUser, displayContent],
+  );
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] rounded-lg bg-[var(--message-user)] px-3 py-2 text-white">
+          <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{displayContent}</p>
+          <time className="mt-1 block text-[10px] text-[var(--message-user-muted)]">
+            {new Date(message.created_at).toLocaleTimeString()}
+          </time>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-lg px-3 py-2 ${
-          isUser
-            ? "bg-[var(--message-user)] text-white"
-            : "bg-[var(--message-assistant)] text-[var(--ink)]"
-        }`}
-      >
-        <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{message.content}</p>
-        <time className={`mt-1 block text-[10px] ${isUser ? "text-[var(--message-user-muted)]" : "text-[var(--ink-muted)]"}`}>
-          {new Date(message.created_at).toLocaleTimeString()}
-        </time>
-      </div>
+    <div className="space-y-2.5">
+      {displayContent && (
+        <div
+          className="chat-message-content rounded-lg bg-[var(--message-assistant)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--ink)]"
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+        />
+      )}
+
+      {hasChanges && (
+        <div className="space-y-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--ink-muted)]">
+            <FileCode className="size-3" />
+            {changes.length} proposed {changes.length === 1 ? "file" : "files"}
+          </p>
+          {changes.map((change, i) => (
+            <FileChangeCard key={`${change.file_path}-${i}`} change={change} />
+          ))}
+        </div>
+      )}
+
+      <time className="block text-[10px] text-[var(--ink-muted)]">
+        {new Date(message.created_at).toLocaleTimeString()}
+      </time>
     </div>
   );
 }

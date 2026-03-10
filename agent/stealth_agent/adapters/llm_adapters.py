@@ -126,6 +126,13 @@ class LLMCodeGenerator:
 def _extract_json(text: str) -> str:
     """Extract JSON from LLM output, stripping markdown fences if present."""
     text = text.strip()
+
+    # Find ```json ... ``` or ``` ... ``` blocks anywhere in the text
+    fence_match = re.search(r"```(?:json)?\s*\n([\s\S]*?)```", text)
+    if fence_match:
+        return fence_match.group(1).strip()
+
+    # Legacy: if the whole response starts with ```
     if text.startswith("```"):
         lines = text.split("\n")
         start = 1
@@ -134,30 +141,55 @@ def _extract_json(text: str) -> str:
             if lines[i].strip() == "```":
                 end = i
                 break
-        text = "\n".join(lines[start:end])
+        return "\n".join(lines[start:end])
+
     return text
 
 
 def _parse_json(text: str) -> dict | list:
     """Parse JSON from LLM output, attempting repair if truncated."""
+    log = structlog.get_logger()
+
+    # First try: extract from fenced blocks
     extracted = _extract_json(text)
     try:
         return json.loads(extracted)
     except json.JSONDecodeError:
         pass
 
-    # Try to find the outermost JSON structure with a regex
-    match = re.search(r"[\[{]", extracted)
-    if match:
-        extracted = extracted[match.start():]
-
-    # Attempt to repair truncated JSON by closing open brackets/braces
-    for repair in ("", '"', '"}', '"}]', '"]', "}]", "}", "]"):
+    # Second try: look for the largest fenced block (LLMs sometimes have multiple)
+    all_fences = re.findall(r"```(?:json)?\s*\n([\s\S]*?)```", text)
+    for block in sorted(all_fences, key=len, reverse=True):
         try:
-            return json.loads(extracted + repair)
+            return json.loads(block.strip())
         except json.JSONDecodeError:
             continue
 
+    # Third try: find a raw JSON array or object in the text
+    for pattern in [r"\[\s*\{[\s\S]*\}\s*\]", r"\{[\s\S]*\}"]:
+        match = re.search(pattern, text)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                candidate = match.group()
+                for repair in ('"', '"}', '"}]', '"]', "}]", "}", "]"):
+                    try:
+                        return json.loads(candidate + repair)
+                    except json.JSONDecodeError:
+                        continue
+
+    # Fourth try: find the first [ or { and try to parse from there
+    start_match = re.search(r"[\[{]", extracted)
+    if start_match:
+        remainder = extracted[start_match.start():]
+        for repair in ("", '"', '"}', '"}]', '"]', "}]", "}", "]"):
+            try:
+                return json.loads(remainder + repair)
+            except json.JSONDecodeError:
+                continue
+
+    log.error("json_parse_failed", text_preview=text[:500], text_length=len(text))
     raise json.JSONDecodeError(
         f"Could not parse or repair LLM JSON (length={len(text)})",
         text[:200],

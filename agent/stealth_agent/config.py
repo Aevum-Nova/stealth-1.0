@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    EMBEDDING_PROVIDER: str = "voyage"  # "voyage" or "openai"
+    EMBEDDING_DIMENSION: int = 1536
+    VOYAGE_API_KEY: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

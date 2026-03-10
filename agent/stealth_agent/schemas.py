@@ -26,10 +26,17 @@ class ChatMessageIn(BaseModel):
     message: str
 
 
+class ProposedChange(BaseModel):
+    file_path: str
+    content: str
+    reason: str
+
+
 class ChatMessageOut(BaseModel):
     id: str
     role: str
     content: str
+    proposed_changes: list[ProposedChange] | None = None
     created_at: datetime
 
 
@@ -57,3 +64,19 @@ class JobOut(BaseModel):
     error: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Indexing
+# ---------------------------------------------------------------------------
+
+
+class IndexStatusOut(BaseModel):
+    connector_id: str
+    status: str
+    total_files: int = 0
+    indexed_files: int = 0
+    commit_sha: str | None = None
+    error: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None

@@ -1,7 +1,14 @@
+export interface ProposedChange {
+  file_path: string;
+  content: string;
+  reason: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  proposed_changes?: ProposedChange[] | null;
   created_at: string;
 }
 
@@ -32,8 +39,21 @@ export interface OrchestrationResult {
   acceptance_criteria: string[];
   tasks: string[];
   risk_notes: string[];
-  proposed_files: { file_path: string; reason: string; additions?: number; deletions?: number }[];
+  proposed_files: { file_path: string; reason: string; content?: string; additions?: number; deletions?: number }[];
   dry_run: boolean;
   commit_sha?: string | null;
   pull_request_url?: string | null;
+}
+
+export type CodeIndexStatusType = "not_started" | "pending" | "indexing" | "ready" | "failed";
+
+export interface CodeIndexStatus {
+  connector_id: string;
+  status: CodeIndexStatusType;
+  total_files: number;
+  indexed_files: number;
+  commit_sha?: string | null;
+  error?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
 }

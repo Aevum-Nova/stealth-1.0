@@ -1,6 +1,6 @@
 import agentApi from "@/api/agent-client";
 import type { ApiResponse } from "@/types/api";
-import type { AgentJob, ChatMessage, Conversation } from "@/types/agent";
+import type { AgentJob, ChatMessage, CodeIndexStatus, Conversation } from "@/types/agent";
 
 export function sendChatMessage(featureRequestId: string, message: string) {
   return agentApi
@@ -28,4 +28,16 @@ export function listJobs(featureRequestId: string) {
   return agentApi
     .get(`feature-requests/${featureRequestId}/jobs`)
     .json<ApiResponse<AgentJob[]>>();
+}
+
+export function triggerIndex(connectorId: string) {
+  return agentApi
+    .post(`connectors/${connectorId}/index`)
+    .json<ApiResponse<CodeIndexStatus>>();
+}
+
+export function getIndexStatus(connectorId: string) {
+  return agentApi
+    .get(`connectors/${connectorId}/index/status`)
+    .json<ApiResponse<CodeIndexStatus>>();
 }

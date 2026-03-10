@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, GitPullRequest, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink } from "lucide-react";
 
 import ChatPanel from "@/components/agent/ChatPanel";
+import { highlightLine } from "@/lib/syntax-highlight";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { useAgentJobs, useTriggerOrchestration } from "@/hooks/use-agent";
+import { useAgentJobs, useChatHistory, useCodeIndexStatus, useTriggerOrchestration } from "@/hooks/use-agent";
+import { useConnectors } from "@/hooks/use-connectors";
 import { useFeatureRequest, useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
-import type { AgentJob } from "@/types/agent";
+import type { AgentJob, ProposedChange } from "@/types/agent";
 import type { FeatureRequest, SupportingEvidence } from "@/types/feature-request";
 
 type CenterTab = "thread" | "chat";
@@ -95,11 +97,59 @@ function AgentThread({ jobs }: { jobs: AgentJob[] }) {
   );
 }
 
-/* ── Code Changes ───────────────────────────────────────────── */
+/* ── Unified Changes panel ─────────────────────────────────── */
 
-function CodeChanges({ jobs }: { jobs: AgentJob[] }) {
-  const latestWithChanges = jobs.find((job) => (job.result?.proposed_files.length ?? 0) > 0);
-  if (!latestWithChanges?.result) {
+interface UnifiedFile {
+  file_path: string;
+  reason: string;
+  additions?: number;
+  deletions?: number;
+  content?: string;
+  source: "pr" | "chat";
+}
+
+function AllChanges({
+  jobs,
+  chatChanges,
+}: {
+  jobs: AgentJob[];
+  chatChanges: ProposedChange[];
+}) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  const files = useMemo(() => {
+    const map = new Map<string, UnifiedFile>();
+
+    const latestWithChanges = jobs.find((j) => (j.result?.proposed_files.length ?? 0) > 0);
+    if (latestWithChanges?.result) {
+      for (const f of latestWithChanges.result.proposed_files) {
+        const lineCount = f.content ? f.content.split("\n").length : 0;
+        map.set(f.file_path, {
+          file_path: f.file_path,
+          reason: f.reason,
+          content: f.content,
+          additions: f.additions ?? lineCount,
+          deletions: f.deletions,
+          source: "pr",
+        });
+      }
+    }
+
+    for (const c of chatChanges) {
+      map.set(c.file_path, {
+        file_path: c.file_path,
+        reason: c.reason,
+        content: c.content,
+        additions: c.content.split("\n").length,
+        deletions: 0,
+        source: "chat",
+      });
+    }
+
+    return Array.from(map.values());
+  }, [jobs, chatChanges]);
+
+  if (files.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center">
         <p className="text-[12px] text-[var(--ink-muted)]">No proposed changes yet.</p>
@@ -107,37 +157,101 @@ function CodeChanges({ jobs }: { jobs: AgentJob[] }) {
     );
   }
 
-  const proposed = latestWithChanges.result.proposed_files;
-  const totalAdd = proposed.reduce((s, f) => s + (f.additions ?? 0), 0);
-  const totalDel = proposed.reduce((s, f) => s + (f.deletions ?? 0), 0);
+  const totalAdd = files.reduce((s, f) => s + (f.additions ?? 0), 0);
+  const totalDel = files.reduce((s, f) => s + (f.deletions ?? 0), 0);
+  const expanded = expandedIdx !== null ? files[expandedIdx] : null;
 
   return (
-    <div>
+    <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-[var(--line-soft)] px-3 py-2">
         <span className="flex size-[18px] items-center justify-center rounded bg-[var(--action-primary)] text-[9px] font-semibold tabular-nums text-white">
-          {proposed.length}
+          {files.length}
         </span>
-        <span className="text-[12px] text-[var(--ink-soft)]">Changes</span>
+        <span className="text-[12px] text-[var(--ink-soft)]">Files changed</span>
         <span className="ml-auto font-mono text-[11px] tabular-nums">
           <span className="text-emerald-600">+{totalAdd}</span>
           <span className="mx-1 text-[var(--line-muted)]">/</span>
           <span className="text-rose-500">-{totalDel}</span>
         </span>
       </div>
-      {proposed.map((item, i) => (
-        <div
-          key={`${latestWithChanges.id}-${item.file_path}`}
-          className={`flex items-center gap-2 px-3 py-[6px] transition-colors hover:bg-[var(--surface-hover)] ${
-            i < proposed.length - 1 ? "border-b border-[var(--line-soft)]" : ""
-          }`}
-        >
-          <code className="min-w-0 flex-1 truncate text-[11px] text-[var(--ink-soft)]">{item.file_path}</code>
-          <span className="shrink-0 font-mono text-[11px] tabular-nums text-emerald-600">+{item.additions ?? 0}</span>
-          <span className="shrink-0 font-mono text-[11px] tabular-nums text-rose-500">-{item.deletions ?? 0}</span>
-        </div>
-      ))}
+
+      <div className="flex-1 overflow-y-auto">
+        {files.map((file, i) => (
+          <div key={`${file.source}-${file.file_path}`}>
+            <button
+              className={`flex w-full items-center gap-2 px-3 py-[6px] text-left transition-colors hover:bg-[var(--surface-hover)] ${
+                i < files.length - 1 && expandedIdx !== i ? "border-b border-[var(--line-soft)]" : ""
+              } ${expandedIdx === i ? "bg-[var(--surface-active)]" : ""}`}
+              onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
+            >
+              {expandedIdx === i
+                ? <ChevronDown className="size-3 shrink-0 text-[var(--ink-muted)]" />
+                : <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />}
+              <code className="min-w-0 flex-1 truncate text-[11px] text-[var(--ink-soft)]">{file.file_path}</code>
+              {file.source === "chat" && (
+                <span className="shrink-0 rounded-sm bg-violet-100 px-1 text-[8px] font-medium text-violet-700">chat</span>
+              )}
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">+{file.additions ?? 0}</span>
+              {(file.deletions ?? 0) > 0 && (
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-rose-500">-{file.deletions}</span>
+              )}
+            </button>
+
+            {expandedIdx === i && expanded && (
+              <div className="border-b border-[var(--line-soft)]">
+                {expanded.reason && (
+                  <p className="px-3 py-1.5 text-[10px] text-[var(--ink-muted)]">{expanded.reason}</p>
+                )}
+                {expanded.content ? (
+                  <div className="max-h-[300px] overflow-auto bg-[var(--surface-muted)]">
+                    {expanded.content.split("\n").map((line, li) => (
+                      <div key={li} className="flex text-[11px] leading-[18px]">
+                        <span className="w-8 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">{li + 1}</span>
+                        <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all px-1 font-mono">
+                          <code dangerouslySetInnerHTML={{ __html: highlightLine(line) }} />
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : !expanded.reason ? (
+                  <p className="px-3 py-2 text-[10px] italic text-[var(--ink-muted)]">No preview available</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+
+/* ── Indexing status indicator (passive) ───────────────────── */
+
+function IndexingStatus({ connectorId }: { connectorId: string }) {
+  const statusQuery = useCodeIndexStatus(connectorId);
+  const data = statusQuery.data?.data;
+
+  if (!data || data.status === "not_started" || data.status === "pending") return null;
+
+  if (data.status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-[3px] text-[10px] font-medium text-emerald-700">
+        <Database className="size-2.5" />
+        Indexed
+      </span>
+    );
+  }
+
+  if (data.status === "indexing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-[3px] text-[10px] font-medium text-sky-700">
+        <Database className="size-2.5 animate-pulse" />
+        Indexing {data.indexed_files}/{data.total_files}
+      </span>
+    );
+  }
+
+  return null;
 }
 
 /* ── Left sidebar: feature request group ────────────────────── */
@@ -231,6 +345,13 @@ export default function ProductContextPage() {
   const actions = useFeatureRequestActions();
   const jobsQuery = useAgentJobs(id);
   const triggerMutation = useTriggerOrchestration(id);
+  const chatQuery = useChatHistory(id);
+
+  const connectorsQuery = useConnectors();
+  const githubConnector = useMemo(() => {
+    const connectors = connectorsQuery.data?.data ?? [];
+    return connectors.find((c) => c.type === "github" && c.enabled);
+  }, [connectorsQuery.data]);
 
   const fr = featureRequestQuery.data?.data ?? null;
   const [tab, setTab] = useState<CenterTab>("thread");
@@ -239,6 +360,17 @@ export default function ProductContextPage() {
   useEffect(() => {
     if (fr?.id) setExpandedIds(new Set([fr.id]));
   }, [fr?.id]);
+
+  // Extract the latest proposed changes from chat messages
+  const chatProposedChanges: ProposedChange[] = useMemo(() => {
+    const messages = chatQuery.data?.data?.messages ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].proposed_changes && messages[i].proposed_changes!.length > 0) {
+        return messages[i].proposed_changes!;
+      }
+    }
+    return [];
+  }, [chatQuery.data]);
 
   if (featureRequestQuery.isLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner label="Loading feature request" /></div>;
@@ -274,6 +406,8 @@ export default function ProductContextPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          {githubConnector && <IndexingStatus connectorId={githubConnector.id} />}
+
           <span className="rounded-full border border-[var(--line-strong)] px-2 py-[3px] text-[10px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
             {fr.status}
           </span>
@@ -379,9 +513,11 @@ export default function ProductContextPage() {
             <span className="text-[12px] font-medium text-[var(--ink)]">Changes</span>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {jobsQuery.isLoading
-              ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading..." /></div>
-              : <CodeChanges jobs={jobs} />}
+            {jobsQuery.isLoading ? (
+              <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading..." /></div>
+            ) : (
+              <AllChanges jobs={jobs} chatChanges={chatProposedChanges} />
+            )}
           </div>
         </aside>
       </div>

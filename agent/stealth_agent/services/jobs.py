@@ -18,6 +18,7 @@ from stealth_agent.database import async_session
 from stealth_agent.domain.models import PullRequestDraft, RepositoryContext
 from stealth_agent.mappers import feature_request_from_row
 from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
+from stealth_agent.services.code_indexer import ensure_indexed
 from stealth_agent.services.orchestrator import FeatureToPROrchestrator, OrchestrationDependencies
 
 log = structlog.get_logger()
@@ -160,6 +161,12 @@ async def _run_orchestration(
                         base_branch=gh_default_branch,
                     )
 
+                    # Auto-index the repo if not already indexed
+                    try:
+                        await ensure_indexed(str(gh_connector.id), organization_id)
+                    except Exception as exc:
+                        log.warning("auto_index_failed", error=str(exc))
+
             domain_fr = feature_request_from_row(fr_row, repo_context=repo_context)
 
             # Build orchestration deps with LLM-backed adapters
@@ -205,6 +212,7 @@ async def _run_orchestration(
                     {
                         "file_path": change.file_path,
                         "reason": change.reason,
+                        "content": change.content,
                         "additions": additions,
                         "deletions": deletions,
                     }

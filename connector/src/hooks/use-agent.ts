@@ -59,3 +59,26 @@ export function useTriggerOrchestration(featureRequestId: string) {
     }
   });
 }
+
+export function useCodeIndexStatus(connectorId?: string) {
+  return useQuery({
+    queryKey: ["code-index-status", connectorId],
+    queryFn: () => agentApi.getIndexStatus(connectorId as string),
+    enabled: Boolean(connectorId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status;
+      return status === "indexing" || status === "pending" ? 3000 : false;
+    },
+  });
+}
+
+export function useTriggerIndex() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (connectorId: string) => agentApi.triggerIndex(connectorId),
+    onSuccess: async (_data, connectorId) => {
+      await queryClient.invalidateQueries({ queryKey: ["code-index-status", connectorId] });
+    },
+  });
+}
