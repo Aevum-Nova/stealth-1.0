@@ -15,7 +15,9 @@ from src.routes import (
     jobs_router,
     signals_router,
     synthesis_router,
+    triggers_router,
 )
+from src.services.triggers import trigger_service
 
 structlog.configure(
     processors=[
@@ -44,6 +46,17 @@ app.include_router(ingest_router)
 app.include_router(synthesis_router)
 app.include_router(events_router)
 app.include_router(jobs_router)
+app.include_router(triggers_router)
+
+
+@app.on_event("startup")
+async def start_trigger_runtime() -> None:
+    trigger_service.start_runtime()
+
+
+@app.on_event("shutdown")
+async def stop_trigger_runtime() -> None:
+    await trigger_service.stop_runtime()
 
 
 @app.get("/health")

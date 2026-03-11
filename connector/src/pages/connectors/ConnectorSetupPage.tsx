@@ -225,7 +225,7 @@ export default function ConnectorSetupPage() {
             <p className="text-[13px] text-[var(--ink-soft)]">
               {isGitHub
                 ? `Connected to ${savedRepo ?? "repository"}. The agent will create PRs in this repo.`
-                : "Connector is configured. You can open details and trigger the first sync."}
+                : "Connector is configured. Open it to review bot scope and start creating triggers."}
             </p>
             <button
               className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"

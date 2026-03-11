@@ -27,6 +27,9 @@ class SignalBuilder:
         filename: str,
         metadata: dict | None = None,
         source_created_at: datetime | None = None,
+        trigger_id: str | None = None,
+        ingested_event_id: str | None = None,
+        event_buffer_id: str | None = None,
     ) -> Signal:
         signal_id = uuid4()
         key = f"{organization_id}/{signal_id}/{filename}"
@@ -42,6 +45,9 @@ class SignalBuilder:
             raw_artifact_size_bytes=upload["size"],
             source_metadata=metadata or {},
             organization_id=UUID(str(organization_id)),
+            trigger_id=UUID(trigger_id) if trigger_id else None,
+            ingested_event_id=UUID(ingested_event_id) if ingested_event_id else None,
+            event_buffer_id=UUID(event_buffer_id) if event_buffer_id else None,
             source_created_at=source_created_at,
         )
 

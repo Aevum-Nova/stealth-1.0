@@ -7,7 +7,7 @@ from src.config import settings
 from src.connectors.base import BaseConnector, RawIngestionItem
 
 
-class SlackConnector(BaseConnector):
+class MicrosoftTeamsConnector(BaseConnector):
     async def fetch_new_data(self, since: datetime | None = None) -> list[RawIngestionItem]:
         return []
 
@@ -15,29 +15,31 @@ class SlackConnector(BaseConnector):
         return bool((self.config.credentials or {}).get("access_token"))
 
     def get_auth_url(self, redirect_uri: str, state: str) -> str | None:
-        if not settings.SLACK_CLIENT_ID:
+        client_id = settings.MICROSOFT_CLIENT_ID
+        if not client_id:
             return None
+        tenant = settings.MICROSOFT_TENANT_ID or "common"
         params = {
-            "client_id": settings.SLACK_CLIENT_ID,
+            "client_id": client_id,
+            "response_type": "code",
             "redirect_uri": redirect_uri,
-            "scope": "channels:history,channels:read,groups:history,groups:read,im:history,reactions:read,users:read,chat:write",
+            "response_mode": "query",
+            "scope": "offline_access User.Read Team.ReadBasic.All Channel.ReadBasic.All Chat.Read ChannelMessage.Read.All",
             "state": state,
-            "user_scope": "",
         }
-        return f"https://slack.com/oauth/v2/authorize?{urlencode(params)}"
+        return f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?{urlencode(params)}"
 
     async def handle_oauth_callback(self, code: str, redirect_uri: str) -> dict:
         return {
             "access_token": code,
+            "refresh_token": f"refresh-{code}",
             "redirect_uri": redirect_uri,
             "scopes": [
-                "channels:history",
-                "channels:read",
-                "groups:history",
-                "groups:read",
-                "im:history",
-                "reactions:read",
-                "users:read",
-                "chat:write",
+                "offline_access",
+                "User.Read",
+                "Team.ReadBasic.All",
+                "Channel.ReadBasic.All",
+                "Chat.Read",
+                "ChannelMessage.Read.All",
             ],
         }

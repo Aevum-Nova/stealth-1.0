@@ -29,13 +29,13 @@ class DraftFeatureRequest:
 
 
 class FeatureExtractor:
-    async def extract(self, clusters: list[SignalCluster]) -> list[DraftFeatureRequest]:
+    async def extract(self, clusters: list[SignalCluster], context: str | None = None) -> list[DraftFeatureRequest]:
         drafts: list[DraftFeatureRequest] = []
         for cluster in clusters:
             if len(cluster.signals) < 2:
                 continue
 
-            formatted = self._format_cluster(cluster)
+            formatted = self._format_cluster(cluster, context=context)
             payload = await llm_service.json_completion(CLUSTER_EXTRACTION_PROMPT, formatted)
             items = payload.get("feature_requests") if isinstance(payload, dict) else None
             if not items:
@@ -64,7 +64,10 @@ class FeatureExtractor:
 
         ungrouped = [c for c in clusters if len(c.signals) == 1]
         for batch in self._chunk(ungrouped, 30):
-            payload = await llm_service.json_completion(UNGROUPED_EXTRACTION_PROMPT, self._format_ungrouped(batch))
+            payload = await llm_service.json_completion(
+                UNGROUPED_EXTRACTION_PROMPT,
+                self._format_ungrouped(batch, context=context),
+            )
             batch_items = (payload.get("feature_requests") if isinstance(payload, dict) else []) or []
             created_from_batch = 0
             for item in batch_items:
@@ -100,8 +103,11 @@ class FeatureExtractor:
         return [items[i : i + size] for i in range(0, len(items), size)]
 
     @staticmethod
-    def _format_cluster(cluster: SignalCluster) -> str:
-        lines = [f"CLUSTER SIGNALS ({len(cluster.signals)} signals):"]
+    def _format_cluster(cluster: SignalCluster, context: str | None = None) -> str:
+        lines = []
+        if context:
+            lines.append(f"TRIGGER CONTEXT:\n{context}")
+        lines.append(f"CLUSTER SIGNALS ({len(cluster.signals)} signals):")
         for s in cluster.signals:
             lines.append(
                 f"Signal [{s.id}]:\n"
@@ -115,8 +121,11 @@ class FeatureExtractor:
         return "\n\n".join(lines)
 
     @staticmethod
-    def _format_ungrouped(clusters: list[SignalCluster]) -> str:
-        lines = ["UNGROUPED SIGNALS:"]
+    def _format_ungrouped(clusters: list[SignalCluster], context: str | None = None) -> str:
+        lines = []
+        if context:
+            lines.append(f"TRIGGER CONTEXT:\n{context}")
+        lines.append("UNGROUPED SIGNALS:")
         for c in clusters:
             s = c.signals[0]
             lines.append(f"Signal [{s.id}]\nSummary: {s.structured_summary}\nEntities: {s.entities}")

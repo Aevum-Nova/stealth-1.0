@@ -15,6 +15,7 @@ from src.connectors.github import GitHubConnector
 from src.connectors.google_forms import GoogleFormsConnector
 from src.connectors.granola import GranolaConnector
 from src.connectors.intercom import IntercomConnector
+from src.connectors.microsoft_teams import MicrosoftTeamsConnector
 from src.connectors.servicenow import ServiceNowConnector
 from src.connectors.slack import SlackConnector
 from src.connectors.zendesk import ZendeskConnector
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/api/v1/connectors", tags=["connectors"])
 
 CONNECTOR_IMPL = {
     "slack": SlackConnector,
+    "microsoft_teams": MicrosoftTeamsConnector,
     "google_forms": GoogleFormsConnector,
     "zendesk": ZendeskConnector,
     "servicenow": ServiceNowConnector,
@@ -42,6 +44,7 @@ CONNECTOR_IMPL = {
 CONNECTOR_CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
 CONNECTOR_REQUIRED_ENV_VARS = {
     "slack": ("SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET"),
+    "microsoft_teams": ("MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"),
     "google_forms": ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"),
     "zendesk": ("ZENDESK_CLIENT_ID", "ZENDESK_CLIENT_SECRET"),
     "figma": ("FIGMA_CLIENT_ID", "FIGMA_CLIENT_SECRET"),

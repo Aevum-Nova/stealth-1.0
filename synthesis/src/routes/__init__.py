@@ -7,6 +7,7 @@ from src.routes.ingest import router as ingest_router
 from src.routes.jobs import router as jobs_router
 from src.routes.signals import router as signals_router
 from src.routes.synthesis import router as synthesis_router
+from src.routes.triggers import router as triggers_router
 
 __all__ = [
     "auth_router",
@@ -18,4 +19,5 @@ __all__ = [
     "jobs_router",
     "signals_router",
     "synthesis_router",
+    "triggers_router",
 ]

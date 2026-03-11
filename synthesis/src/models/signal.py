@@ -1,7 +1,7 @@
 import uuid
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, Enum as SAEnum, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Enum as SAEnum, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from src.database import Base
@@ -19,6 +19,7 @@ class Signal(Base):
     source = Column(
         SAEnum(
             "slack",
+            "microsoft_teams",
             "google_forms",
             "zendesk",
             "servicenow",
@@ -56,6 +57,9 @@ class Signal(Base):
     last_synthesized_at = Column(DateTime(timezone=True), nullable=True)
 
     organization_id = Column(UUID(as_uuid=True), nullable=False)
+    trigger_id = Column(UUID(as_uuid=True), ForeignKey("triggers.id"), nullable=True)
+    ingested_event_id = Column(UUID(as_uuid=True), ForeignKey("ingested_events.id"), nullable=True)
+    event_buffer_id = Column(UUID(as_uuid=True), ForeignKey("event_buffers.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     source_created_at = Column(DateTime(timezone=True), nullable=True)
@@ -70,4 +74,6 @@ class Signal(Base):
         Index("idx_signals_created_at", "created_at"),
         Index("idx_signals_org_source", "organization_id", "source"),
         Index("idx_signals_synthesized", "organization_id", "synthesized"),
+        Index("idx_signals_trigger", "trigger_id"),
+        Index("idx_signals_ingested_event", "ingested_event_id"),
     )

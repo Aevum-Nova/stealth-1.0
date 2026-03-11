@@ -31,6 +31,9 @@ class Settings(BaseSettings):
 
     SLACK_CLIENT_ID: str | None = None
     SLACK_CLIENT_SECRET: str | None = None
+    MICROSOFT_CLIENT_ID: str | None = None
+    MICROSOFT_CLIENT_SECRET: str | None = None
+    MICROSOFT_TENANT_ID: str | None = None
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
     ZENDESK_CLIENT_ID: str | None = None
