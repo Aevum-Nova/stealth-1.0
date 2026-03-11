@@ -50,21 +50,23 @@ class GitHubGitProvider:
             )
             create_resp.raise_for_status()
 
-    def apply_changes_and_commit(self, changes: list[CodeChange], commit_message: str) -> str:
+    def apply_changes_and_commit(
+        self, changes: list[CodeChange], commit_message: str, branch_name: str | None = None
+    ) -> str:
         """Create blobs, build a tree, create a commit, and update the branch ref."""
+        target_branch = branch_name or self._last_branch
         with httpx.Client() as client:
             headers = self._headers()
             repo_url = f"{GITHUB_API_BASE}/repos/{self.owner}/{self.repo}"
 
-            branch_name = self._last_branch
-            if not branch_name:
+            if not target_branch:
                 repo_resp = client.get(repo_url, headers=headers)
                 repo_resp.raise_for_status()
-                branch_name = repo_resp.json()["default_branch"]
+                target_branch = repo_resp.json()["default_branch"]
 
             # Get latest commit on the branch
             ref_resp = client.get(
-                f"{repo_url}/git/ref/heads/{branch_name}",
+                f"{repo_url}/git/ref/heads/{target_branch}",
                 headers=headers,
             )
             ref_resp.raise_for_status()
@@ -126,7 +128,7 @@ class GitHubGitProvider:
 
             # Update the branch ref
             update_resp = client.patch(
-                f"{repo_url}/git/refs/heads/{branch_name}",
+                f"{repo_url}/git/refs/heads/{target_branch}",
                 headers=headers,
                 json={"sha": new_commit_sha},
             )

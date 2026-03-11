@@ -1,6 +1,12 @@
 import agentApi from "@/api/agent-client";
 import type { ApiResponse } from "@/types/api";
-import type { AgentJob, ChatMessage, CodeIndexStatus, Conversation } from "@/types/agent";
+import type {
+  AgentJob,
+  ChatMessage,
+  CodeIndexStatus,
+  Conversation,
+  ProposedChange,
+} from "@/types/agent";
 
 export function sendChatMessage(featureRequestId: string, message: string) {
   return agentApi
@@ -18,6 +24,19 @@ export function triggerOrchestration(featureRequestId: string, dryRun: boolean =
   return agentApi
     .post(`feature-requests/${featureRequestId}/trigger`, { json: { dry_run: dryRun } })
     .json<ApiResponse<AgentJob>>();
+}
+
+export interface ApplyChangesResult {
+  commit_sha: string;
+  pull_request_url: string;
+}
+
+export function applyChangesToPr(featureRequestId: string, proposedChanges: ProposedChange[]) {
+  return agentApi
+    .post(`feature-requests/${featureRequestId}/apply-changes`, {
+      json: { proposed_changes: proposedChanges },
+    })
+    .json<ApiResponse<ApplyChangesResult>>();
 }
 
 export function getJob(jobId: string) {

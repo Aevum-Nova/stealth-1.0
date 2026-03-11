@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as agentApi from "@/api/agent";
-import type { AgentJob } from "@/types/agent";
+import type { AgentJob, ProposedChange } from "@/types/agent";
 
 export function useChatHistory(featureRequestId?: string) {
   return useQuery({
@@ -46,6 +46,18 @@ export function useAgentJob(jobId?: string) {
       if (!job) return false;
       return job.status === "pending" || job.status === "running" ? 2000 : false;
     }
+  });
+}
+
+export function useApplyChangesToPr(featureRequestId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (proposedChanges: ProposedChange[]) =>
+      agentApi.applyChangesToPr(featureRequestId, proposedChanges),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["agent-jobs", featureRequestId] });
+    },
   });
 }
 

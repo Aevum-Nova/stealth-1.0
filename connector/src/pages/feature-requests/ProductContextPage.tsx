@@ -7,7 +7,13 @@ import { highlightLine } from "@/lib/syntax-highlight";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { useAgentJobs, useChatHistory, useCodeIndexStatus, useTriggerOrchestration } from "@/hooks/use-agent";
+import {
+  useAgentJobs,
+  useApplyChangesToPr,
+  useChatHistory,
+  useCodeIndexStatus,
+  useTriggerOrchestration,
+} from "@/hooks/use-agent";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useFeatureRequest, useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
 import type { AgentJob, ProposedChange } from "@/types/agent";
@@ -111,9 +117,17 @@ interface UnifiedFile {
 function AllChanges({
   jobs,
   chatChanges,
+  onApplyToPr,
+  canApplyToPr,
+  isApplying,
+  applyError,
 }: {
   jobs: AgentJob[];
   chatChanges: ProposedChange[];
+  onApplyToPr?: () => void;
+  canApplyToPr?: boolean;
+  isApplying?: boolean;
+  applyError?: string | null;
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -161,18 +175,37 @@ function AllChanges({
   const totalDel = files.reduce((s, f) => s + (f.deletions ?? 0), 0);
   const expanded = expandedIdx !== null ? files[expandedIdx] : null;
 
+  const hasChatChanges = files.some((f) => f.source === "chat");
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-[var(--line-soft)] px-3 py-2">
-        <span className="flex size-[18px] items-center justify-center rounded bg-[var(--action-primary)] text-[9px] font-semibold tabular-nums text-white">
-          {files.length}
-        </span>
-        <span className="text-[12px] text-[var(--ink-soft)]">Files changed</span>
-        <span className="ml-auto font-mono text-[11px] tabular-nums">
+      <div className="flex flex-col gap-2 border-b border-[var(--line-soft)] px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="flex size-[18px] items-center justify-center rounded bg-[var(--action-primary)] text-[9px] font-semibold tabular-nums text-white">
+            {files.length}
+          </span>
+          <span className="text-[12px] text-[var(--ink-soft)]">Files changed</span>
+          <span className="ml-auto font-mono text-[11px] tabular-nums">
           <span className="text-emerald-600">+{totalAdd}</span>
           <span className="mx-1 text-[var(--line-muted)]">/</span>
-          <span className="text-rose-500">-{totalDel}</span>
-        </span>
+            <span className="text-rose-500">-{totalDel}</span>
+          </span>
+        </div>
+        {hasChatChanges && canApplyToPr && (
+          <div className="space-y-1">
+            <button
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-[6px] text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+              disabled={isApplying}
+              onClick={onApplyToPr}
+            >
+              <GitPullRequest className="size-3" />
+              {isApplying ? "Applying..." : "Apply to PR"}
+            </button>
+            {applyError && (
+              <p className="text-[10px] text-rose-600">{applyError}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -345,6 +378,7 @@ export default function ProductContextPage() {
   const actions = useFeatureRequestActions();
   const jobsQuery = useAgentJobs(id);
   const triggerMutation = useTriggerOrchestration(id);
+  const applyMutation = useApplyChangesToPr(id);
   const chatQuery = useChatHistory(id);
 
   const connectorsQuery = useConnectors();
@@ -516,7 +550,18 @@ export default function ProductContextPage() {
             {jobsQuery.isLoading ? (
               <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading..." /></div>
             ) : (
-              <AllChanges jobs={jobs} chatChanges={chatProposedChanges} />
+              <AllChanges
+                jobs={jobs}
+                chatChanges={chatProposedChanges}
+                canApplyToPr={chatProposedChanges.length > 0 && !!latestPrUrl}
+                isApplying={applyMutation.isPending}
+                applyError={
+                  applyMutation.isError
+                    ? (applyMutation.error as Error)?.message ?? "Failed to apply changes"
+                    : null
+                }
+                onApplyToPr={() => applyMutation.mutate(chatProposedChanges)}
+              />
             )}
           </div>
         </aside>

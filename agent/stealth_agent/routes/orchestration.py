@@ -9,7 +9,8 @@ from stealth_agent.adapters.llm import create_llm_provider
 from stealth_agent.config import settings
 from stealth_agent.database import get_db
 from stealth_agent.middleware.auth import get_current_org
-from stealth_agent.schemas import ApiResponse, JobOut, TriggerRequest
+from stealth_agent.schemas import ApiResponse, ApplyChangesOut, ApplyChangesRequest, JobOut, TriggerRequest
+from stealth_agent.services import apply_changes as apply_changes_service
 from stealth_agent.services import jobs as jobs_service
 
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
@@ -65,6 +66,29 @@ async def get_job(
             error=job.error,
             created_at=job.created_at,
             updated_at=job.updated_at,
+        )
+    )
+
+
+@router.post("/feature-requests/{feature_request_id}/apply-changes", response_model=ApiResponse)
+async def apply_changes_to_pr(
+    feature_request_id: str,
+    payload: ApplyChangesRequest,
+    org_id: str = Depends(get_current_org),
+):
+    try:
+        result = await apply_changes_service.apply_changes_to_pr(
+            feature_request_id=feature_request_id,
+            organization_id=org_id,
+            proposed_changes=[c.model_dump() for c in payload.proposed_changes],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return ApiResponse(
+        data=ApplyChangesOut(
+            commit_sha=result["commit_sha"],
+            pull_request_url=result["pull_request_url"],
         )
     )
 

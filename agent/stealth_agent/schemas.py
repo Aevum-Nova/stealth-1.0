@@ -56,6 +56,15 @@ class TriggerRequest(BaseModel):
     dry_run: bool = True
 
 
+class ApplyChangesRequest(BaseModel):
+    proposed_changes: list[ProposedChange]
+
+
+class ApplyChangesOut(BaseModel):
+    commit_sha: str
+    pull_request_url: str
+
+
 class JobOut(BaseModel):
     id: str
     feature_request_id: str

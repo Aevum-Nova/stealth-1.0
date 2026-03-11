@@ -230,6 +230,7 @@ async def _run_orchestration(
                 "dry_run": dry_run,
                 "commit_sha": commit_sha,
                 "pull_request_url": pr_url,
+                "branch_name": branch_name if pr_url else None,
             }
 
             # Update job as completed
