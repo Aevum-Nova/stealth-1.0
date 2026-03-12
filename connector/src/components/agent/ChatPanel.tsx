@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Sparkles } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -7,12 +7,26 @@ import { useChatHistory, useSendChatMessage } from "@/hooks/use-agent";
 
 export default function ChatPanel({ featureRequestId }: { featureRequestId: string }) {
   const [input, setInput] = useState("");
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const chatQuery = useChatHistory(featureRequestId);
   const sendMutation = useSendChatMessage(featureRequestId);
 
-  const messages = chatQuery.data?.data?.messages ?? [];
+  const serverMessages = chatQuery.data?.data?.messages ?? [];
+  const messages =
+    pendingMessage && sendMutation.isPending
+      ? [
+          ...serverMessages,
+          {
+            id: "pending",
+            role: "user" as const,
+            content: pendingMessage,
+            created_at: new Date().toISOString(),
+            proposed_changes: null,
+          },
+        ]
+      : serverMessages;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -20,80 +34,88 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
     }
   }, [messages.length]);
 
+  useEffect(() => {
+    if (!sendMutation.isPending) setPendingMessage(null);
+  }, [sendMutation.isPending]);
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || sendMutation.isPending) return;
     setInput("");
+    setPendingMessage(trimmed);
     sendMutation.mutate(trimmed);
   };
 
   return (
     <div className="flex h-full flex-col">
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-        {chatQuery.isLoading && (
-          <div className="flex h-16 items-center justify-center">
-            <LoadingSpinner label="Loading chat..." />
-          </div>
-        )}
-        {messages.length === 0 && !chatQuery.isLoading && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div className="flex size-10 items-center justify-center rounded-full bg-[var(--surface-subtle)]">
-              <Sparkles className="size-4 text-[var(--ink-muted)]" />
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-4xl px-4 py-6">
+          {chatQuery.isLoading && (
+            <div className="flex h-24 items-center justify-center">
+              <LoadingSpinner label="Loading chat..." />
             </div>
-            <div>
-              <p className="text-[13px] font-medium text-[var(--ink-soft)]">Ask about this feature</p>
-              <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
-                I can help you understand the codebase, suggest changes, and refine the PR.
+          )}
+          {messages.length === 0 && !chatQuery.isLoading && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-[14px] text-[var(--ink-soft)]">
+                Ask about the codebase, suggest changes, or refine the PR.
+              </p>
+              <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
+                I can help you understand and improve this feature.
               </p>
             </div>
+          )}
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <ChatMessage key={msg.id} message={msg} />
+            ))}
+            {sendMutation.isPending && (
+              <div className="flex items-center gap-2 rounded-2xl bg-[var(--surface-subtle)] px-4 py-3">
+                <span className="size-2 animate-pulse rounded-full bg-[var(--ink-muted)]" />
+                <span className="text-[13px] text-[var(--ink-muted)]">Thinking...</span>
+              </div>
+            )}
+            {sendMutation.isError && (
+              <div className="rounded-2xl border border-rose-200/60 bg-rose-50/80 px-4 py-3 text-[13px] text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/30">
+                Failed to send.{" "}
+                <button className="font-medium underline" onClick={() => sendMutation.reset()}>
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
-        )}
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
-        {sendMutation.isPending && (
-          <div className="flex items-center gap-2 rounded-lg bg-[var(--message-assistant)] px-3.5 py-2.5">
-            <span className="size-1.5 animate-pulse rounded-full bg-[var(--ink-muted)]" />
-            <span className="text-[12px] text-[var(--ink-soft)]">Thinking...</span>
-          </div>
-        )}
-        {sendMutation.isError && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-600">
-            Failed to send.{" "}
-            <button className="font-medium underline" onClick={() => sendMutation.reset()}>
-              Retry
-            </button>
-          </div>
-        )}
+        </div>
       </div>
 
-      <div className="border-t border-[var(--line-strong)] px-4 py-3">
-        <div className="flex items-end gap-2 rounded-xl border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2 transition-colors focus-within:border-[var(--focus-border)]">
-          <textarea
-            className="min-h-[20px] max-h-[120px] min-w-0 flex-1 resize-none border-none bg-transparent text-[13px] leading-snug text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
-            placeholder="Ask about the code, suggest changes..."
-            rows={1}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={sendMutation.isPending}
-          />
-          <button
-            className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--action-primary)] text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-30"
-            onClick={handleSend}
-            disabled={!input.trim() || sendMutation.isPending}
-          >
-            <ArrowUp className="size-3.5" />
-          </button>
+      <div className="shrink-0 border-t border-[var(--line-soft)] bg-[var(--surface)] px-4 py-4">
+        <div className="mx-auto max-w-4xl">
+          <div className="chat-input-container flex items-end gap-3 rounded-2xl bg-[var(--surface-subtle)] px-4 py-2.5 transition-colors focus-within:ring-1 focus-within:ring-[var(--line-muted)]">
+            <textarea
+              className="min-h-[24px] max-h-[140px] min-w-0 flex-1 resize-none border-none bg-transparent text-[14px] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
+              placeholder="Ask for follow-up changes..."
+              rows={1}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              disabled={sendMutation.isPending}
+            />
+            <button
+              className="mb-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--action-primary)] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              onClick={handleSend}
+              disabled={!input.trim() || sendMutation.isPending}
+            >
+              <ArrowUp className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

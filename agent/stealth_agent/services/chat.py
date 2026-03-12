@@ -94,14 +94,21 @@ def _format_job_context(job_result: dict | None) -> str:
         parts.append(f"Summary: {job_result['spec_summary']}")
     if job_result.get("tasks"):
         parts.append("Tasks:\n" + "\n".join(f"  - {t}" for t in job_result["tasks"]))
-    if job_result.get("proposed_files"):
-        files_text = "\n".join(
-            f"  - {f['file_path']}: {f.get('reason', '')}"
-            for f in job_result["proposed_files"]
-        )
-        parts.append(f"Proposed files:\n{files_text}")
 
-    return "\n".join(parts)
+    proposed = job_result.get("proposed_files") or []
+    if proposed:
+        sections = []
+        for f in proposed:
+            path = f.get("file_path", "")
+            reason = f.get("reason", "")
+            content = f.get("content", "")
+            header = f"--- {path} ---"
+            if reason:
+                header += f"\n# {reason}"
+            sections.append(f"{header}\n{content}\n---")
+        parts.append("FILES IN CURRENT PR (full content - use these as the codebase):\n" + "\n\n".join(sections))
+
+    return "\n\n".join(parts)
 
 
 async def chat(
@@ -143,13 +150,29 @@ async def chat(
         config = connector.config or {}
         repo_label = config.get("repository", "")
         try:
+            # Primary: user's message
             chunks = await retrieve_relevant_chunks(
                 query=user_message,
                 connector_id=connector.id,
                 organization_id=uuid.UUID(organization_id),
-                top_k=8,
+                top_k=20,
             )
-            code_context = _format_code_context(chunks)
+            seen = {(c.file_path, c.start_line, c.end_line) for c in chunks}
+            # Secondary: feature request context (catches theme/css/etc for "light mode")
+            if fr_row:
+                fr_query = f"{fr_row.title} {fr_row.problem_statement}"
+                extra = await retrieve_relevant_chunks(
+                    query=fr_query,
+                    connector_id=connector.id,
+                    organization_id=uuid.UUID(organization_id),
+                    top_k=16,
+                )
+                for c in extra:
+                    key = (c.file_path, c.start_line, c.end_line)
+                    if key not in seen:
+                        seen.add(key)
+                        chunks.append(c)
+            code_context = _format_code_context(chunks[:32])
         except Exception as exc:
             log.warning("code_retrieval_failed", error=str(exc))
 
@@ -159,17 +182,26 @@ async def chat(
 
     # Build system prompt
     system_parts = [
-        "You are a codebase-aware engineering assistant."
+        "You are a codebase-aware engineering assistant with access to the user's repository."
     ]
     if repo_label:
-        system_parts[0] += f" You have access to the repository code for {repo_label}."
+        system_parts[0] += f" The linked repo is {repo_label}."
+    system_parts[0] += (
+        " You receive full file contents from the current PR (when available), "
+        "plus semantically retrieved code from the indexed repository. "
+        "Do NOT claim you lack repository access — you have it via the context provided."
+    )
 
     if fr_context:
         system_parts.append(fr_context)
-    if code_context:
-        system_parts.append(f"RELEVANT CODE (retrieved from the repository):\n{code_context}")
+    # PR files first (most authoritative) — full content of files in the current PR
     if job_context:
-        system_parts.append(f"LATEST AGENT RUN:\n{job_context}")
+        system_parts.append(job_context)
+    if code_context:
+        system_parts.append(f"ADDITIONAL CODE (semantic search from indexed repo):\n{code_context}")
+    elif connector and repo_label:
+        hint = "suggest changes based on the feature request" + (" and PR files above" if job_context else "")
+        system_parts.append(f"The repository {repo_label} is indexed. No code chunks matched — {hint}.")
 
     system_parts.append(
         "Help the user understand the code, reason about implementation, and suggest precise changes.\n\n"

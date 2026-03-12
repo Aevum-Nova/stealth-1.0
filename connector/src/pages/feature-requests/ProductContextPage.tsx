@@ -530,7 +530,9 @@ export default function ProductContextPage() {
             >Chat</button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div
+            className={`flex-1 overflow-y-auto ${tab === "chat" ? "bg-[var(--canvas-subtle)]" : ""}`}
+          >
             {tab === "thread" ? (
               jobsQuery.isLoading
                 ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading runs..." /></div>

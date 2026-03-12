@@ -65,7 +65,7 @@ function HighlightedCodeBlock({
   const highlighted = useMemo(() => lines.map((l) => highlightLine(l)), [code]);
 
   return (
-    <div className={`overflow-auto bg-[var(--surface-muted)]`} style={{ maxHeight }}>
+    <div className="overflow-auto rounded-b-xl bg-[var(--surface-muted)]" style={{ maxHeight }}>
       {highlighted.map((html, i) => (
         <div key={i} className="flex text-[11px] leading-[20px]">
           <span className="w-9 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">
@@ -93,31 +93,31 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--line-strong)]">
+    <div className="overflow-hidden rounded-xl bg-[var(--surface-subtle)]">
       <button
-        className="flex w-full items-center gap-2 bg-[var(--surface-contrast)] px-3 py-2 text-left transition-colors hover:bg-[var(--surface-hover)]"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
         onClick={() => setExpanded(!expanded)}
       >
         {expanded
           ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
           : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
         <FileCode className="size-3.5 shrink-0 text-[var(--ink-soft)]" />
-        <code className="min-w-0 flex-1 truncate text-[12px] font-medium text-[var(--ink)]">
+        <code className="min-w-0 flex-1 truncate text-[13px] text-[var(--ink)]">
           {change.file_path}
         </code>
-        <span className="shrink-0 text-[10px] tabular-nums text-emerald-600">+{lineCount}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-emerald-600">+{lineCount}</span>
       </button>
 
       {change.reason && (
-        <div className="border-t border-[var(--line-soft)] bg-[var(--surface-contrast)] px-3 py-1.5">
-          <p className="text-[11px] leading-snug text-[var(--ink-muted)]">{change.reason}</p>
+        <div className="border-t border-[var(--line-soft)] px-3.5 py-2">
+          <p className="text-[12px] leading-snug text-[var(--ink-muted)]">{change.reason}</p>
         </div>
       )}
 
       {expanded && (
-        <div className="relative border-t border-[var(--line-strong)]">
+        <div className="relative border-t border-[var(--line-soft)]">
           <button
-            className="absolute right-2 top-2 z-10 rounded-md border border-[var(--line)] bg-[var(--surface)] p-1 text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+            className="absolute right-2.5 top-2.5 z-10 rounded-lg bg-[var(--surface)] p-1.5 text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
             onClick={handleCopy}
             title="Copy to clipboard"
           >
@@ -147,9 +147,11 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-lg bg-[var(--message-user)] px-3 py-2 text-white">
-          <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{displayContent}</p>
-          <time className="mt-1 block text-[10px] text-[var(--message-user-muted)]">
+        <div className="max-w-[85%] rounded-2xl bg-[var(--message-user)] px-4 py-2.5">
+          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-white">
+            {displayContent}
+          </p>
+          <time className="mt-1.5 block text-[11px] text-[var(--message-user-muted)]">
             {new Date(message.created_at).toLocaleTimeString()}
           </time>
         </div>
@@ -158,18 +160,18 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {displayContent && (
         <div
-          className="chat-message-content rounded-lg bg-[var(--message-assistant)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--ink)]"
+          className="chat-message-content rounded-2xl bg-[var(--message-assistant)] px-4 py-3 text-[14px] leading-relaxed text-[var(--ink)]"
           dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />
       )}
 
       {hasChanges && (
         <div className="space-y-2">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--ink-muted)]">
-            <FileCode className="size-3" />
+          <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
+            <FileCode className="size-3.5" />
             {changes.length} proposed {changes.length === 1 ? "file" : "files"}
           </p>
           {changes.map((change, i) => (
@@ -178,7 +180,7 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
         </div>
       )}
 
-      <time className="block text-[10px] text-[var(--ink-muted)]">
+      <time className="block text-[11px] text-[var(--ink-muted)]">
         {new Date(message.created_at).toLocaleTimeString()}
       </time>
     </div>
