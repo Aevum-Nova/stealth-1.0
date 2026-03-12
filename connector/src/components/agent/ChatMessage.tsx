@@ -65,9 +65,9 @@ function HighlightedCodeBlock({
   const highlighted = useMemo(() => lines.map((l) => highlightLine(l)), [code]);
 
   return (
-    <div className="overflow-auto rounded-b-xl bg-[var(--surface-muted)]" style={{ maxHeight }}>
+    <div className="overflow-auto rounded-b-lg border border-t-0 border-[#e5e5e5] bg-white" style={{ maxHeight }}>
       {highlighted.map((html, i) => (
-        <div key={i} className="flex text-[11px] leading-[20px]">
+        <div key={i} className="flex text-[11px] leading-[18px]">
           <span className="w-9 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">
             {i + 1}
           </span>
@@ -93,9 +93,9 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-xl bg-[var(--surface-subtle)]">
+    <div className="overflow-hidden rounded-lg border border-[#e5e5e5] bg-white">
       <button
-        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[#fafafa]"
         onClick={() => setExpanded(!expanded)}
       >
         {expanded
@@ -105,23 +105,23 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
         <code className="min-w-0 flex-1 truncate text-[13px] text-[var(--ink)]">
           {change.file_path}
         </code>
-        <span className="shrink-0 text-[11px] tabular-nums text-emerald-600">+{lineCount}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-[var(--ink-muted)]">+{lineCount}</span>
       </button>
 
       {change.reason && (
-        <div className="border-t border-[var(--line-soft)] px-3.5 py-2">
+        <div className="border-t border-[#e5e5e5] bg-white px-3.5 py-2">
           <p className="text-[12px] leading-snug text-[var(--ink-muted)]">{change.reason}</p>
         </div>
       )}
 
       {expanded && (
-        <div className="relative border-t border-[var(--line-soft)]">
+        <div className="relative border-t border-[#e5e5e5] bg-white">
           <button
-            className="absolute right-2.5 top-2.5 z-10 rounded-lg bg-[var(--surface)] p-1.5 text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+            className="absolute right-2.5 top-2.5 z-10 rounded-lg bg-white p-1.5 text-[var(--ink-muted)] transition-colors hover:bg-[#eeeeee] hover:text-[var(--ink)]"
             onClick={handleCopy}
             title="Copy to clipboard"
           >
-            {copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+            {copied ? <Check className="size-3 text-[var(--ink)]" /> : <Copy className="size-3" />}
           </button>
           <HighlightedCodeBlock code={change.content} />
         </div>
@@ -147,11 +147,11 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl bg-[var(--message-user)] px-4 py-2.5">
-          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-white">
+        <div className="chat-user-bubble max-w-[85%] rounded-lg bg-[#f0f0f0] px-4 py-2.5">
+          <p className="whitespace-pre-wrap text-[14px] leading-snug text-[var(--ink)]">
             {displayContent}
           </p>
-          <time className="mt-1.5 block text-[11px] text-[var(--message-user-muted)]">
+          <time className="mt-1 block text-[11px] text-[var(--ink-muted)]">
             {new Date(message.created_at).toLocaleTimeString()}
           </time>
         </div>
@@ -160,16 +160,16 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {displayContent && (
         <div
-          className="chat-message-content rounded-2xl bg-[var(--message-assistant)] px-4 py-3 text-[14px] leading-relaxed text-[var(--ink)]"
+          className="chat-message-content text-[14px] leading-snug text-[var(--ink)]"
           dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />
       )}
 
       {hasChanges && (
-        <div className="space-y-2">
+        <div className="space-y-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-3">
           <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
             <FileCode className="size-3.5" />
             {changes.length} proposed {changes.length === 1 ? "file" : "files"}

@@ -42,47 +42,47 @@ function AgentThread({ jobs }: { jobs: AgentJob[] }) {
   }
 
   return (
-    <div>
+    <div className="py-2">
       {jobs.map((job, idx) => {
         const isOpen = !collapsed[job.id];
         const taskCount = job.result?.tasks.length ?? 0;
 
         return (
-          <div key={job.id} className="border-b border-[var(--line-soft)]">
+          <div key={job.id} className="border-b border-[var(--line-soft)] last:border-b-0">
             <button
-              className="flex w-full items-center gap-2.5 px-5 py-3 text-left transition-colors hover:bg-[var(--surface-hover)]"
+              className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
               onClick={() => setCollapsed((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
             >
               {isOpen
                 ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
                 : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
-              <span className={`size-[7px] shrink-0 rounded-full ${STATUS_DOT[job.status] ?? "bg-zinc-400"}`} />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--ink)]">
+              <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[job.status] ?? "bg-zinc-400"}`} />
+              <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ink)]">
                 {job.result?.feature_name ?? `Run #${jobs.length - idx}`}
               </span>
               {taskCount > 0 && (
-                <span className="shrink-0 text-[11px] text-[var(--ink-muted)]">{taskCount} tasks</span>
+                <span className="shrink-0 text-[12px] text-[var(--ink-muted)]">{taskCount} tasks</span>
               )}
             </button>
 
             {isOpen && (
-              <div className="px-5 pb-4 pt-0">
+              <div className="px-6 pb-5 pt-0">
                 {job.error && (
-                  <p className="mb-3 rounded-md bg-rose-50 px-3 py-2 text-[12px] text-rose-600">{job.error}</p>
+                  <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-600">{job.error}</p>
                 )}
                 {job.result && (
-                  <div className="space-y-3">
-                    <p className="text-[13px] leading-relaxed text-[var(--ink-soft)]">{job.result.spec_summary}</p>
+                  <div className="space-y-2">
+                    <p className="text-[14px] leading-snug text-[var(--ink)]">{job.result.spec_summary}</p>
 
                     {job.result.tasks.length > 0 && (
-                      <div>
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-muted)]">
-                          Planned Tasks
+                      <div className="space-y-1.5">
+                        <p className="text-[12px] text-[var(--ink-muted)]">
+                          Planned tasks
                         </p>
-                        <div className="space-y-[6px]">
+                        <div className="space-y-1">
                           {job.result.tasks.map((task, i) => (
-                            <div key={`${job.id}-t-${i}`} className="flex items-start gap-2.5 text-[13px] leading-snug text-[var(--ink-soft)]">
-                              <span className="mt-[7px] size-[4px] shrink-0 rounded-full bg-[var(--line-muted)]" />
+                            <div key={`${job.id}-t-${i}`} className="flex items-start gap-2.5 text-[14px] leading-snug text-[var(--ink-soft)]">
+                              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-60" />
                               {task}
                             </div>
                           ))}
@@ -179,26 +179,26 @@ function AllChanges({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-col gap-2 border-b border-[var(--line-soft)] px-3 py-2">
+      <div className="flex flex-col gap-2.5 border-b border-[var(--line-soft)] px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="flex size-[18px] items-center justify-center rounded bg-[var(--action-primary)] text-[9px] font-semibold tabular-nums text-white">
+          <span className="flex size-5 items-center justify-center rounded-md bg-[var(--ink)] text-[10px] font-semibold tabular-nums text-white">
             {files.length}
           </span>
-          <span className="text-[12px] text-[var(--ink-soft)]">Files changed</span>
+          <span className="text-[12px] font-medium text-[var(--ink-soft)]">Files changed</span>
           <span className="ml-auto font-mono text-[11px] tabular-nums">
-          <span className="text-emerald-600">+{totalAdd}</span>
-          <span className="mx-1 text-[var(--line-muted)]">/</span>
-            <span className="text-rose-500">-{totalDel}</span>
+            <span className="text-emerald-600">+{totalAdd}</span>
+            {" "}/{" "}
+            <span className="text-red-600">-{totalDel}</span>
           </span>
         </div>
         {hasChatChanges && canApplyToPr && (
           <div className="space-y-1">
             <button
-              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-[6px] text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ink)] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
               disabled={isApplying}
               onClick={onApplyToPr}
             >
-              <GitPullRequest className="size-3" />
+              <GitPullRequest className="size-3.5" />
               {isApplying ? "Applying..." : "Apply to PR"}
             </button>
             {applyError && (
@@ -212,21 +212,21 @@ function AllChanges({
         {files.map((file, i) => (
           <div key={`${file.source}-${file.file_path}`}>
             <button
-              className={`flex w-full items-center gap-2 px-3 py-[6px] text-left transition-colors hover:bg-[var(--surface-hover)] ${
+              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-subtle)] ${
                 i < files.length - 1 && expandedIdx !== i ? "border-b border-[var(--line-soft)]" : ""
-              } ${expandedIdx === i ? "bg-[var(--surface-active)]" : ""}`}
+              } ${expandedIdx === i ? "bg-[var(--surface-subtle)]" : ""}`}
               onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
             >
               {expandedIdx === i
                 ? <ChevronDown className="size-3 shrink-0 text-[var(--ink-muted)]" />
                 : <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />}
-              <code className="min-w-0 flex-1 truncate text-[11px] text-[var(--ink-soft)]">{file.file_path}</code>
+              <code className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink-soft)]">{file.file_path}</code>
               {file.source === "chat" && (
-                <span className="shrink-0 rounded-sm bg-violet-100 px-1 text-[8px] font-medium text-violet-700">chat</span>
+                <span className="shrink-0 rounded-sm bg-[#e5e5e5] px-1.5 py-0.5 text-[9px] font-medium text-[var(--ink-muted)]">chat</span>
               )}
               <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">+{file.additions ?? 0}</span>
               {(file.deletions ?? 0) > 0 && (
-                <span className="shrink-0 font-mono text-[10px] tabular-nums text-rose-500">-{file.deletions}</span>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-red-600">-{file.deletions}</span>
               )}
             </button>
 
@@ -268,8 +268,8 @@ function IndexingStatus({ connectorId }: { connectorId: string }) {
 
   if (data.status === "ready") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-[3px] text-[10px] font-medium text-emerald-700">
-        <Database className="size-2.5" />
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+        <Database className="size-3" />
         Indexed
       </span>
     );
@@ -277,7 +277,7 @@ function IndexingStatus({ connectorId }: { connectorId: string }) {
 
   if (data.status === "indexing") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-[3px] text-[10px] font-medium text-sky-700">
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700">
         <Database className="size-2.5 animate-pulse" />
         Indexing {data.indexed_files}/{data.total_files}
       </span>
@@ -306,14 +306,14 @@ function FeatureRequestGroup({
   const signalCount = item.impact_metrics?.signal_count ?? 0;
 
   return (
-    <div className={isActive ? "bg-[var(--surface)]" : ""}>
+    <div className={isActive ? "bg-[var(--surface-subtle)]" : ""}>
       <button
-        className={`group relative flex w-full items-center gap-1 border-b border-[var(--line-soft)] py-[9px] pl-3 pr-2.5 text-left transition-colors ${
-          isActive ? "" : "hover:bg-[var(--surface-hover)]"
+        className={`group relative flex w-full items-center gap-1.5 border-b border-[var(--line-soft)] py-3 pl-4 pr-3 text-left transition-colors ${
+          isActive ? "" : "hover:bg-[var(--surface-subtle)]"
         }`}
         onClick={() => (isActive ? onToggle() : onNavigate())}
       >
-        {isActive && <div className="absolute inset-y-0 left-0 w-[2px] bg-[var(--action-primary)]" />}
+        {isActive && <div className="absolute inset-y-0 left-0 w-[2px] bg-[var(--ink)]" />}
 
         <span className={`min-w-0 flex-1 truncate text-[13px] leading-tight ${isActive ? "font-semibold text-[var(--ink)]" : "font-medium text-[var(--ink-soft)]"}`}>
           {item.title}
@@ -428,62 +428,78 @@ export default function ProductContextPage() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface)]">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--canvas)]">
       {/* ── Toolbar ── */}
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--line-strong)] px-4 py-[7px]">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--line-soft)] bg-[var(--surface)] px-5 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <Link to="/feature-requests" className="shrink-0 text-[12px] text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]">
-            ← Feature Requests
+          <Link
+            to="/feature-requests"
+            className="shrink-0 text-[13px] text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+          >
+            Feature Requests
           </Link>
-          <span className="shrink-0 text-[var(--line-strong)]">/</span>
-          <span className="truncate text-[13px] font-medium text-[var(--ink)]">{fr.title}</span>
+          <span className="shrink-0 text-[var(--ink-muted)]">/</span>
+          <span className="truncate text-[14px] font-medium text-[var(--ink)]">{fr.title}</span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-2">
           {githubConnector && <IndexingStatus connectorId={githubConnector.id} />}
 
-          <span className="rounded-full border border-[var(--line-strong)] px-2 py-[3px] text-[10px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+          <span className="rounded-md bg-[var(--surface-subtle)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--ink-muted)]">
             {fr.status}
           </span>
           <PriorityBadge priority={fr.priority} />
 
           {latestPrUrl && (
-            <>
-              <div className="mx-0.5 h-4 w-px bg-[var(--line)]" />
-              <a
-                href={latestPrUrl} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-[3px] text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-              >
-                <GitPullRequest className="size-3" />PR<ExternalLink className="size-2.5" />
-              </a>
-            </>
+            <a
+              href={latestPrUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--surface-subtle)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--surface-hover)]"
+            >
+              <GitPullRequest className="size-3.5" />
+              Open PR
+              <ExternalLink className="size-3" />
+            </a>
           )}
 
-          <div className="mx-0.5 h-4 w-px bg-[var(--line)]" />
+          <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
-          <button
-            className="rounded-md border border-[var(--line-strong)] px-2.5 py-[4px] text-[11px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--surface-subtle)] disabled:opacity-40"
-            disabled={hasActiveJob || triggerMutation.isPending}
-            onClick={() => triggerMutation.mutate(true)}
-          >Dry Run</button>
-          <button
-            className="rounded-md bg-[var(--action-primary)] px-2.5 py-[4px] text-[11px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-40"
-            disabled={hasActiveJob || triggerMutation.isPending}
-            onClick={() => triggerMutation.mutate(false)}
-          >Generate PR</button>
+          <div className="flex items-center gap-1.5">
+            <button
+              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)] disabled:opacity-40"
+              disabled={hasActiveJob || triggerMutation.isPending}
+              onClick={() => triggerMutation.mutate(true)}
+            >
+              Dry Run
+            </button>
+            <button
+              className="rounded-md bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              disabled={hasActiveJob || triggerMutation.isPending}
+              onClick={() => triggerMutation.mutate(false)}
+            >
+              Generate PR
+            </button>
+          </div>
 
-          <div className="mx-0.5 h-4 w-px bg-[var(--line)]" />
+          <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
-          <button
-            className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-[4px] text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-40"
-            disabled={actions.approve.isPending}
-            onClick={() => actions.approve.mutate(fr.id)}
-          >Approve</button>
-          <button
-            className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-[4px] text-[11px] font-medium text-rose-600 transition-colors hover:bg-rose-100 disabled:opacity-40"
-            disabled={actions.reject.isPending}
-            onClick={() => actions.reject.mutate(fr.id)}
-          >Reject</button>
+          <div className="flex items-center gap-1.5">
+            <button
+              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-40"
+              disabled={actions.approve.isPending}
+              onClick={() => actions.approve.mutate(fr.id)}
+            >
+              Approve
+            </button>
+            <button
+              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40"
+              disabled={actions.reject.isPending}
+              onClick={() => actions.reject.mutate(fr.id)}
+            >
+              Reject
+            </button>
+          </div>
         </div>
       </header>
 
@@ -491,7 +507,7 @@ export default function ProductContextPage() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
 
         {/* Left */}
-        <aside className="hidden w-[264px] shrink-0 flex-col overflow-hidden border-r border-[var(--line-strong)] bg-[var(--surface-contrast)] xl:flex">
+        <aside className="hidden w-[260px] shrink-0 flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface)] xl:flex">
           <div className="flex-1 overflow-y-auto">
             {allFeatureRequests.map((item) => (
               <FeatureRequestGroup
@@ -510,29 +526,31 @@ export default function ProductContextPage() {
         </aside>
 
         {/* Center */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center border-b border-[var(--line-strong)] px-1">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--surface)]">
+          <div className="flex shrink-0 gap-0.5 border-b border-[var(--line-soft)] px-5">
             <button
-              className={`border-b-2 px-3.5 py-[9px] text-[12px] font-medium transition-colors ${
+              className={`-mb-px border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
                 tab === "thread"
-                  ? "border-[var(--action-primary)] text-[var(--ink)]"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
                   : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink-soft)]"
               }`}
               onClick={() => setTab("thread")}
-            >Agent Thread</button>
+            >
+              Agent Thread
+            </button>
             <button
-              className={`border-b-2 px-3.5 py-[9px] text-[12px] font-medium transition-colors ${
+              className={`-mb-px border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
                 tab === "chat"
-                  ? "border-[var(--action-primary)] text-[var(--ink)]"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
                   : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink-soft)]"
               }`}
               onClick={() => setTab("chat")}
-            >Chat</button>
+            >
+              Chat
+            </button>
           </div>
 
-          <div
-            className={`flex-1 overflow-y-auto ${tab === "chat" ? "bg-[var(--canvas-subtle)]" : ""}`}
-          >
+          <div className="flex-1 overflow-y-auto bg-white">
             {tab === "thread" ? (
               jobsQuery.isLoading
                 ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading runs..." /></div>
@@ -544,9 +562,9 @@ export default function ProductContextPage() {
         </main>
 
         {/* Right */}
-        <aside className="hidden w-[280px] shrink-0 flex-col overflow-hidden border-l border-[var(--line-strong)] bg-[var(--surface-contrast)] xl:flex">
-          <div className="flex shrink-0 items-center border-b border-[var(--line-strong)] px-3 py-[9px]">
-            <span className="text-[12px] font-medium text-[var(--ink)]">Changes</span>
+        <aside className="hidden w-[280px] shrink-0 flex-col overflow-hidden border-l border-[var(--line-soft)] bg-[var(--surface)] xl:flex">
+          <div className="flex shrink-0 items-center border-b border-[var(--line-soft)] px-4 py-3">
+            <span className="text-[13px] font-medium text-[var(--ink)]">Changes</span>
           </div>
           <div className="flex-1 overflow-y-auto">
             {jobsQuery.isLoading ? (
