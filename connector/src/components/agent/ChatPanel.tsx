@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowUp } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -8,6 +8,7 @@ import { useChatHistory, useSendChatMessage } from "@/hooks/use-agent";
 export default function ChatPanel({ featureRequestId }: { featureRequestId: string }) {
   const [input, setInput] = useState("");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const chatQuery = useChatHistory(featureRequestId);
@@ -38,6 +39,30 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
     if (!sendMutation.isPending) setPendingMessage(null);
   }, [sendMutation.isPending]);
 
+  const checkScrollPosition = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setShowScrollToBottom(scrollHeight - scrollTop - clientHeight > 60);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScrollPosition();
+    el.addEventListener("scroll", checkScrollPosition);
+    const ro = new ResizeObserver(checkScrollPosition);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", checkScrollPosition);
+      ro.disconnect();
+    };
+  }, [checkScrollPosition, messages.length]);
+
+  const scrollToBottom = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  };
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || sendMutation.isPending) return;
@@ -47,8 +72,8 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
   };
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-white">
+    <div className="relative flex h-full flex-col bg-white">
+      <div ref={scrollRef} className="chat-scroll-area flex-1 min-h-0 overflow-y-auto bg-white">
         <div className="mx-auto max-w-4xl px-6 py-8">
           {chatQuery.isLoading && (
             <div className="flex h-32 items-center justify-center">
@@ -97,6 +122,17 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
           </div>
         </div>
       </div>
+
+      {showScrollToBottom && (
+        <button
+          type="button"
+          className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface)] p-2.5 text-[var(--ink-muted)] shadow-sm transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+          onClick={scrollToBottom}
+          aria-label="Scroll to bottom"
+        >
+          <ArrowDown className="size-4" />
+        </button>
+      )}
 
       <div className="shrink-0 border-t border-[#eeeeee] bg-white px-6 py-4">
         <div className="mx-auto max-w-4xl">

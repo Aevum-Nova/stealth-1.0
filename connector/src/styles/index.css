@@ -310,6 +310,41 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* Chat scrollbar: constant 6px width (no layout shift), thumb only visible on hover */
+.chat-scroll-area {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent var(--surface);
+}
+.chat-scroll-area:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.25) var(--surface);
+}
+:root[data-theme="dark"] .chat-scroll-area:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) var(--surface);
+}
+.chat-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll-area::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+.chat-scroll-area::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.chat-scroll-area:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+}
+.chat-scroll-area:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+:root[data-theme="dark"] .chat-scroll-area:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+:root[data-theme="dark"] .chat-scroll-area:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 /* Chat input uses parent focus-within ring instead; avoid double highlight */
 .chat-input-container textarea:focus {
   border-color: transparent;
