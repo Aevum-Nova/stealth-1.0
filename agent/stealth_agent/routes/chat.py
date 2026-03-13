@@ -16,7 +16,12 @@ router = APIRouter(prefix="/api/v1/feature-requests", tags=["chat"])
 
 
 def _get_llm() -> LLMProvider:
-    return create_llm_provider(settings.LLM_PROVIDER, settings.ANTHROPIC_API_KEY, settings.OPENAI_API_KEY)
+    return create_llm_provider(
+        settings.LLM_PROVIDER,
+        settings.ANTHROPIC_API_KEY,
+        settings.OPENAI_API_KEY,
+        settings.ANTHROPIC_MODEL,
+    )
 
 
 def _map_proposed_changes(raw: list[dict] | None) -> list[ProposedChange] | None:

@@ -7,6 +7,30 @@ TEXT_ANALYZER_PROMPT = """You are a product signal analyzer. Given raw customer 
 structured_summary, entities, sentiment, urgency.
 Return valid JSON only."""
 
+TEXT_ANALYZER_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "structured_summary": {"type": "string"},
+        "entities": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string"},
+                    "value": {"type": "string"},
+                    "confidence": {"type": "number"},
+                },
+                "required": ["type", "value", "confidence"],
+                "additionalProperties": False,
+            },
+        },
+        "sentiment": {"type": "string", "enum": ["positive", "negative", "neutral", "mixed"]},
+        "urgency": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+    },
+    "required": ["structured_summary", "entities", "sentiment", "urgency"],
+    "additionalProperties": False,
+}
+
 
 class TextProcessor:
     _SENTIMENT_VALUES = {"positive", "negative", "neutral", "mixed"}
@@ -58,7 +82,7 @@ class TextProcessor:
             sentiment = "neutral"
             urgency = "low"
         else:
-            payload = await llm_service.json_completion(TEXT_ANALYZER_PROMPT, clean)
+            payload = await llm_service.json_completion(TEXT_ANALYZER_PROMPT, clean, schema=TEXT_ANALYZER_SCHEMA)
             summary = str(payload.get("structured_summary") or clean[:500]).strip() or clean[:500]
             entities = self._normalize_entities(payload.get("entities"))
             sentiment = self._normalize_label(

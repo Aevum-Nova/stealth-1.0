@@ -10,23 +10,7 @@ import TextInputForm from "@/components/ingest/TextInputForm";
 import { useToast } from "@/components/shared/Toast";
 import { useJobs } from "@/hooks/use-jobs";
 import { useFileUpload } from "@/hooks/use-file-upload";
-
-function normalizeErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "response" in error) {
-    const response = (error as { response?: { status?: number } }).response;
-    if (response?.status === 401) {
-      return "Your session expired. Please log in again.";
-    }
-    if (response?.status === 413) {
-      return "Payload too large. Try a smaller input.";
-    }
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-  return "Request failed.";
-}
+import { extractApiErrorMessage } from "@/lib/api-error";
 
 export default function IngestPage() {
   const [tab, setTab] = useState<"files" | "text" | "batch">("files");
@@ -51,7 +35,7 @@ export default function IngestPage() {
         await queryClient.invalidateQueries({ queryKey: ["jobs"] });
       }
     } catch (error) {
-      pushToast(normalizeErrorMessage(error), "error");
+      pushToast(await extractApiErrorMessage(error, "Request failed."), "error");
     }
   };
 
@@ -115,7 +99,7 @@ export default function IngestPage() {
                 pushToast(`Text submitted. Signal ${response.data.signal_id.slice(0, 8)} queued.`, "success");
                 await queryClient.invalidateQueries({ queryKey: ["signals"] });
               } catch (error) {
-                const message = normalizeErrorMessage(error);
+                const message = await extractApiErrorMessage(error, "Request failed.");
                 pushToast(message, "error");
                 throw new Error(message);
               }
@@ -131,7 +115,7 @@ export default function IngestPage() {
                 pushToast(`Batch submitted. Job ${response.data.job_id.slice(0, 8)} created.`, "success");
                 await queryClient.invalidateQueries({ queryKey: ["jobs"] });
               } catch (error) {
-                const message = normalizeErrorMessage(error);
+                const message = await extractApiErrorMessage(error, "Request failed.");
                 pushToast(message, "error");
                 throw new Error(message);
               }

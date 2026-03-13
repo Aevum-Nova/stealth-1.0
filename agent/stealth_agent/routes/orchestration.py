@@ -24,7 +24,12 @@ async def trigger_orchestration(
     db: AsyncSession = Depends(get_db),
 ):
     job = await jobs_service.create_job(db, feature_request_id, org_id)
-    llm = create_llm_provider(settings.LLM_PROVIDER, settings.ANTHROPIC_API_KEY, settings.OPENAI_API_KEY)
+    llm = create_llm_provider(
+        settings.LLM_PROVIDER,
+        settings.ANTHROPIC_API_KEY,
+        settings.OPENAI_API_KEY,
+        settings.ANTHROPIC_MODEL,
+    )
 
     jobs_service.trigger_orchestration(
         job_id=str(job.id),

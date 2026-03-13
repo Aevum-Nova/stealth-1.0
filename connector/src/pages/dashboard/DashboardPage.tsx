@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { getDashboardStats } from "@/api/dashboard";
-import { runSynthesis } from "@/api/synthesis";
 import SourceBreakdownChart from "@/components/dashboard/SourceBreakdownChart";
 import PriorityDistribution from "@/components/dashboard/PriorityDistribution";
 import RecentActivityFeed from "@/components/dashboard/RecentActivityFeed";
@@ -11,6 +10,7 @@ import StatsGrid from "@/components/dashboard/StatsGrid";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useEventStream } from "@/hooks/use-event-stream";
+import { useRunSynthesis } from "@/hooks/use-synthesis";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -22,11 +22,8 @@ export default function DashboardPage() {
     refetchInterval: 60_000
   });
 
-  const runMutation = useMutation({
-    mutationFn: () => runSynthesis("incremental"),
-    onSuccess: () => {
-      navigate("/synthesis");
-    }
+  const runMutation = useRunSynthesis({
+    onSuccess: () => navigate("/synthesis")
   });
 
   const activities = useMemo(
@@ -59,8 +56,9 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
-          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
-          onClick={() => runMutation.mutate()}
+          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => runMutation.mutate({ mode: "incremental" })}
+          disabled={runMutation.isPending}
         >
           Run Synthesis
         </button>

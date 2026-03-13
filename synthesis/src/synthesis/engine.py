@@ -44,7 +44,7 @@ class SynthesisEngine:
             organization_id=UUID(organization_id),
             status="pending",
             started_at=datetime.now(timezone.utc),
-            model="claude-sonnet-4-20250514",
+            model=settings.ANTHROPIC_MODEL,
         )
         db.add(run)
         await db.commit()

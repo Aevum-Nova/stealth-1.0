@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     ASSEMBLYAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-opus-4-6"
 
     EMBEDDING_PROVIDER: str = "voyage"
     EMBEDDING_DIMENSION: int = 1536

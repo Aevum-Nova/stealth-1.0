@@ -16,7 +16,7 @@ class LLMProvider(Protocol):
 
 
 class ClaudeLLMProvider:
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514") -> None:
+    def __init__(self, api_key: str, model: str = "claude-opus-4-6") -> None:
         from anthropic import AsyncAnthropic
 
         self._client = AsyncAnthropic(api_key=api_key)
@@ -49,7 +49,12 @@ class OpenAILLMProvider:
         return response.choices[0].message.content or ""
 
 
-def create_llm_provider(provider: str, anthropic_key: str, openai_key: str) -> LLMProvider:
+def create_llm_provider(
+    provider: str,
+    anthropic_key: str,
+    openai_key: str,
+    anthropic_model: str = "claude-opus-4-6",
+) -> LLMProvider:
     if provider == "openai":
         return OpenAILLMProvider(api_key=openai_key)
-    return ClaudeLLMProvider(api_key=anthropic_key)
+    return ClaudeLLMProvider(api_key=anthropic_key, model=anthropic_model)

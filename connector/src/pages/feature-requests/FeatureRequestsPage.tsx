@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { runSynthesis } from "@/api/synthesis";
 import FeatureRequestList from "@/components/feature-requests/FeatureRequestList";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
+import { useRunSynthesis } from "@/hooks/use-synthesis";
 import type { FeatureRequestFilters } from "@/types/feature-request";
 
 function fromSearchParams(params: URLSearchParams): FeatureRequestFilters {
@@ -29,6 +29,9 @@ export default function FeatureRequestsPage() {
 
   const query = useFeatureRequests(filters);
   const actions = useFeatureRequestActions();
+  const runMutation = useRunSynthesis({
+    onSuccess: () => navigate("/synthesis")
+  });
   const [openConfirm, setOpenConfirm] = useState(false);
 
   if (query.isLoading) {
@@ -49,11 +52,9 @@ export default function FeatureRequestsPage() {
           <p className="text-[13px] text-[var(--ink-soft)]">Review and manage synthesized product requests.</p>
         </div>
         <button
-          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
-          onClick={async () => {
-            await runSynthesis("incremental");
-            navigate("/synthesis");
-          }}
+          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => runMutation.mutate({ mode: "incremental" })}
+          disabled={runMutation.isPending}
         >
           Run Synthesis
         </button>
@@ -173,14 +174,17 @@ export default function FeatureRequestsPage() {
         description="This will delete all draft feature requests and re-analyze all completed signals."
         confirmLabel="Run full synthesis"
         onCancel={() => setOpenConfirm(false)}
-        onConfirm={async () => {
-          await runSynthesis("full");
+        onConfirm={() => {
+          runMutation.mutate({ mode: "full" });
           setOpenConfirm(false);
-          navigate("/synthesis");
         }}
       />
 
-      <button className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-[var(--accent-soft)]" onClick={() => setOpenConfirm(true)}>
+      <button
+        className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium transition-colors hover:bg-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={() => setOpenConfirm(true)}
+        disabled={runMutation.isPending}
+      >
         Run Full Re-Synthesis
       </button>
     </div>

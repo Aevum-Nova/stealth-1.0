@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Mapping
 
 import anthropic
 
@@ -14,25 +15,44 @@ class LLMService:
         if settings.ANTHROPIC_API_KEY:
             self._client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    async def json_completion(self, system: str, user: str, max_tokens: int = 2000) -> dict:
+    @staticmethod
+    def _default_json_fallback(user: str) -> dict:
+        return {
+            "structured_summary": user[:400],
+            "entities": [],
+            "sentiment": "neutral",
+            "urgency": "low",
+        }
+
+    async def json_completion(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int = 2000,
+        schema: Mapping[str, object] | None = None,
+    ) -> dict:
         if self._client is None:
-            return {
-                "structured_summary": user[:400],
-                "entities": [],
-                "sentiment": "neutral",
-                "urgency": "low",
-            }
+            return self._default_json_fallback(user)
 
         attempt_prompt = user
         for attempt in range(2):
             try:
+                request: dict[str, object] = {
+                    "model": settings.ANTHROPIC_MODEL,
+                    "max_tokens": max_tokens,
+                    "system": system,
+                    "messages": [{"role": "user", "content": attempt_prompt}],
+                }
+                if schema is not None:
+                    request["output_config"] = {
+                        "format": {
+                            "type": "json_schema",
+                            "schema": dict(schema),
+                        }
+                    }
+
                 message = await asyncio.wait_for(
-                    self._client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=max_tokens,
-                        system=system,
-                        messages=[{"role": "user", "content": attempt_prompt}],
-                    ),
+                    self._client.messages.create(**request),
                     timeout=25,
                 )
 
@@ -49,12 +69,7 @@ class LLMService:
             if attempt == 0:
                 attempt_prompt = f"{user}\n\nYou MUST return valid JSON. No other text."
 
-        return {
-            "structured_summary": user[:400],
-            "entities": [],
-            "sentiment": "neutral",
-            "urgency": "low",
-        }
+        return self._default_json_fallback(user)
 
     @staticmethod
     def _parse_json_from_text(text: str) -> dict | None:
@@ -88,7 +103,7 @@ class LLMService:
         try:
             message = await asyncio.wait_for(
                 self._client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model=settings.ANTHROPIC_MODEL,
                     max_tokens=2000,
                     system=(
                         "You are analyzing an image uploaded as customer feedback or product context. "

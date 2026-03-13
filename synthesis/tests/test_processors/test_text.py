@@ -23,7 +23,8 @@ async def test_text_processor_short_text_skips_llm(monkeypatch):
 async def test_text_processor_normalizes_llm_output(monkeypatch):
     processor = TextProcessor()
 
-    async def fake_json_completion(_system: str, _user: str):
+    async def fake_json_completion(_system: str, _user: str, max_tokens: int = 2000, schema: dict[str, object] | None = None):
+        _ = max_tokens, schema
         return {
             "structured_summary": "  Login flow keeps timing out  ",
             "entities": [
