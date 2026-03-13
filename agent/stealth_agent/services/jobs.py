@@ -26,12 +26,17 @@ from stealth_agent.domain.models import PullRequestDraft, RepositoryContext
 from stealth_agent.mappers import feature_request_from_row
 from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
 from stealth_agent.services.code_indexer import ensure_indexed
-from stealth_agent.services.orchestrator import (
-    FeatureToPROrchestrator,
-    OrchestrationDependencies,
-)
+from stealth_agent.services.orchestrator import OrchestrationDependencies
 
 log = structlog.get_logger()
+
+
+async def _safe_ensure_indexed(connector_id: str, organization_id: str) -> None:
+    """Fire-and-forget indexing wrapper that logs errors instead of raising."""
+    try:
+        await ensure_indexed(connector_id, organization_id)
+    except Exception as exc:
+        log.warning("auto_index_failed", connector_id=connector_id, error=str(exc))
 
 
 def _estimate_line_delta(content: str) -> tuple[int, int]:
@@ -182,32 +187,42 @@ async def _run_orchestration(
                         base_branch=gh_default_branch,
                     )
 
-                    # Auto-index the repo if not already indexed
-                    try:
-                        await ensure_indexed(str(gh_connector.id), organization_id)
-                    except Exception as exc:
-                        log.warning("auto_index_failed", error=str(exc))
+                    # Auto-index the repo in background (non-blocking). PR generation proceeds
+                    # immediately; RAG context will be available when index is ready.
+                    asyncio.create_task(
+                        _safe_ensure_indexed(str(gh_connector.id), organization_id)
+                    )
 
             domain_fr = feature_request_from_row(fr_row, repo_context=repo_context)
 
             # Build orchestration deps with LLM-backed adapters
+            connector_id = gh_connector.id if gh_connector else None
             deps = OrchestrationDependencies(
                 signal_processor=LLMSignalProcessor(llm),
                 repository_analyzer=LocalRepositoryAnalyzer(),
                 spec_planner=LLMSpecPlanner(llm),
-                code_generator=LLMCodeGenerator(codegen_llm),
+                code_generator=LLMCodeGenerator(
+                    codegen_llm,
+                    connector_id=connector_id,
+                    organization_id=organization_id,
+                ),
                 git_provider=git_provider,
                 pr_provider=pr_provider,
             )
-            FeatureToPROrchestrator(deps)
 
-            # Run orchestration (adapters are now async, but orchestrator.run is sync)
-            # We need to run the async adapters — use the async versions directly
-            feature = await deps.signal_processor.prioritize_feature(domain_fr)
-            repo_analysis = deps.repository_analyzer.analyze(domain_fr.repository.path)
+            # Run orchestration with parallelized steps where possible
+            # Step 1: prioritize_feature + repo_analysis (independent, run in parallel)
+            feature, repo_analysis = await asyncio.gather(
+                deps.signal_processor.prioritize_feature(domain_fr),
+                asyncio.to_thread(
+                    deps.repository_analyzer.analyze, domain_fr.repository.path
+                ),
+            )
+            # Step 2: spec + plan (depends on feature + repo_analysis)
             spec, plan = await deps.spec_planner.build_spec_and_plan(
                 domain_fr, feature, repo_analysis
             )
+            # Step 3: propose_changes (depends on spec + plan)
             changes = await deps.code_generator.propose_changes(
                 domain_fr, feature, spec, plan, repo_analysis
             )

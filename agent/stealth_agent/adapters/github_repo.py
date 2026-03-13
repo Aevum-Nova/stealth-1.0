@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from dataclasses import dataclass, field
 
@@ -38,6 +39,7 @@ CODE_EXTENSIONS = {
 }
 
 MAX_FILE_SIZE = 100_000  # 100KB
+FETCH_CONCURRENCY = 10  # Max concurrent file fetches (avoids GitHub rate limits)
 
 
 @dataclass
@@ -138,15 +140,19 @@ class GitHubRepoFetcher:
 
         log.info("github_indexable_files", total_tree=len(tree), indexable=len(blobs))
 
-        files: list[RepoFile] = []
-        for item in blobs:
-            content = await self.fetch_file(item["path"])
-            if content is not None:
-                files.append(RepoFile(
+        sem = asyncio.Semaphore(FETCH_CONCURRENCY)
+
+        async def fetch_one(item: dict) -> RepoFile | None:
+            async with sem:
+                content = await self.fetch_file(item["path"])
+                if content is None:
+                    return None
+                return RepoFile(
                     path=item["path"],
                     content=content,
                     size=item.get("size", len(content)),
                     sha=item["sha"],
-                ))
+                )
 
-        return files
+        results = await asyncio.gather(*(fetch_one(item) for item in blobs))
+        return [f for f in results if f is not None]

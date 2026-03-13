@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 
 import structlog
 
@@ -16,6 +17,9 @@ from stealth_agent.domain.models import (
     RepoAnalysis,
     TechnicalPlan,
 )
+from stealth_agent.services.code_retriever import retrieve_relevant_chunks
+
+log = structlog.get_logger()
 
 
 class LLMSignalProcessor:
@@ -86,8 +90,16 @@ class LLMSpecPlanner:
 
 
 class LLMCodeGenerator:
-    def __init__(self, llm: LLMProvider) -> None:
+    def __init__(
+        self,
+        llm: LLMProvider,
+        *,
+        connector_id: uuid.UUID | None = None,
+        organization_id: str | None = None,
+    ) -> None:
         self._llm = llm
+        self._connector_id = connector_id
+        self._organization_id = organization_id
 
     async def propose_changes(
         self,
@@ -100,15 +112,45 @@ class LLMCodeGenerator:
         system = (
             "You are a code generation assistant. Given a spec and plan, produce a JSON "
             "array of objects with keys: file_path (string), content (string), reason (string). "
-            "Each object represents a file to create or modify."
+            "Each object represents a file to create or modify. When relevant code context "
+            "is provided, use it to make precise, well-integrated changes."
         )
-        prompt = (
+        prompt_parts = [
             f"Feature: {feature.name}\n"
             f"Summary: {spec.summary}\n"
             f"Tasks: {json.dumps(plan.tasks)}\n"
-            f"Repo language: {repo_analysis.primary_language}\n\n"
-            "Return ONLY a valid JSON array."
-        )
+            f"Repo language: {repo_analysis.primary_language}",
+        ]
+
+        # Add RAG context if connector is available and index may be ready
+        code_context = ""
+        if self._connector_id and self._organization_id:
+            try:
+                query = f"{feature.name}. {spec.summary}. Tasks: {' '.join(plan.tasks)}"
+                chunks = await retrieve_relevant_chunks(
+                    query,
+                    self._connector_id,
+                    uuid.UUID(self._organization_id),
+                    top_k=12,
+                )
+                if chunks:
+                    code_context = "\n\n".join(
+                        f"--- {c.file_path} (lines {c.start_line}-{c.end_line}) ---\n{c.content}"
+                        for c in chunks
+                    )
+                    prompt_parts.append(
+                        f"RELEVANT CODE FROM REPOSITORY (use for context when modifying):\n{code_context}"
+                    )
+            except Exception as exc:
+                log.debug(
+                    "rag_retrieval_skipped",
+                    connector_id=str(self._connector_id),
+                    error=str(exc),
+                )
+
+        prompt_parts.append("\nReturn ONLY a valid JSON array.")
+        prompt = "\n\n".join(prompt_parts)
+
         raw = await self._llm.complete(system, [{"role": "user", "content": prompt}])
         items = _parse_json(raw)
         if isinstance(items, dict):
