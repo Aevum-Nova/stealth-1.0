@@ -1,6 +1,5 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
-  Eye,
   Check,
   X,
   MessageSquare,
@@ -10,18 +9,22 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import { timeAgo } from "@/lib/utils";
-import type { FeatureRequest, FeatureRequestPriority, FeatureRequestType } from "@/types/feature-request";
+import type {
+  FeatureRequest,
+  FeatureRequestPriority,
+  FeatureRequestType,
+} from "@/types/feature-request";
 
-const PRIORITY_BORDER: Record<FeatureRequestPriority, string> = {
-  critical: "priority-left-critical",
-  high: "priority-left-high",
-  medium: "priority-left-medium",
-  low: "priority-left-low",
+const PRIORITY_ACCENT: Record<FeatureRequestPriority, string> = {
+  critical: "border-l-red-500",
+  high: "border-l-orange-500",
+  medium: "border-l-amber-400",
+  low: "border-l-emerald-500",
 };
 
 const TYPE_LABELS: Record<FeatureRequestType, string> = {
@@ -32,41 +35,18 @@ const TYPE_LABELS: Record<FeatureRequestType, string> = {
   ux_change: "UX Change",
 };
 
-function TypeBadge({ type }: { type: FeatureRequestType }) {
-  return (
-    <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--ink-soft)]">
-      {TYPE_LABELS[type] ?? type}
-    </span>
-  );
-}
-
-function ScoreRing({ score }: { score: number }) {
-  const radius = 14;
-  const stroke = 2;
-  const size = 36;
-  const center = size / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(Math.max(score, 0), 100);
-  const offset = circumference - (progress / 100) * circumference;
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--line)" strokeWidth={stroke} />
-        <circle
-          cx={center} cy={center} r={radius} fill="none"
-          stroke="var(--ink)" strokeWidth={stroke}
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-        />
-      </svg>
-      <span className="absolute text-[11px] font-semibold">{score}</span>
-    </div>
-  );
-}
+const STATUS_DOT: Record<string, string> = {
+  draft: "bg-zinc-400",
+  reviewed: "bg-blue-500",
+  approved: "bg-emerald-500",
+  rejected: "bg-red-500",
+  merged: "bg-violet-500",
+  sent_to_agent: "bg-amber-500",
+};
 
 function TrendIcon({ direction }: { direction?: string }) {
   const cls = "h-3 w-3";
-  if (direction === "increasing") return <TrendingUp className={`${cls} text-emerald-600`} />;
+  if (direction === "increasing") return <TrendingUp className={`${cls} text-emerald-500`} />;
   if (direction === "decreasing") return <TrendingDown className={`${cls} text-red-500`} />;
   return <Minus className={`${cls} text-[var(--ink-muted)]`} />;
 }
@@ -74,7 +54,7 @@ function TrendIcon({ direction }: { direction?: string }) {
 function urgencyColor(score: number): string {
   if (score >= 8) return "text-red-500";
   if (score >= 5) return "text-amber-500";
-  return "text-emerald-600";
+  return "text-emerald-500";
 }
 
 interface FeatureRequestCardProps {
@@ -84,88 +64,108 @@ interface FeatureRequestCardProps {
 }
 
 export default function FeatureRequestCard({ featureRequest, onApprove, onReject }: FeatureRequestCardProps) {
+  const navigate = useNavigate();
   const metrics = featureRequest.impact_metrics;
 
   return (
-    <article className={`panel card-hover p-4 ${PRIORITY_BORDER[featureRequest.priority]}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+    <article
+      role="link"
+      tabIndex={0}
+      className={`group flex cursor-pointer flex-col gap-3 rounded-xl border border-[var(--line)] border-l-2 bg-[var(--surface)] p-4 transition-all hover:border-[var(--line-muted)] hover:shadow-[0_2px_8px_var(--shadow-soft)] ${PRIORITY_ACCENT[featureRequest.priority]}`}
+      onClick={() => navigate(`/feature-requests/${featureRequest.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigate(`/feature-requests/${featureRequest.id}`);
+        }
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <PriorityBadge priority={featureRequest.priority} />
-          <TypeBadge type={featureRequest.type} />
-          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] text-[var(--ink-muted)]">
-            {featureRequest.status}
+          <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--ink-soft)]">
+            {TYPE_LABELS[featureRequest.type] ?? featureRequest.type}
+          </span>
+          <span className="flex items-center gap-1.5 text-[11px] text-[var(--ink-muted)] capitalize">
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[featureRequest.status] ?? "bg-zinc-400"}`} />
+            {featureRequest.status.replace("_", " ")}
           </span>
         </div>
-        <ScoreRing score={featureRequest.priority_score} />
+
+        <span className="tabular-nums text-[13px] font-semibold tracking-tight">
+          {featureRequest.priority_score}
+        </span>
       </div>
 
-      <Link
-        to={`/feature-requests/${featureRequest.id}`}
-        className="mt-2 block text-[15px] font-semibold tracking-tight hover:text-[var(--accent-hover)]"
-      >
+      {/* Title */}
+      <h3 className="text-[15px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-[var(--accent-hover)]">
         {featureRequest.title}
-      </Link>
+      </h3>
 
-      <p className="mt-1 text-[13px] text-[var(--ink-soft)] line-clamp-2">
-        {featureRequest.problem_statement}
-      </p>
+      {/* Description */}
+      {featureRequest.problem_statement && (
+        <p className="-mt-2 text-[13px] leading-relaxed text-[var(--ink-soft)] line-clamp-2">
+          {featureRequest.problem_statement}
+        </p>
+      )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3.5 text-[12px] text-[var(--ink-muted)]">
-        <span className="flex items-center gap-1">
+      {/* Metrics */}
+      <div className="flex items-center gap-4 text-[12px] text-[var(--ink-muted)]">
+        <span className="inline-flex items-center gap-1" title="Signals">
           <MessageSquare className="h-3 w-3" />
           {metrics?.signal_count ?? 0}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="inline-flex items-center gap-1" title="Customers">
           <Users className="h-3 w-3" />
           {metrics?.unique_customers ?? 0}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="inline-flex items-center gap-1" title="Companies">
           <Building2 className="h-3 w-3" />
           {metrics?.unique_companies ?? 0}
         </span>
-        <span className={`flex items-center gap-1 ${urgencyColor(metrics?.avg_urgency_score ?? 0)}`}>
+        <span className={`inline-flex items-center gap-1 ${urgencyColor(metrics?.avg_urgency_score ?? 0)}`} title="Urgency">
           <Flame className="h-3 w-3" />
           {(metrics?.avg_urgency_score ?? 0).toFixed(1)}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="inline-flex items-center gap-1" title="Trend">
           <TrendIcon direction={metrics?.trend_direction} />
-          {metrics?.trend_direction ?? "stable"}
         </span>
       </div>
 
-      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-[var(--line-soft)] pt-3">
         <div className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
           <span>{timeAgo(featureRequest.updated_at)}</span>
           {featureRequest.synthesis_confidence != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-600">
-              <ShieldCheck className="h-3 w-3" />
+            <span className="rounded-md bg-violet-50 px-1.5 py-0.5 text-[11px] font-medium text-violet-600">
               {Math.round(featureRequest.synthesis_confidence)}%
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Link
-            to={`/feature-requests/${featureRequest.id}`}
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--line)] px-2.5 py-1 text-[12px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
-          >
-            <Eye className="h-3 w-3" />
-            View
-          </Link>
           <button
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--action-primary)] px-2.5 py-1 text-[12px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
-            onClick={() => onApprove(featureRequest.id)}
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-emerald-600 opacity-0 transition-all hover:border-emerald-200 hover:bg-emerald-50 focus:opacity-100 group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onApprove(featureRequest.id);
+            }}
           >
             <Check className="h-3 w-3" />
             Approve
           </button>
           <button
-            className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-100 transition-colors"
-            onClick={() => onReject(featureRequest.id)}
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-red-500 opacity-0 transition-all hover:border-red-200 hover:bg-red-50 focus:opacity-100 group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReject(featureRequest.id);
+            }}
           >
             <X className="h-3 w-3" />
             Reject
           </button>
+          <ArrowRight className="h-3.5 w-3.5 text-[var(--ink-muted)] opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
         </div>
       </div>
     </article>

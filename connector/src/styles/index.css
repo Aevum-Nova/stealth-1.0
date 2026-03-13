@@ -156,21 +156,6 @@ button:not(:disabled):hover {
   box-shadow: 0 2px 8px var(--shadow-soft);
 }
 
-.priority-left-critical {
-  border-left: 2px solid #ef4444;
-}
-
-.priority-left-high {
-  border-left: 2px solid #f97316;
-}
-
-.priority-left-medium {
-  border-left: 2px solid #eab308;
-}
-
-.priority-left-low {
-  border-left: 2px solid #22c55e;
-}
 
 ::selection {
   background: var(--selection);
