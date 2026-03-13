@@ -38,9 +38,25 @@ CONNECTOR_CATALOG: list[dict] = [
         "type": "google_forms",
         "display_name": "Google Forms",
         "description": "Import survey and feedback form responses",
-        "auth_method": "oauth2",
+        "auth_method": "oauth2_byoc",
         "category": "input",
         "icon": "google_forms",
+        "credential_fields": [
+            {
+                "key": "client_id",
+                "label": "Google OAuth Client ID",
+                "type": "text",
+                "required": True,
+                "help": "From your Google Cloud Console → APIs & Services → Credentials",
+            },
+            {
+                "key": "client_secret",
+                "label": "Google OAuth Client Secret",
+                "type": "password",
+                "required": True,
+                "help": "From your Google Cloud Console → APIs & Services → Credentials",
+            },
+        ],
         "config_fields": [
             {
                 "key": "form_ids",

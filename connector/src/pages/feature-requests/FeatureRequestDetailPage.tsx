@@ -10,6 +10,7 @@ import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useAgentJobs } from "@/hooks/use-agent";
 import {
   useFeatureRequest,
   useFeatureRequestActions,
@@ -29,6 +30,7 @@ export default function FeatureRequestDetailPage() {
   const imagesQuery = useFeatureRequestImages(id);
   const allFeatureRequestsQuery = useFeatureRequests({ limit: 100 });
 
+  const jobsQuery = useAgentJobs(id);
   const patchMutation = usePatchFeatureRequest(id);
   const actions = useFeatureRequestActions();
 
@@ -44,6 +46,8 @@ export default function FeatureRequestDetailPage() {
   const supportingSignals = signalsQuery.data?.data ?? [];
   const images = imagesQuery.data?.data ?? [];
   const candidates = (allFeatureRequestsQuery.data?.data ?? []).filter((item) => item.id !== featureRequest.id);
+  const jobs = jobsQuery.data?.data ?? [];
+  const latestPrUrl = jobs.find((job) => job.result?.pull_request_url)?.result?.pull_request_url ?? null;
 
   return (
     <div className="space-y-5">
@@ -107,12 +111,16 @@ export default function FeatureRequestDetailPage() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--line-soft)] pt-4">
-          <button className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 transition-colors" onClick={() => setConfirmAction("approve")}>
-            Approve
-          </button>
-          <button className="rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-rose-700 transition-colors" onClick={() => setConfirmAction("reject")}>
-            Reject
-          </button>
+          {latestPrUrl && (
+            <>
+              <button className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 transition-colors" onClick={() => setConfirmAction("approve")}>
+                Approve
+              </button>
+              <button className="rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-rose-700 transition-colors" onClick={() => setConfirmAction("reject")}>
+                Reject
+              </button>
+            </>
+          )}
           <button className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenMerge(true)}>
             Merge
           </button>

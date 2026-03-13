@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import {
-  Check,
   X,
   MessageSquare,
   Users,
@@ -59,11 +58,10 @@ function urgencyColor(score: number): string {
 
 interface FeatureRequestCardProps {
   featureRequest: FeatureRequest;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function FeatureRequestCard({ featureRequest, onApprove, onReject }: FeatureRequestCardProps) {
+export default function FeatureRequestCard({ featureRequest, onDelete }: FeatureRequestCardProps) {
   const navigate = useNavigate();
   const metrics = featureRequest.impact_metrics;
 
@@ -91,6 +89,16 @@ export default function FeatureRequestCard({ featureRequest, onApprove, onReject
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[featureRequest.status] ?? "bg-zinc-400"}`} />
             {featureRequest.status.replace("_", " ")}
           </span>
+          <button
+            className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-red-500 opacity-0 transition-all hover:border-red-200 hover:bg-red-50 focus:opacity-100 group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(featureRequest.id);
+            }}
+          >
+            <X className="h-3 w-3" />
+            Cancel
+          </button>
         </div>
 
         <span className="tabular-nums text-[13px] font-semibold tracking-tight">
@@ -144,29 +152,7 @@ export default function FeatureRequestCard({ featureRequest, onApprove, onReject
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-emerald-600 opacity-0 transition-all hover:border-emerald-200 hover:bg-emerald-50 focus:opacity-100 group-hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              onApprove(featureRequest.id);
-            }}
-          >
-            <Check className="h-3 w-3" />
-            Approve
-          </button>
-          <button
-            className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-red-500 opacity-0 transition-all hover:border-red-200 hover:bg-red-50 focus:opacity-100 group-hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation();
-              onReject(featureRequest.id);
-            }}
-          >
-            <X className="h-3 w-3" />
-            Reject
-          </button>
-          <ArrowRight className="h-3.5 w-3.5 text-[var(--ink-muted)] opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-        </div>
+        <ArrowRight className="h-3.5 w-3.5 text-[var(--ink-muted)] opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
       </div>
     </article>
   );

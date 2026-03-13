@@ -569,22 +569,24 @@ export default function ProductContextPage() {
 
           <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
-          <div className="flex items-center gap-1.5">
-            <button
-              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-40"
-              disabled={actions.approve.isPending}
-              onClick={() => actions.approve.mutate(fr.id)}
-            >
-              Approve
-            </button>
-            <button
-              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40"
-              disabled={actions.reject.isPending}
-              onClick={() => actions.reject.mutate(fr.id)}
-            >
-              Reject
-            </button>
-          </div>
+          {latestPrUrl && (
+            <div className="flex items-center gap-1.5">
+              <button
+                className="rounded-md px-3 py-1.5 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-40"
+                disabled={actions.approve.isPending}
+                onClick={() => actions.approve.mutate(fr.id)}
+              >
+                Approve
+              </button>
+              <button
+                className="rounded-md px-3 py-1.5 text-[12px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40"
+                disabled={actions.reject.isPending}
+                onClick={() => actions.reject.mutate(fr.id)}
+              >
+                Reject
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

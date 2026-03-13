@@ -27,11 +27,12 @@ export interface ConnectorCatalogItem {
   type: string;
   display_name: string;
   description: string;
-  auth_method: "oauth2" | "api_key" | string;
+  auth_method: "oauth2" | "oauth2_byoc" | "api_key" | string;
   category: "input" | "output";
   icon: string;
   available?: boolean;
   missing_env_vars?: string[];
+  credential_fields?: ConnectorConfigField[];
   config_fields: ConnectorConfigField[];
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
-import { postOAuthComplete } from "@/api/connectors";
+import { postConnectorOAuthCallback, postOAuthComplete } from "@/api/connectors";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { decodeOAuthState } from "@/lib/auth";
 
@@ -24,6 +24,9 @@ export default function OAuthCallbackPage() {
       const connectorType = String(parsedState.connector_type || "");
       const connectorName = String(parsedState.connector_name || connectorType);
       const returnUrl = String(parsedState.return_url || "/connectors");
+      const existingConnectorId = parsedState.connector_id
+        ? String(parsedState.connector_id)
+        : null;
 
       if (!connectorType) {
         setError("Invalid OAuth state payload.");
@@ -32,9 +35,18 @@ export default function OAuthCallbackPage() {
 
       try {
         const redirectUri = `${window.location.origin}/oauth/callback`;
-        const result = await postOAuthComplete(connectorType, connectorName, code, redirectUri);
-        const connectorId = result.data.id;
-        // Redirect back to setup page with the new connector ID
+        let connectorId: string;
+
+        if (existingConnectorId) {
+          // BYOC flow: connector already exists with user-provided credentials
+          await postConnectorOAuthCallback(existingConnectorId, code, redirectUri);
+          connectorId = existingConnectorId;
+        } else {
+          // Standard flow: platform credentials
+          const result = await postOAuthComplete(connectorType, connectorName, code, redirectUri);
+          connectorId = result.data.id;
+        }
+
         const separator = returnUrl.includes("?") ? "&" : "?";
         navigate(`${returnUrl}${separator}connectorId=${connectorId}`, { replace: true });
       } catch (err) {

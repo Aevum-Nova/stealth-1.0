@@ -42,7 +42,7 @@ CONNECTOR_IMPL = {
 CONNECTOR_CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
 CONNECTOR_REQUIRED_ENV_VARS = {
     "slack": ("SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET"),
-    "google_forms": ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"),
+
     "zendesk": ("ZENDESK_CLIENT_ID", "ZENDESK_CLIENT_SECRET"),
     "figma": ("FIGMA_CLIENT_ID", "FIGMA_CLIENT_SECRET"),
     "intercom": ("INTERCOM_CLIENT_ID", "INTERCOM_CLIENT_SECRET"),
@@ -160,7 +160,7 @@ async def create_connector(
         return ApiResponse(data=ConnectorRead.model_validate(existing))
 
     initial_enabled = payload.enabled
-    if catalog_item.get("auth_method") == "oauth2" and not payload.credentials:
+    if catalog_item.get("auth_method") in ("oauth2", "oauth2_byoc") and not payload.credentials:
         initial_enabled = False
 
     connector = Connector(
@@ -308,7 +308,7 @@ async def patch_connector(
     catalog_item = _ensure_connector_type_supported(connector.type)
     updates = payload.model_dump(exclude_none=True)
     next_credentials = updates.get("credentials", connector.credentials or {})
-    if catalog_item.get("auth_method") == "oauth2" and updates.get("enabled") is True and not next_credentials:
+    if catalog_item.get("auth_method") in ("oauth2", "oauth2_byoc") and updates.get("enabled") is True and not next_credentials:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Connector '{connector.type}' must be authorized before it can be enabled.",

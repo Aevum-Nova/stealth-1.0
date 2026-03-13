@@ -163,8 +163,7 @@ export default function FeatureRequestsPage() {
       ) : (
         <FeatureRequestList
           items={rows}
-          onApprove={(id) => actions.approve.mutate(id)}
-          onReject={(id) => actions.reject.mutate(id)}
+          onDelete={(id) => actions.delete.mutate(id)}
         />
       )}
 

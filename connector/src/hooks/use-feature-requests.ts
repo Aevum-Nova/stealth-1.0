@@ -98,6 +98,12 @@ export function useFeatureRequestActions() {
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
       }
+    }),
+    delete: useMutation({
+      mutationFn: (id: string) => featureRequestsApi.deleteFeatureRequest(id),
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+      }
     })
   };
 }

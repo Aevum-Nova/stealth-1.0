@@ -11,7 +11,7 @@ import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
 import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
 import OAuthButton from "@/components/connectors/OAuthButton";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { startOAuthFlow } from "@/lib/oauth";
+import { startConnectorOAuthFlow, startOAuthFlow } from "@/lib/oauth";
 
 export default function ConnectorSetupPage() {
   const { type = "" } = useParams();
@@ -23,6 +23,7 @@ export default function ConnectorSetupPage() {
   const [connectorId, setConnectorId] = useState<string | null>(searchParams.get("connectorId"));
   const [authorized, setAuthorized] = useState(false);
   const [apiKey, setApiKey] = useState("");
+  const [byocCredentials, setByocCredentials] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [savedRepo, setSavedRepo] = useState<string | null>(null);
 
@@ -111,6 +112,40 @@ export default function ConnectorSetupPage() {
     }
   };
 
+  const authorizeByoc = async () => {
+    const credentialFields = item.credential_fields ?? [];
+    const missing = credentialFields.filter(
+      (f: { key: string; required?: boolean }) => f.required && !byocCredentials[f.key]?.trim()
+    );
+    if (missing.length > 0) {
+      setError(`Please fill in: ${missing.map((f: { label: string }) => f.label).join(", ")}`);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      let id = connectorId;
+      if (!id) {
+        const created = await createConnector({
+          type,
+          name: item.display_name,
+          credentials: byocCredentials,
+          config: {},
+        });
+        id = created.data.id;
+        setConnectorId(id);
+      } else {
+        await updateConnector(id, { credentials: byocCredentials });
+      }
+      await startConnectorOAuthFlow(id, type, item.display_name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "OAuth start failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveConfig = async (configValues: Record<string, unknown>) => {
     if (!connectorId) {
       setError("Connector must be authorized before configuration.");
@@ -172,6 +207,30 @@ export default function ConnectorSetupPage() {
             <h3 className="text-[15px] font-medium">Authorize</h3>
             {item.auth_method === "oauth2" ? (
               <OAuthButton label={`Connect with ${item.display_name}`} onClick={startOAuth} disabled={loading} />
+            ) : item.auth_method === "oauth2_byoc" ? (
+              <div className="space-y-3">
+                {(item.credential_fields ?? []).map((field: { key: string; label: string; type?: string; help?: string }) => (
+                  <div key={field.key} className="space-y-1">
+                    <label className="text-[13px] font-medium text-[var(--ink)]">{field.label}</label>
+                    <input
+                      type={field.type === "password" ? "password" : "text"}
+                      value={byocCredentials[field.key] ?? ""}
+                      onChange={(e) =>
+                        setByocCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      className="w-full rounded-lg border border-[var(--line)] px-3 py-2 text-[13px]"
+                    />
+                    {field.help ? (
+                      <p className="text-[11px] text-[var(--ink-soft)]">{field.help}</p>
+                    ) : null}
+                  </div>
+                ))}
+                <OAuthButton
+                  label={`Connect with ${item.display_name}`}
+                  onClick={() => void authorizeByoc()}
+                  disabled={loading}
+                />
+              </div>
             ) : (
               <div className="space-y-2">
                 <input
@@ -188,7 +247,7 @@ export default function ConnectorSetupPage() {
             {connectorId && !isGitHub ? (
               <button
                 className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
-                disabled={item.auth_method === "oauth2" && !authorized}
+                disabled={(item.auth_method === "oauth2" || item.auth_method === "oauth2_byoc") && !authorized}
                 onClick={() => setStep(2)}
               >
                 Continue to configuration
