@@ -6,6 +6,7 @@ import ChatPanel from "@/components/agent/ChatPanel";
 import PanelResizer from "@/components/layout/PanelResizer";
 import { highlightLine } from "@/lib/syntax-highlight";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
+import SignalModal from "@/components/signals/SignalModal";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import {
@@ -309,12 +310,14 @@ function FeatureRequestGroup({
   isExpanded,
   onToggle,
   onNavigate,
+  onSignalClick,
 }: {
   item: FeatureRequest;
   isActive: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onNavigate: () => void;
+  onSignalClick: (id: string) => void;
 }) {
   const evidence = item.supporting_evidence ?? [];
   const signalCount = item.impact_metrics?.signal_count ?? 0;
@@ -348,7 +351,7 @@ function FeatureRequestGroup({
             <p className="px-4 py-3 text-[11px] text-[var(--ink-muted)]">No signals linked yet.</p>
           ) : (
             evidence.map((ev, i) => (
-              <SignalRow key={ev.signal_id} evidence={ev} index={i} isLast={i === evidence.length - 1} />
+              <SignalRow key={ev.signal_id} evidence={ev} index={i} isLast={i === evidence.length - 1} onSignalClick={onSignalClick} />
             ))
           )}
         </div>
@@ -359,11 +362,12 @@ function FeatureRequestGroup({
 
 /* ── Left sidebar: signal row ───────────────────────────────── */
 
-function SignalRow({ evidence, index, isLast }: { evidence: SupportingEvidence; index: number; isLast: boolean }) {
+function SignalRow({ evidence, index, isLast, onSignalClick }: { evidence: SupportingEvidence; index: number; isLast: boolean; onSignalClick: (id: string) => void }) {
   return (
-    <Link
-      to={`/signals/${evidence.signal_id}`}
-      className="group relative flex items-start gap-2 py-[7px] pl-[22px] pr-3 transition-colors hover:bg-[var(--surface-active)]"
+    <button
+      type="button"
+      onClick={() => onSignalClick(evidence.signal_id)}
+      className="group relative flex w-full items-start gap-2 py-[7px] pl-[22px] pr-3 text-left transition-colors hover:bg-[var(--surface-active)]"
     >
       <div className={`absolute left-[11px] top-0 w-px bg-[var(--line-tree)] ${isLast ? "h-[14px]" : "h-full"}`} />
       <div className="absolute left-[9px] top-[12px] size-[5px] rounded-full border border-[var(--line-muted)] bg-[var(--surface-contrast)] group-hover:border-[var(--ink-muted)]" />
@@ -378,7 +382,7 @@ function SignalRow({ evidence, index, isLast }: { evidence: SupportingEvidence; 
           {evidence.author_name ? ` · ${evidence.author_name}` : ""}
         </p>
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -404,6 +408,8 @@ export default function ProductContextPage() {
   const fr = featureRequestQuery.data?.data ?? null;
   const [tab, setTab] = useState<CenterTab>("thread");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [signalModalId, setSignalModalId] = useState<string | null>(null);
+  const closeSignalModal = useCallback(() => setSignalModalId(null), []);
 
   const [leftPanelWidth, setLeftPanelWidth] = useState(() =>
     loadStoredWidth(STORAGE_LEFT, 260),
@@ -577,6 +583,7 @@ export default function ProductContextPage() {
                     navigate(`/feature-requests/${item.id}/context`);
                     setExpandedIds(new Set([item.id]));
                   }}
+                  onSignalClick={setSignalModalId}
                 />
               ))}
             </div>
@@ -649,6 +656,8 @@ export default function ProductContextPage() {
           </div>
         </aside>
       </div>
+
+      {signalModalId && <SignalModal signalId={signalModalId} onClose={closeSignalModal} />}
     </div>
   );
 }
