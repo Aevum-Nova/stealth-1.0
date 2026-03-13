@@ -58,6 +58,7 @@ export interface FeatureRequest {
   synthesis_run_id?: string | null;
   synthesis_model?: string | null;
   synthesis_confidence?: number | null;
+  synthesis_summary?: string | null;
   merged_into_id?: string | null;
   human_edited: boolean;
   human_edited_fields: string[];

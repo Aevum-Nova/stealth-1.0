@@ -70,6 +70,7 @@ class FeatureRequest(Base):
     synthesis_run_id = Column(UUID(as_uuid=True), ForeignKey("synthesis_runs.id"), nullable=True)
     synthesis_model = Column(String(100), nullable=True)
     synthesis_confidence = Column(Integer, nullable=True)
+    synthesis_summary = Column(Text, nullable=True)
     merged_into_id = Column(UUID(as_uuid=True), ForeignKey("feature_requests.id"), nullable=True)
 
     human_edited = Column(Boolean, nullable=False, default=False)

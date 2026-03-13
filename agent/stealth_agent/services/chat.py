@@ -19,6 +19,70 @@ from stealth_agent.services.code_retriever import RetrievedChunk, find_github_co
 log = structlog.get_logger()
 
 
+SUMMARY_SYSTEM_PROMPT = (
+    "You are a product analyst. Given a feature request and its supporting customer signals, "
+    "write a concise 2-4 sentence summary that explains: "
+    "(1) what change customers are asking for, "
+    "(2) which sources these signals came from, "
+    "(3) why this feature request matters. "
+    "Write in third person. Do not use bullet points or markdown. Be specific about the actual request, not generic."
+)
+
+
+async def generate_summary(
+    db: AsyncSession,
+    llm: LLMProvider,
+    feature_request_id: str,
+    organization_id: str,
+) -> str:
+    """Generate an LLM summary for a feature request and persist it."""
+    fr_result = await db.execute(
+        select(FeatureRequestRow).where(
+            FeatureRequestRow.id == uuid.UUID(feature_request_id),
+            FeatureRequestRow.organization_id == uuid.UUID(organization_id),
+        )
+    )
+    fr_row = fr_result.scalar_one_or_none()
+    if not fr_row:
+        raise ValueError("Feature request not found")
+
+    if fr_row.synthesis_summary:
+        return fr_row.synthesis_summary
+
+    evidence = fr_row.supporting_evidence or []
+    evidence_lines = []
+    for e in evidence:
+        source = e.get("source", "unknown")
+        company = e.get("customer_company") or "unknown company"
+        quote = e.get("representative_quote") or e.get("signal_summary") or ""
+        evidence_lines.append(f"- [{source}, {company}]: {quote}")
+
+    metrics = fr_row.impact_metrics or {}
+    source_breakdown = metrics.get("source_breakdown", {})
+
+    user_content = (
+        f"Feature request title: {fr_row.title}\n"
+        f"Type: {fr_row.type}\n"
+        f"Problem statement: {fr_row.problem_statement}\n"
+        f"Proposed solution: {fr_row.proposed_solution}\n"
+        f"Signal count: {metrics.get('signal_count', len(evidence))}\n"
+        f"Sources: {', '.join(f'{k} ({v})' for k, v in source_breakdown.items()) or 'unknown'}\n"
+        f"Supporting evidence:\n" + "\n".join(evidence_lines)
+    )
+
+    summary = await llm.complete(
+        SUMMARY_SYSTEM_PROMPT,
+        [{"role": "user", "content": user_content}],
+        max_tokens=300,
+    )
+    summary = summary.strip()
+
+    fr_row.synthesis_summary = summary
+    await db.commit()
+
+    return summary
+
+
 async def get_or_create_conversation(
     db: AsyncSession,
     feature_request_id: str,

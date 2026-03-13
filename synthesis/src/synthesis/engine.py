@@ -246,6 +246,7 @@ class SynthesisEngine:
                     synthesis_run_id=run.id,
                     synthesis_model=run.model,
                     synthesis_confidence=round(draft.confidence * 100),
+                    synthesis_summary=draft.synthesis_summary,
                 )
                 db.add(fr)
                 await db.flush()

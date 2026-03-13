@@ -52,6 +52,7 @@ class FeatureRequestRow(Base):
     affected_product_areas = Column(JSONB, default=list)
     supporting_evidence = Column(JSONB, default=list)
     impact_metrics = Column(JSONB, nullable=True)
+    synthesis_summary = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

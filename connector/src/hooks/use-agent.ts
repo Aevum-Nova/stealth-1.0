@@ -3,6 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as agentApi from "@/api/agent";
 import type { AgentJob, ProposedChange } from "@/types/agent";
 
+export function useFeatureRequestSummary(featureRequestId?: string, existingSummary?: string | null) {
+  return useQuery({
+    queryKey: ["fr-summary", featureRequestId],
+    queryFn: () => agentApi.generateSummary(featureRequestId as string),
+    enabled: Boolean(featureRequestId) && !existingSummary,
+    staleTime: Infinity,
+  });
+}
+
 export function useChatHistory(featureRequestId?: string) {
   return useQuery({
     queryKey: ["agent-chat", featureRequestId],

@@ -14,6 +14,7 @@ import {
   useApplyChangesToPr,
   useChatHistory,
   useCodeIndexStatus,
+  useFeatureRequestSummary,
   useTriggerOrchestration,
 } from "@/hooks/use-agent";
 import { useConnectors } from "@/hooks/use-connectors";
@@ -45,19 +46,54 @@ const STATUS_DOT: Record<string, string> = {
 
 /* ── Agent Thread ───────────────────────────────────────────── */
 
-function AgentThread({ jobs }: { jobs: AgentJob[] }) {
+function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const summaryQuery = useFeatureRequestSummary(featureRequest.id, featureRequest.synthesis_summary);
+  const summary = featureRequest.synthesis_summary || summaryQuery.data?.data?.summary;
+  const isLoading = !featureRequest.synthesis_summary && summaryQuery.isLoading;
+
+  return (
+    <div className="border-b border-[var(--line-soft)]">
+      <button
+        className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
+        onClick={() => setIsOpen((v) => !v)}
+      >
+        {isOpen
+          ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+          : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
+        <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ink)]">Summary</span>
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-5 pt-0">
+          {isLoading && <p className="text-[14px] leading-snug text-[var(--ink-muted)]">Generating summary...</p>}
+          {summary && <p className="text-[14px] leading-snug text-[var(--ink)]">{summary}</p>}
+          {!isLoading && !summary && summaryQuery.isError && (
+            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">Could not generate summary.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureRequest: FeatureRequest }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   if (jobs.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
-        <p className="text-[13px] text-[var(--ink-muted)]">No runs yet. Click Generate PR or Dry Run to start.</p>
+      <div className="py-2">
+        <SummaryBanner featureRequest={featureRequest} />
+        <div className="flex items-center justify-center p-8">
+          <p className="text-[13px] text-[var(--ink-muted)]">No runs yet. Click Generate PR or Dry Run to start.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="py-2">
+      <SummaryBanner featureRequest={featureRequest} />
       {jobs.map((job, idx) => {
         const isOpen = !collapsed[job.id];
         const taskCount = job.result?.tasks.length ?? 0;
@@ -620,7 +656,7 @@ export default function ProductContextPage() {
             {tab === "thread" ? (
               jobsQuery.isLoading
                 ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading runs..." /></div>
-                : <AgentThread jobs={jobs} />
+                : <AgentThread jobs={jobs} featureRequest={fr} />
             ) : (
               <div className="h-full"><ChatPanel featureRequestId={fr.id} /></div>
             )}

@@ -112,6 +112,31 @@ async def stream_chat_message(
     )
 
 
+@router.post("/{feature_request_id}/summary", response_model=ApiResponse)
+async def generate_summary(
+    feature_request_id: str,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    llm = _get_llm()
+    try:
+        summary = await chat_service.generate_summary(
+            db=db,
+            llm=llm,
+            feature_request_id=feature_request_id,
+            organization_id=org_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Summary generation failed: {exc}",
+        ) from exc
+
+    return ApiResponse(data={"summary": summary})
+
+
 @router.get("/{feature_request_id}/chat", response_model=ApiResponse)
 async def get_chat_history(
     feature_request_id: str,

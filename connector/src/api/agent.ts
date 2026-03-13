@@ -99,6 +99,12 @@ export function getChatHistory(featureRequestId: string) {
     .json<ApiResponse<Conversation>>();
 }
 
+export function generateSummary(featureRequestId: string) {
+  return agentApi
+    .post(`feature-requests/${featureRequestId}/summary`)
+    .json<ApiResponse<{ summary: string }>>();
+}
+
 export function triggerOrchestration(
   featureRequestId: string,
   dryRun: boolean = true,

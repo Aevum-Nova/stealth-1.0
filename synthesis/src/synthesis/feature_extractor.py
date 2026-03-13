@@ -13,16 +13,18 @@ from src.synthesis.clustering import SignalCluster
 log = structlog.get_logger()
 
 CLUSTER_EXTRACTION_PROMPT = """You are a senior product manager analyzing a normalized cluster card derived from customer feedback.
-Return JSON: {"feature_requests": [{title,type,problem_statement,proposed_solution,user_story,acceptance_criteria,technical_notes,affected_product_areas,supporting_signal_ids,representative_quotes,confidence}]}.
+Return JSON: {"feature_requests": [{title,type,problem_statement,proposed_solution,user_story,acceptance_criteria,technical_notes,affected_product_areas,supporting_signal_ids,representative_quotes,confidence,synthesis_summary}]}.
 Use only signal IDs that appear in the cluster card.
 Prefer one feature request unless the cluster card clearly contains multiple distinct asks.
 The confidence field must be a number between 0 and 1.
+The synthesis_summary field must be 2-3 sentences summarizing how many signals contributed, which sources they came from, and why this feature request is being created.
 Return valid JSON only."""
 
 UNGROUPED_EXTRACTION_PROMPT = """Review standalone signal cards and return actionable feature requests only when the ask is concrete enough.
 Return JSON with feature_requests array only.
 Use only signal IDs that appear in the batch card.
 The confidence field must be a number between 0 and 1.
+The synthesis_summary field must be 2-3 sentences summarizing which signal(s) and source(s) contributed and why this feature request is being created.
 Return valid JSON only."""
 
 FEATURE_REQUESTS_SCHEMA: dict[str, object] = {
@@ -59,6 +61,7 @@ FEATURE_REQUESTS_SCHEMA: dict[str, object] = {
                         "additionalProperties": {"type": "string"},
                     },
                     "confidence": {"type": "number"},
+                    "synthesis_summary": {"type": "string"},
                 },
                 "required": [
                     "title",
@@ -70,6 +73,7 @@ FEATURE_REQUESTS_SCHEMA: dict[str, object] = {
                     "affected_product_areas",
                     "supporting_signal_ids",
                     "confidence",
+                    "synthesis_summary",
                 ],
                 "additionalProperties": False,
             },
@@ -93,6 +97,7 @@ class DraftFeatureRequest:
     supporting_signal_ids: list[str]
     representative_quotes: dict[str, str] = field(default_factory=dict)
     confidence: float = 0.5
+    synthesis_summary: str | None = None
 
 
 class FeatureExtractor:
@@ -278,6 +283,7 @@ class FeatureExtractor:
                     supporting_signal_ids=supporting,
                     representative_quotes=self._normalize_quotes(item.get("representative_quotes")),
                     confidence=self._coerce_confidence(item.get("confidence"), default_confidence),
+                    synthesis_summary=item.get("synthesis_summary"),
                 )
             )
         return drafts

@@ -81,6 +81,7 @@ class FeatureRequestRead(BaseModel):
     synthesis_run_id: UUID | None = None
     synthesis_model: str | None = None
     synthesis_confidence: int | None = None
+    synthesis_summary: str | None = None
     merged_into_id: UUID | None = None
     human_edited: bool
     human_edited_fields: list[str] = Field(default_factory=list)
