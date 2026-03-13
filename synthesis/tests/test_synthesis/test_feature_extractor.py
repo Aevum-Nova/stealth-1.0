@@ -60,17 +60,22 @@ def _clustered_pair() -> SignalCluster:
 
 
 @pytest.mark.asyncio
-async def test_extract_falls_back_for_ungrouped_batch_when_llm_returns_no_feature_requests(monkeypatch):
+async def test_extract_falls_back_for_ungrouped_batch_when_llm_returns_no_feature_requests(
+    monkeypatch,
+):
     async def _no_feature_requests(
         system: str,
         user: str,
         max_tokens: int = 2000,
         schema: dict[str, object] | None = None,
+        **kwargs,
     ) -> dict:
-        _ = system, user, max_tokens, schema
+        _ = system, user, max_tokens, schema, kwargs
         return {}
 
-    monkeypatch.setattr("src.synthesis.feature_extractor.llm_service.json_completion", _no_feature_requests)
+    monkeypatch.setattr(
+        "src.synthesis.feature_extractor.llm_service.json_completion", _no_feature_requests
+    )
 
     clusters = [_singleton_cluster(1), _singleton_cluster(2)]
     drafts = await feature_extractor.extract(clusters)
@@ -87,8 +92,9 @@ async def test_extract_coerces_string_confidence_labels(monkeypatch):
         user: str,
         max_tokens: int = 2000,
         schema: dict[str, object] | None = None,
+        **kwargs,
     ) -> dict:
-        _ = system, user, max_tokens, schema
+        _ = system, user, max_tokens, schema, kwargs
         return {
             "feature_requests": [
                 {
@@ -105,9 +111,21 @@ async def test_extract_coerces_string_confidence_labels(monkeypatch):
             ]
         }
 
-    monkeypatch.setattr("src.synthesis.feature_extractor.llm_service.json_completion", _string_confidence)
+    monkeypatch.setattr(
+        "src.synthesis.feature_extractor.llm_service.json_completion", _string_confidence
+    )
 
     drafts = await feature_extractor.extract([_clustered_pair()])
 
     assert len(drafts) == 1
     assert drafts[0].confidence == 0.8
+
+
+def test_format_cluster_card_compacts_cluster_context():
+    card = feature_extractor._format_cluster_card(_clustered_pair())
+
+    assert "CLUSTER CARD" in card
+    assert "Signal count: 2" in card
+    assert "Representative signals:" in card
+    assert "Representative quotes:" in card
+    assert "admins need more control over SSO sessions" in card

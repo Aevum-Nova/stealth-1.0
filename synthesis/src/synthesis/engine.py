@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
@@ -16,7 +15,11 @@ from src.synthesis.deduplicator import deduplicator
 from src.synthesis.engine_types import SignalDigest
 from src.synthesis.feature_extractor import DraftFeatureRequest, feature_extractor
 from src.synthesis.image_resolver import resolve_images
-from src.synthesis.prioritizer import compute_impact_metrics, compute_priority_score, priority_from_score
+from src.synthesis.prioritizer import (
+    compute_impact_metrics,
+    compute_priority_score,
+    priority_from_score,
+)
 
 
 class SynthesisEngine:
@@ -39,12 +42,14 @@ class SynthesisEngine:
             return embedding
         return [0.0] * max(dimension, 1)
 
-    async def start_run(self, db: AsyncSession, organization_id: str, mode: str = "incremental") -> SynthesisRun:
+    async def start_run(
+        self, db: AsyncSession, organization_id: str, mode: str = "incremental"
+    ) -> SynthesisRun:
         run = SynthesisRun(
             organization_id=UUID(organization_id),
             status="pending",
-            started_at=datetime.now(timezone.utc),
-            model=settings.ANTHROPIC_MODEL,
+            started_at=datetime.now(UTC),
+            model=settings.ANTHROPIC_SYNTHESIS_MODEL,
         )
         db.add(run)
         await db.commit()
@@ -57,7 +62,9 @@ class SynthesisEngine:
         )
         return run
 
-    async def run(self, db: AsyncSession, organization_id: str, run: SynthesisRun, mode: str = "incremental") -> None:
+    async def run(
+        self, db: AsyncSession, organization_id: str, run: SynthesisRun, mode: str = "incremental"
+    ) -> None:
         try:
             await self._set_status(db, run, "clustering")
             signals = await self._gather_signals(db, organization_id, mode)
@@ -66,7 +73,7 @@ class SynthesisEngine:
 
             if len(signals) < 2:
                 run.status = "completed"
-                run.completed_at = datetime.now(timezone.utc)
+                run.completed_at = datetime.now(UTC)
                 run.feature_request_count = 0
                 run.feature_request_ids = []
                 await db.commit()
@@ -101,7 +108,9 @@ class SynthesisEngine:
                     )
                 )
 
-            clusters = cluster_signals(digests, similarity_threshold=settings.SYNTHESIS_CLUSTER_THRESHOLD)
+            clusters = cluster_signals(
+                digests, similarity_threshold=settings.SYNTHESIS_CLUSTER_THRESHOLD
+            )
             run.cluster_count = len(clusters)
             await db.commit()
 
@@ -114,13 +123,16 @@ class SynthesisEngine:
             drafts = await deduplicator.deduplicate(drafts)
 
             await self._publish_progress(organization_id, run.id, "prioritizing", 80)
-            fr_ids = await self._persist_feature_requests(db, organization_id, run, signals, drafts, mode)
+            fr_ids = await self._persist_feature_requests(
+                db, organization_id, run, signals, drafts, mode
+            )
 
             run.status = "completed"
-            run.completed_at = datetime.now(timezone.utc)
+            run.completed_at = datetime.now(UTC)
             run.feature_request_count = len(fr_ids)
             run.feature_request_ids = fr_ids
             await db.commit()
+            await self._publish_progress(organization_id, run.id, "completed", 100)
 
             await get_event_bus().publish(
                 organization_id,
@@ -132,10 +144,14 @@ class SynthesisEngine:
                 },
             )
         except Exception as exc:
-            run.status = "failed"
-            run.error = str(exc)
-            run.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await db.rollback()
+            failed_run = await db.get(SynthesisRun, run.id)
+            if failed_run is not None:
+                failed_run.status = "failed"
+                failed_run.error = str(exc)
+                failed_run.completed_at = datetime.now(UTC)
+                await db.commit()
+                await self._publish_progress(organization_id, failed_run.id, "failed", 100)
             await get_event_bus().publish(
                 organization_id,
                 "synthesis_failed",
@@ -147,14 +163,18 @@ class SynthesisEngine:
         run.status = status
         await db.commit()
 
-    async def _publish_progress(self, org_id: str, run_id: UUID, status: str, progress: int) -> None:
+    async def _publish_progress(
+        self, org_id: str, run_id: UUID, status: str, progress: int
+    ) -> None:
         await get_event_bus().publish(
             org_id,
             "synthesis_progress",
             {"run_id": str(run_id), "status": status, "progress": progress},
         )
 
-    async def _gather_signals(self, db: AsyncSession, organization_id: str, mode: str) -> list[Signal]:
+    async def _gather_signals(
+        self, db: AsyncSession, organization_id: str, mode: str
+    ) -> list[Signal]:
         query = select(Signal).where(
             Signal.organization_id == UUID(organization_id),
             Signal.status == "completed",
@@ -176,12 +196,7 @@ class SynthesisEngine:
         mode: str,
     ) -> list[str]:
         if mode == "full":
-            await db.execute(
-                delete(FeatureRequest).where(
-                    FeatureRequest.organization_id == UUID(organization_id),
-                    FeatureRequest.status == "draft",
-                )
-            )
+            await self._delete_existing_draft_feature_requests(db, organization_id)
 
         created_ids: list[str] = []
         async with db.begin_nested():
@@ -248,10 +263,96 @@ class SynthesisEngine:
 
             for signal in signals:
                 signal.synthesized = True
-                signal.last_synthesized_at = datetime.now(timezone.utc)
+                signal.last_synthesized_at = datetime.now(UTC)
 
         await db.commit()
         return created_ids
+
+    async def _delete_existing_draft_feature_requests(
+        self,
+        db: AsyncSession,
+        organization_id: str,
+    ) -> None:
+        org_uuid = UUID(organization_id)
+        draft_feature_request_ids = select(FeatureRequest.id).where(
+            FeatureRequest.organization_id == org_uuid,
+            FeatureRequest.status == "draft",
+        )
+
+        # Agent-owned tables share the same database and reference feature_requests
+        # without delete cascades, so clear them first during a full re-synthesis.
+        await db.execute(
+            text(
+                """
+                DELETE FROM agent_messages
+                WHERE conversation_id IN (
+                    SELECT id
+                    FROM agent_conversations
+                    WHERE feature_request_id IN (
+                        SELECT id
+                        FROM feature_requests
+                        WHERE organization_id = :organization_id
+                          AND status = 'draft'
+                    )
+                )
+                """
+            ),
+            {"organization_id": org_uuid},
+        )
+        await db.execute(
+            text(
+                """
+                DELETE FROM agent_conversations
+                WHERE feature_request_id IN (
+                    SELECT id
+                    FROM feature_requests
+                    WHERE organization_id = :organization_id
+                      AND status = 'draft'
+                )
+                """
+            ),
+            {"organization_id": org_uuid},
+        )
+        await db.execute(
+            text(
+                """
+                DELETE FROM agent_jobs
+                WHERE feature_request_id IN (
+                    SELECT id
+                    FROM feature_requests
+                    WHERE organization_id = :organization_id
+                      AND status = 'draft'
+                )
+                """
+            ),
+            {"organization_id": org_uuid},
+        )
+        await db.execute(
+            text(
+                """
+                UPDATE feature_requests
+                SET merged_into_id = NULL
+                WHERE merged_into_id IN (
+                    SELECT id
+                    FROM feature_requests
+                    WHERE organization_id = :organization_id
+                      AND status = 'draft'
+                )
+                """
+            ),
+            {"organization_id": org_uuid},
+        )
+        await db.execute(
+            delete(FeatureRequestSignal).where(
+                FeatureRequestSignal.feature_request_id.in_(draft_feature_request_ids)
+            )
+        )
+        await db.execute(
+            delete(FeatureRequest).where(
+                FeatureRequest.organization_id == org_uuid,
+                FeatureRequest.status == "draft",
+            )
+        )
 
 
 synthesis_engine = SynthesisEngine()

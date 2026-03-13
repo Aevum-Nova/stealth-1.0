@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.database import async_session, get_db
 from src.jobs.manager import ConflictError, job_manager
 from src.middleware.auth import get_current_org
@@ -14,9 +16,17 @@ from src.models.feature_request import SynthesisRun
 from src.models.signal import Signal
 from src.schemas.common import ApiResponse
 from src.schemas.job import SynthesisRunRead
+from src.services.event_bus import get_event_bus
 from src.synthesis.engine import synthesis_engine
 
 router = APIRouter(prefix="/api/v1/synthesis", tags=["synthesis"])
+ACTIVE_RUN_STATUSES = {
+    "pending",
+    "clustering",
+    "synthesizing",
+    "deduplicating",
+    "prioritizing",
+}
 
 
 async def _execute_synthesis(org_id: str, run_id: str, mode: str) -> None:
@@ -32,6 +42,70 @@ async def _execute_synthesis(org_id: str, run_id: str, mode: str) -> None:
         await job_manager.run_synthesis(org_id, run_id, _runner())
 
 
+async def _reconcile_stale_runs(db: AsyncSession, org_id: str) -> None:
+    result = await db.execute(
+        select(SynthesisRun)
+        .where(
+            SynthesisRun.organization_id == UUID(org_id),
+            SynthesisRun.status.in_(ACTIVE_RUN_STATUSES),
+        )
+        .order_by(SynthesisRun.created_at.desc())
+    )
+    active_runs = list(result.scalars().all())
+    if not active_runs:
+        return
+
+    keep_run_id = active_runs[0].id if job_manager.is_synthesis_running(org_id) else None
+    now = datetime.now(UTC)
+    expired_runs: list[SynthesisRun] = []
+
+    for run in active_runs:
+        if keep_run_id == run.id:
+            continue
+
+        started_at = run.started_at or run.created_at
+        age_seconds = max((now - started_at).total_seconds(), 0)
+        if age_seconds < settings.SYNTHESIS_STALE_RUN_GRACE_SECONDS:
+            continue
+
+        run.status = "failed"
+        run.error = "Marked failed because the synthesis worker was no longer running."
+        run.completed_at = now
+        expired_runs.append(run)
+
+    if not expired_runs:
+        return
+
+    await db.commit()
+    bus = get_event_bus()
+    for run in expired_runs:
+        await bus.publish(
+            org_id,
+            "synthesis_progress",
+            {"run_id": str(run.id), "status": "failed", "progress": 100},
+        )
+        await bus.publish(
+            org_id,
+            "synthesis_failed",
+            {
+                "run_id": str(run.id),
+                "error": run.error,
+            },
+        )
+
+
+async def _count_active_runs(db: AsyncSession, org_id: str) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(SynthesisRun)
+        .where(
+            SynthesisRun.organization_id == UUID(org_id),
+            SynthesisRun.status.in_(ACTIVE_RUN_STATUSES),
+        )
+    )
+    return int(result.scalar_one() or 0)
+
+
 @router.post("/run", response_model=ApiResponse[dict])
 async def run_synthesis(
     mode: str = Query(default="incremental"),
@@ -41,8 +115,15 @@ async def run_synthesis(
     if mode not in {"incremental", "full"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="mode must be incremental or full")
 
+    await _reconcile_stale_runs(db, org_id)
+
     if job_manager.is_synthesis_running(org_id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Synthesis already running")
+    if await _count_active_runs(db, org_id) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Synthesis is already starting or running",
+        )
 
     org_uuid = UUID(org_id)
     eligible_filters = [
@@ -89,6 +170,7 @@ async def run_synthesis(
 
 @router.get("/runs", response_model=ApiResponse[list[SynthesisRunRead]])
 async def list_runs(org_id: str = Depends(get_current_org), db: AsyncSession = Depends(get_db)):
+    await _reconcile_stale_runs(db, org_id)
     rows = await db.execute(
         select(SynthesisRun)
         .where(SynthesisRun.organization_id == UUID(org_id))
@@ -101,6 +183,7 @@ async def list_runs(org_id: str = Depends(get_current_org), db: AsyncSession = D
 
 @router.get("/runs/{run_id}", response_model=ApiResponse[SynthesisRunRead])
 async def get_run(run_id: UUID, org_id: str = Depends(get_current_org), db: AsyncSession = Depends(get_db)):
+    await _reconcile_stale_runs(db, org_id)
     result = await db.execute(
         select(SynthesisRun).where(SynthesisRun.id == run_id, SynthesisRun.organization_id == UUID(org_id))
     )

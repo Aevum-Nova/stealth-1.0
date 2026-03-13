@@ -3,8 +3,27 @@ import { formatDate } from "@/lib/utils";
 
 import SynthesisProgressBar from "@/components/synthesis/SynthesisProgressBar";
 
+function getStatusProgress(status: string) {
+  switch (status) {
+    case "completed":
+    case "failed":
+      return 100;
+    case "prioritizing":
+      return 90;
+    case "deduplicating":
+      return 72;
+    case "synthesizing":
+      return 48;
+    case "clustering":
+      return 18;
+    case "pending":
+    default:
+      return 5;
+  }
+}
+
 export default function SynthesisRunCard({ run, activeProgress }: { run: SynthesisRun; activeProgress?: number }) {
-  const progress = activeProgress ?? (run.status === "completed" ? 100 : 25);
+  const progress = Math.max(activeProgress ?? 0, getStatusProgress(run.status));
 
   return (
     <article className="rounded-lg border border-[var(--line)] p-3">

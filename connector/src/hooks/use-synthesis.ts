@@ -6,6 +6,7 @@ import { extractApiErrorMessage } from "@/lib/api-error";
 
 type RunSynthesisVariables = { mode: "incremental" | "full" };
 type RunSynthesisResponse = Awaited<ReturnType<typeof synthesisApi.runSynthesis>>;
+const ACTIVE_STATUSES = new Set(["pending", "clustering", "synthesizing", "deduplicating", "prioritizing"]);
 
 interface UseRunSynthesisOptions {
   onSuccess?: (response: RunSynthesisResponse, variables: RunSynthesisVariables) => void;
@@ -16,7 +17,10 @@ export function useSynthesisRuns() {
   return useQuery({
     queryKey: ["synthesis-runs"],
     queryFn: () => synthesisApi.listSynthesisRuns(),
-    refetchInterval: 10000
+    refetchInterval: (query) => {
+      const runs = query.state.data?.data ?? [];
+      return runs.some((run) => ACTIVE_STATUSES.has(run.status)) ? 2000 : 10000;
+    }
   });
 }
 

@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "claude"  # "claude" or "openai"
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-opus-4-6"
+    ANTHROPIC_PR_MODEL: str = "claude-opus-4-6"
+    ANTHROPIC_PR_FAST_MODE: bool = True
+    ANTHROPIC_PR_FAST_MODE_BETA: str = "fast-mode-2026-02-01"
     OPENAI_API_KEY: str = ""
 
     EMBEDDING_PROVIDER: str = "voyage"  # "voyage" or "openai"

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import asdict
 
 import structlog
 from sqlalchemy import select
@@ -12,14 +11,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from stealth_agent.adapters.github import GitHubGitProvider, GitHubPullRequestProvider
 from stealth_agent.adapters.llm import LLMProvider
-from stealth_agent.adapters.llm_adapters import LLMCodeGenerator, LLMSignalProcessor, LLMSpecPlanner
-from stealth_agent.adapters.local import LocalGitProvider, LocalPullRequestProvider, LocalRepositoryAnalyzer
+from stealth_agent.adapters.llm_adapters import (
+    LLMCodeGenerator,
+    LLMSignalProcessor,
+    LLMSpecPlanner,
+)
+from stealth_agent.adapters.local import (
+    LocalGitProvider,
+    LocalPullRequestProvider,
+    LocalRepositoryAnalyzer,
+)
 from stealth_agent.database import async_session
 from stealth_agent.domain.models import PullRequestDraft, RepositoryContext
 from stealth_agent.mappers import feature_request_from_row
 from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
 from stealth_agent.services.code_indexer import ensure_indexed
-from stealth_agent.services.orchestrator import FeatureToPROrchestrator, OrchestrationDependencies
+from stealth_agent.services.orchestrator import (
+    FeatureToPROrchestrator,
+    OrchestrationDependencies,
+)
 
 log = structlog.get_logger()
 
@@ -90,10 +100,13 @@ def trigger_orchestration(
     organization_id: str,
     dry_run: bool,
     llm: LLMProvider,
+    codegen_llm: LLMProvider,
 ) -> None:
     """Launch orchestration as a fire-and-forget background task."""
     asyncio.get_event_loop().create_task(
-        _run_orchestration(job_id, feature_request_id, organization_id, dry_run, llm)
+        _run_orchestration(
+            job_id, feature_request_id, organization_id, dry_run, llm, codegen_llm
+        )
     )
 
 
@@ -103,11 +116,14 @@ async def _run_orchestration(
     organization_id: str,
     dry_run: bool,
     llm: LLMProvider,
+    codegen_llm: LLMProvider,
 ) -> None:
     async with async_session() as db:
         try:
             # Update job to running
-            job_result = await db.execute(select(AgentJob).where(AgentJob.id == uuid.UUID(job_id)))
+            job_result = await db.execute(
+                select(AgentJob).where(AgentJob.id == uuid.UUID(job_id))
+            )
             job = job_result.scalar_one()
             job.status = "running"
             await db.commit()
@@ -134,7 +150,9 @@ async def _run_orchestration(
             # Build repository context and adapters based on GitHub connector
             repo_context: RepositoryContext | None = None
             git_provider: LocalGitProvider | GitHubGitProvider = LocalGitProvider()
-            pr_provider: LocalPullRequestProvider | GitHubPullRequestProvider = LocalPullRequestProvider()
+            pr_provider: LocalPullRequestProvider | GitHubPullRequestProvider = (
+                LocalPullRequestProvider()
+            )
 
             if gh_connector:
                 gh_config = gh_connector.config or {}
@@ -151,9 +169,14 @@ async def _run_orchestration(
                         owner=owner,
                         repo=repo_name,
                     )
-                    git_provider = GitHubGitProvider(token=gh_token, owner=owner, repo=repo_name)
+                    git_provider = GitHubGitProvider(
+                        token=gh_token, owner=owner, repo=repo_name
+                    )
                     pr_provider = GitHubPullRequestProvider(
-                        token=gh_token, owner=owner, repo=repo_name, base_branch=gh_default_branch,
+                        token=gh_token,
+                        owner=owner,
+                        repo=repo_name,
+                        base_branch=gh_default_branch,
                     )
                     log.info(
                         "using_github_provider",
@@ -174,25 +197,31 @@ async def _run_orchestration(
                 signal_processor=LLMSignalProcessor(llm),
                 repository_analyzer=LocalRepositoryAnalyzer(),
                 spec_planner=LLMSpecPlanner(llm),
-                code_generator=LLMCodeGenerator(llm),
+                code_generator=LLMCodeGenerator(codegen_llm),
                 git_provider=git_provider,
                 pr_provider=pr_provider,
             )
-            orchestrator = FeatureToPROrchestrator(deps)
+            FeatureToPROrchestrator(deps)
 
             # Run orchestration (adapters are now async, but orchestrator.run is sync)
             # We need to run the async adapters — use the async versions directly
             feature = await deps.signal_processor.prioritize_feature(domain_fr)
             repo_analysis = deps.repository_analyzer.analyze(domain_fr.repository.path)
-            spec, plan = await deps.spec_planner.build_spec_and_plan(domain_fr, feature, repo_analysis)
-            changes = await deps.code_generator.propose_changes(domain_fr, feature, spec, plan, repo_analysis)
+            spec, plan = await deps.spec_planner.build_spec_and_plan(
+                domain_fr, feature, repo_analysis
+            )
+            changes = await deps.code_generator.propose_changes(
+                domain_fr, feature, spec, plan, repo_analysis
+            )
 
             # When not a dry run and GitHub is connected, create branch and PR
             branch_name = f"feature/{domain_fr.request_id}-{'-'.join(feature.name.lower().split())}"
             commit_sha = None
             pr_url = None
             if not dry_run and isinstance(git_provider, GitHubGitProvider):
-                git_provider.create_branch(domain_fr.repository.default_branch, branch_name)
+                git_provider.create_branch(
+                    domain_fr.repository.default_branch, branch_name
+                )
                 commit_sha = git_provider.apply_changes_and_commit(
                     changes, commit_message=f"feat: {feature.name.lower()}"
                 )
@@ -244,7 +273,9 @@ async def _run_orchestration(
         except Exception as exc:
             log.error("orchestration_failed", job_id=job_id, error=str(exc))
             try:
-                job_result = await db.execute(select(AgentJob).where(AgentJob.id == uuid.UUID(job_id)))
+                job_result = await db.execute(
+                    select(AgentJob).where(AgentJob.id == uuid.UUID(job_id))
+                )
                 job = job_result.scalar_one()
                 job.status = "failed"
                 job.error = str(exc)

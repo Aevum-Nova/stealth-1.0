@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.config import settings
 from src.services.embeddings import embedding_service
 from src.services.llm import llm_service
 
@@ -82,7 +83,17 @@ class TextProcessor:
             sentiment = "neutral"
             urgency = "low"
         else:
-            payload = await llm_service.json_completion(TEXT_ANALYZER_PROMPT, clean, schema=TEXT_ANALYZER_SCHEMA)
+            payload = await llm_service.json_completion(
+                TEXT_ANALYZER_PROMPT,
+                clean,
+                max_tokens=600,
+                schema=TEXT_ANALYZER_SCHEMA,
+                stage="signal_analysis",
+                model=settings.ANTHROPIC_SIGNAL_MODEL,
+                effort=settings.ANTHROPIC_SIGNAL_EFFORT,
+                enable_prompt_cache=settings.ANTHROPIC_ENABLE_PROMPT_CACHING,
+                telemetry={"signal_chars": len(clean)},
+            )
             summary = str(payload.get("structured_summary") or clean[:500]).strip() or clean[:500]
             entities = self._normalize_entities(payload.get("entities"))
             sentiment = self._normalize_label(

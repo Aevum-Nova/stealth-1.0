@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -10,13 +10,14 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.database import async_session, get_db
 from src.jobs.manager import job_manager
 from src.middleware.auth import get_current_org
 from src.models.job import IngestionJob
+from src.schemas.common import ApiResponse
 from src.schemas.job import BatchUploadRejectedItem, BatchUploadResponse
 from src.schemas.signal import IngestTextBatchRequest, IngestTextRequest
-from src.schemas.common import ApiResponse
 from src.services.event_bus import get_event_bus
 from src.services.signal_builder import signal_builder
 
@@ -36,15 +37,21 @@ def _parse_metadata(raw: str | None) -> dict:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="metadata must be valid JSON") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="metadata must be valid JSON"
+        ) from exc
     if not isinstance(value, dict):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="metadata must be a JSON object")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="metadata must be a JSON object"
+        )
     return value
 
 
 def _detect_data_type(filename: str, mime_type: str | None) -> str | None:
     suffix = Path(filename).suffix.lower()
-    if suffix in TEXT_EXTENSIONS or (mime_type and (mime_type.startswith("text/") or mime_type == "application/json")):
+    if suffix in TEXT_EXTENSIONS or (
+        mime_type and (mime_type.startswith("text/") or mime_type == "application/json")
+    ):
         return "text"
     if suffix in AUDIO_EXTENSIONS or (mime_type and mime_type.startswith("audio/")):
         return "audio"
@@ -53,7 +60,9 @@ def _detect_data_type(filename: str, mime_type: str | None) -> str | None:
     return None
 
 
-async def _process_single_signal(signal_id: str, raw_content: bytes, job_id: str | None = None) -> None:
+async def _process_single_signal(
+    signal_id: str, raw_content: bytes, job_id: str | None = None
+) -> None:
     async with async_session() as db:
         await signal_builder.process_signal(db, signal_id, raw_content, job_id=job_id)
 
@@ -66,24 +75,32 @@ async def _run_job(job_id: str, org_id: str, items: list[tuple[str, bytes]]) -> 
             return
 
         job.status = "processing"
-        job.started_at = datetime.now(timezone.utc)
+        job.started_at = datetime.now(UTC)
         await db.commit()
 
         processed = 0
         failed = 0
-        for signal_id, raw in items:
+        concurrency = min(settings.INGESTION_BATCH_CONCURRENCY, max(len(items), 1))
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _bounded_process(signal_id: str, raw: bytes) -> None:
+            async with semaphore:
+                await _process_single_signal(signal_id, raw, job_id)
+
+        tasks = [asyncio.create_task(_bounded_process(signal_id, raw)) for signal_id, raw in items]
+
+        for task in asyncio.as_completed(tasks):
             try:
-                await signal_builder.process_signal(db, signal_id, raw, job_id=job_id)
+                await task
                 processed += 1
             except Exception:
                 failed += 1
-
             job.processed_items = processed
             job.failed_items = failed
             await db.commit()
 
         job.status = "completed" if failed == 0 else "completed_with_errors"
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(UTC)
         await db.commit()
 
         await get_event_bus().publish(
@@ -94,7 +111,11 @@ async def _run_job(job_id: str, org_id: str, items: list[tuple[str, bytes]]) -> 
 
 
 @router.post("/text", response_model=ApiResponse[dict])
-async def ingest_text(payload: IngestTextRequest, org_id: str = Depends(get_current_org), db: AsyncSession = Depends(get_db)):
+async def ingest_text(
+    payload: IngestTextRequest,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
     raw = payload.text.encode("utf-8")
     signal = await signal_builder.create_pending_signal(
         db,
@@ -118,7 +139,9 @@ async def ingest_text_batch(
     db: AsyncSession = Depends(get_db),
 ):
     if len(payload.items) > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Max batch size is 100 items")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Max batch size is 100 items"
+        )
 
     job = IngestionJob(
         organization_id=UUID(org_id),
@@ -152,8 +175,16 @@ async def ingest_text_batch(
     job.signal_ids = signal_ids
     await db.commit()
 
-    asyncio.create_task(job_manager.run_ingestion_job(str(job.id), _run_job(str(job.id), org_id, items_to_process)))
-    return ApiResponse(data={"job_id": str(job.id), "total_items": len(payload.items), "accepted": len(payload.items)})
+    asyncio.create_task(
+        job_manager.run_ingestion_job(str(job.id), _run_job(str(job.id), org_id, items_to_process))
+    )
+    return ApiResponse(
+        data={
+            "job_id": str(job.id),
+            "total_items": len(payload.items),
+            "accepted": len(payload.items),
+        }
+    )
 
 
 @router.post("/upload", response_model=ApiResponse[dict])
@@ -165,11 +196,15 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
 ):
     if source != "direct_upload":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source must be direct_upload")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="source must be direct_upload"
+        )
 
     raw = await file.read()
     if len(raw) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File exceeds 100MB limit")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="File exceeds 100MB limit"
+        )
 
     data_type = _detect_data_type(file.filename or "upload", file.content_type)
     if not data_type:
@@ -204,7 +239,9 @@ async def upload_batch(
     db: AsyncSession = Depends(get_db),
 ):
     if len(files) > MAX_FILES_PER_BATCH:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Max 50 files per batch")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Max 50 files per batch"
+        )
 
     shared_metadata = _parse_metadata(metadata)
     accepted_items: list[tuple[str, bytes]] = []
@@ -216,7 +253,9 @@ async def upload_batch(
         raw = await upload.read()
 
         if len(raw) > MAX_FILE_SIZE_BYTES:
-            rejected.append(BatchUploadRejectedItem(filename=filename, reason="File exceeds 100MB limit"))
+            rejected.append(
+                BatchUploadRejectedItem(filename=filename, reason="File exceeds 100MB limit")
+            )
             continue
 
         data_type = _detect_data_type(filename, upload.content_type)
@@ -259,7 +298,9 @@ async def upload_batch(
 
     if accepted_items:
         asyncio.create_task(
-            job_manager.run_ingestion_job(str(job.id), _run_job(str(job.id), org_id, accepted_items))
+            job_manager.run_ingestion_job(
+                str(job.id), _run_job(str(job.id), org_id, accepted_items)
+            )
         )
 
     return ApiResponse(

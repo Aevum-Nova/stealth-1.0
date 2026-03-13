@@ -19,7 +19,13 @@ class Settings(BaseSettings):
 
     ASSEMBLYAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-opus-4-6"
+    ANTHROPIC_SIGNAL_MODEL: str = "claude-sonnet-4-6"
+    ANTHROPIC_SIGNAL_EFFORT: str = "low"
+    ANTHROPIC_SYNTHESIS_MODEL: str = "claude-sonnet-4-6"
+    ANTHROPIC_SYNTHESIS_EFFORT: str = "medium"
+    ANTHROPIC_SYNTHESIS_RETRY_MODEL: str = "claude-opus-4-6"
+    ANTHROPIC_SYNTHESIS_RETRY_EFFORT: str = "medium"
+    ANTHROPIC_ENABLE_PROMPT_CACHING: bool = True
 
     EMBEDDING_PROVIDER: str = "voyage"
     EMBEDDING_DIMENSION: int = 1536
@@ -29,6 +35,12 @@ class Settings(BaseSettings):
     SYNTHESIS_CLUSTER_THRESHOLD: float = 0.75
     SYNTHESIS_MAX_SIGNALS: int = 2000
     SYNTHESIS_AUTO_TRIGGER_MIN: int = 5
+    SYNTHESIS_CLUSTER_CONCURRENCY: int = 4
+    SYNTHESIS_RETRY_CONFIDENCE_THRESHOLD: float = 0.65
+    SYNTHESIS_HIGH_VALUE_SIGNAL_COUNT: int = 6
+    SYNTHESIS_MAX_REPRESENTATIVE_SIGNALS: int = 5
+    SYNTHESIS_STALE_RUN_GRACE_SECONDS: int = 45
+    INGESTION_BATCH_CONCURRENCY: int = 5
 
     SLACK_CLIENT_ID: str | None = None
     SLACK_CLIENT_SECRET: str | None = None
@@ -61,6 +73,38 @@ class Settings(BaseSettings):
     def validate_embedding_dimension(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("EMBEDDING_DIMENSION must be greater than 0")
+        return value
+
+    @field_validator(
+        "ANTHROPIC_SIGNAL_EFFORT",
+        "ANTHROPIC_SYNTHESIS_EFFORT",
+        "ANTHROPIC_SYNTHESIS_RETRY_EFFORT",
+    )
+    @classmethod
+    def validate_effort(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in {"low", "medium", "high"}:
+            raise ValueError("Anthropic effort must be one of: low, medium, high")
+        return normalized
+
+    @field_validator(
+        "SYNTHESIS_CLUSTER_CONCURRENCY",
+        "SYNTHESIS_HIGH_VALUE_SIGNAL_COUNT",
+        "SYNTHESIS_MAX_REPRESENTATIVE_SIGNALS",
+        "SYNTHESIS_STALE_RUN_GRACE_SECONDS",
+        "INGESTION_BATCH_CONCURRENCY",
+    )
+    @classmethod
+    def validate_positive_int(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("Value must be greater than 0")
+        return value
+
+    @field_validator("SYNTHESIS_RETRY_CONFIDENCE_THRESHOLD")
+    @classmethod
+    def validate_retry_threshold(cls, value: float) -> float:
+        if not 0 <= value <= 1:
+            raise ValueError("SYNTHESIS_RETRY_CONFIDENCE_THRESHOLD must be between 0 and 1")
         return value
 
 

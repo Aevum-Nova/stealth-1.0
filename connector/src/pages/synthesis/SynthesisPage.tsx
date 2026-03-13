@@ -8,6 +8,8 @@ import SynthesisTriggerButton from "@/components/synthesis/SynthesisTriggerButto
 import { useEventStream } from "@/hooks/use-event-stream";
 import { useRunSynthesis, useSynthesisRuns } from "@/hooks/use-synthesis";
 
+const ACTIVE_STATUSES = new Set(["pending", "clustering", "synthesizing", "deduplicating", "prioritizing"]);
+
 export default function SynthesisPage() {
   const runsQuery = useSynthesisRuns();
   const runMutation = useRunSynthesis();
@@ -16,13 +18,20 @@ export default function SynthesisPage() {
 
   const progressByRunId = useMemo(() => {
     const value = new Map<string, number>();
-    events
-      .filter((event) => event.event === "synthesis_progress")
-      .forEach((event) => {
-        const runId = String(event.data.run_id ?? "");
+    [...events].reverse().forEach((event) => {
+      const runId = String(event.data.run_id ?? "");
+      if (!runId) return;
+
+      if (event.event === "synthesis_completed" || event.event === "synthesis_failed") {
+        value.set(runId, 100);
+        return;
+      }
+
+      if (event.event === "synthesis_progress") {
         const progress = Number(event.data.progress ?? 0);
-        if (runId) value.set(runId, progress * (progress <= 1 ? 100 : 1));
-      });
+        value.set(runId, progress * (progress <= 1 ? 100 : 1));
+      }
+    });
     return value;
   }, [events]);
 
@@ -35,7 +44,8 @@ export default function SynthesisPage() {
   }
 
   const runs = runsQuery.data?.data ?? [];
-  const active = runs.find((run) => ["pending", "clustering", "synthesizing", "deduplicating", "prioritizing"].includes(run.status));
+  const active = runs.find((run) => ACTIVE_STATUSES.has(run.status));
+  const pastRuns = runs.filter((run) => run.id !== active?.id);
 
   return (
     <div className="space-y-4">
@@ -58,11 +68,11 @@ export default function SynthesisPage() {
 
       <section className="panel p-4">
         <h3 className="mb-2 text-[15px] font-medium">Past Runs</h3>
-        {runs.length === 0 ? (
+        {pastRuns.length === 0 ? (
           <p className="text-[13px] text-[var(--ink-soft)]">No synthesis runs yet.</p>
         ) : (
           <div className="space-y-2">
-            {runs.map((run) => (
+            {pastRuns.map((run) => (
               <SynthesisRunCard key={run.id} run={run} activeProgress={progressByRunId.get(run.id)} />
             ))}
           </div>

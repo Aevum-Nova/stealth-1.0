@@ -9,14 +9,22 @@ from stealth_agent.adapters.llm import create_llm_provider
 from stealth_agent.config import settings
 from stealth_agent.database import get_db
 from stealth_agent.middleware.auth import get_current_org
-from stealth_agent.schemas import ApiResponse, ApplyChangesOut, ApplyChangesRequest, JobOut, TriggerRequest
+from stealth_agent.schemas import (
+    ApiResponse,
+    ApplyChangesOut,
+    ApplyChangesRequest,
+    JobOut,
+    TriggerRequest,
+)
 from stealth_agent.services import apply_changes as apply_changes_service
 from stealth_agent.services import jobs as jobs_service
 
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 
 
-@router.post("/feature-requests/{feature_request_id}/trigger", response_model=ApiResponse)
+@router.post(
+    "/feature-requests/{feature_request_id}/trigger", response_model=ApiResponse
+)
 async def trigger_orchestration(
     feature_request_id: str,
     payload: TriggerRequest,
@@ -30,6 +38,14 @@ async def trigger_orchestration(
         settings.OPENAI_API_KEY,
         settings.ANTHROPIC_MODEL,
     )
+    codegen_llm = create_llm_provider(
+        settings.LLM_PROVIDER,
+        settings.ANTHROPIC_API_KEY,
+        settings.OPENAI_API_KEY,
+        settings.ANTHROPIC_PR_MODEL,
+        fast_mode=settings.ANTHROPIC_PR_FAST_MODE,
+        fast_mode_beta=settings.ANTHROPIC_PR_FAST_MODE_BETA,
+    )
 
     jobs_service.trigger_orchestration(
         job_id=str(job.id),
@@ -37,6 +53,7 @@ async def trigger_orchestration(
         organization_id=org_id,
         dry_run=payload.dry_run,
         llm=llm,
+        codegen_llm=codegen_llm,
     )
 
     return ApiResponse(
@@ -60,7 +77,9 @@ async def get_job(
 ):
     job = await jobs_service.get_job(db, job_id)
     if not job or str(job.organization_id) != org_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
 
     return ApiResponse(
         data=JobOut(
@@ -75,7 +94,9 @@ async def get_job(
     )
 
 
-@router.post("/feature-requests/{feature_request_id}/apply-changes", response_model=ApiResponse)
+@router.post(
+    "/feature-requests/{feature_request_id}/apply-changes", response_model=ApiResponse
+)
 async def apply_changes_to_pr(
     feature_request_id: str,
     payload: ApplyChangesRequest,
@@ -88,7 +109,9 @@ async def apply_changes_to_pr(
             proposed_changes=[c.model_dump() for c in payload.proposed_changes],
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
     return ApiResponse(
         data=ApplyChangesOut(
@@ -104,7 +127,9 @@ async def list_jobs(
     org_id: str = Depends(get_current_org),
     db: AsyncSession = Depends(get_db),
 ):
-    jobs = await jobs_service.list_jobs_for_feature_request(db, feature_request_id, org_id)
+    jobs = await jobs_service.list_jobs_for_feature_request(
+        db, feature_request_id, org_id
+    )
 
     return ApiResponse(
         data=[
