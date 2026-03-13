@@ -27,9 +27,6 @@ function JobCard({ job }: { job: AgentJob }) {
         <div className="mt-2 space-y-1">
           <p className="font-medium">{job.result.feature_name}</p>
           <p className="text-[var(--ink-soft)]">{job.result.spec_summary}</p>
-          {job.result.dry_run && (
-            <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Dry run</span>
-          )}
           {job.result.tasks.length > 0 && (
             <ul className="ml-4 list-disc text-[11px] text-[var(--ink-soft)]">
                 {job.result.tasks.map((t, i) => (
@@ -72,16 +69,9 @@ export default function AgentJobStatus({ featureRequestId }: { featureRequestId:
         <button
           className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
           disabled={hasActiveJob || triggerMutation.isPending}
-          onClick={() => triggerMutation.mutate(true)}
+          onClick={() => triggerMutation.mutate()}
         >
-          {triggerMutation.isPending ? "Starting..." : "Generate PR (Dry Run)"}
-        </button>
-        <button
-          className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors disabled:opacity-50"
-          disabled={hasActiveJob || triggerMutation.isPending}
-          onClick={() => triggerMutation.mutate(false)}
-        >
-          Generate PR
+          {triggerMutation.isPending ? "Starting..." : "Generate PR"}
         </button>
       </div>
 

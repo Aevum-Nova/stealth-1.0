@@ -51,7 +51,6 @@ async def trigger_orchestration(
         job_id=str(job.id),
         feature_request_id=feature_request_id,
         organization_id=org_id,
-        dry_run=payload.dry_run,
         llm=llm,
         codegen_llm=codegen_llm,
     )

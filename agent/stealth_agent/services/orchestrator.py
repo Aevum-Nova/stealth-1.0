@@ -27,7 +27,7 @@ class FeatureToPROrchestrator:
     def __init__(self, deps: OrchestrationDependencies) -> None:
         self._deps = deps
 
-    def run(self, request: FeatureRequest, dry_run: bool = True) -> OrchestrationResult:
+    def run(self, request: FeatureRequest) -> OrchestrationResult:
         feature = self._deps.signal_processor.prioritize_feature(request)
         repo_analysis = self._deps.repository_analyzer.analyze(request.repository.path)
         spec, technical_plan = self._deps.spec_planner.build_spec_and_plan(
@@ -51,15 +51,12 @@ class FeatureToPROrchestrator:
             changed_files=[change.file_path for change in changes],
         )
 
-        commit_sha = None
-        pr_url = None
-        if not dry_run:
-            self._deps.git_provider.create_branch(request.repository.default_branch, branch_name)
-            commit_sha = self._deps.git_provider.apply_changes_and_commit(
-                changes,
-                commit_message=f"feat: {feature.name.lower()}",
-            )
-            pr_url = self._deps.pr_provider.open_draft_pr(pr_draft)
+        self._deps.git_provider.create_branch(request.repository.default_branch, branch_name)
+        commit_sha = self._deps.git_provider.apply_changes_and_commit(
+            changes,
+            commit_message=f"feat: {feature.name.lower()}",
+        )
+        pr_url = self._deps.pr_provider.open_draft_pr(pr_draft)
 
         return OrchestrationResult(
             request_id=request.request_id,

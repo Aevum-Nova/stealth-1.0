@@ -98,14 +98,13 @@ def trigger_orchestration(
     job_id: str,
     feature_request_id: str,
     organization_id: str,
-    dry_run: bool,
     llm: LLMProvider,
     codegen_llm: LLMProvider,
 ) -> None:
     """Launch orchestration as a fire-and-forget background task."""
     asyncio.get_event_loop().create_task(
         _run_orchestration(
-            job_id, feature_request_id, organization_id, dry_run, llm, codegen_llm
+            job_id, feature_request_id, organization_id, llm, codegen_llm
         )
     )
 
@@ -114,7 +113,6 @@ async def _run_orchestration(
     job_id: str,
     feature_request_id: str,
     organization_id: str,
-    dry_run: bool,
     llm: LLMProvider,
     codegen_llm: LLMProvider,
 ) -> None:
@@ -214,11 +212,11 @@ async def _run_orchestration(
                 domain_fr, feature, spec, plan, repo_analysis
             )
 
-            # When not a dry run and GitHub is connected, create branch and PR
+            # Create branch and PR when GitHub is connected
             branch_name = f"feature/{domain_fr.request_id}-{'-'.join(feature.name.lower().split())}"
             commit_sha = None
             pr_url = None
-            if not dry_run and isinstance(git_provider, GitHubGitProvider):
+            if isinstance(git_provider, GitHubGitProvider):
                 git_provider.create_branch(
                     domain_fr.repository.default_branch, branch_name
                 )
@@ -256,7 +254,7 @@ async def _run_orchestration(
                 "tasks": plan.tasks,
                 "risk_notes": plan.risk_notes,
                 "proposed_files": proposed_files,
-                "dry_run": dry_run,
+                "dry_run": False,
                 "commit_sha": commit_sha,
                 "pull_request_url": pr_url,
                 "branch_name": branch_name if pr_url else None,

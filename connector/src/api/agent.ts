@@ -105,14 +105,9 @@ export function generateSummary(featureRequestId: string) {
     .json<ApiResponse<{ summary: string }>>();
 }
 
-export function triggerOrchestration(
-  featureRequestId: string,
-  dryRun: boolean = true,
-) {
+export function triggerOrchestration(featureRequestId: string) {
   return agentApi
-    .post(`feature-requests/${featureRequestId}/trigger`, {
-      json: { dry_run: dryRun },
-    })
+    .post(`feature-requests/${featureRequestId}/trigger`, { json: {} })
     .json<ApiResponse<AgentJob>>();
 }
 

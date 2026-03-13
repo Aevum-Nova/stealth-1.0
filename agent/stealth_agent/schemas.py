@@ -53,7 +53,7 @@ class ConversationOut(BaseModel):
 
 
 class TriggerRequest(BaseModel):
-    dry_run: bool = True
+    pass
 
 
 class ApplyChangesRequest(BaseModel):

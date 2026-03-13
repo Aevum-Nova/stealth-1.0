@@ -83,8 +83,7 @@ export function useTriggerOrchestration(featureRequestId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (dryRun: boolean) =>
-      agentApi.triggerOrchestration(featureRequestId, dryRun),
+    mutationFn: () => agentApi.triggerOrchestration(featureRequestId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ["agent-jobs", featureRequestId],

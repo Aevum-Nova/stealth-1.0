@@ -40,7 +40,6 @@ export interface OrchestrationResult {
   tasks: string[];
   risk_notes: string[];
   proposed_files: { file_path: string; reason: string; content?: string; additions?: number; deletions?: number }[];
-  dry_run: boolean;
   commit_sha?: string | null;
   pull_request_url?: string | null;
 }

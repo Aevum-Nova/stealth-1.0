@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink, Loader2 } from "lucide-react";
 
 import ChatPanel from "@/components/agent/ChatPanel";
 import PanelResizer from "@/components/layout/PanelResizer";
@@ -9,6 +9,7 @@ import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import SignalModal from "@/components/signals/SignalModal";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/components/shared/Toast";
 import {
   useAgentJobs,
   useApplyChangesToPr,
@@ -85,7 +86,7 @@ function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureReques
       <div className="py-2">
         <SummaryBanner featureRequest={featureRequest} />
         <div className="flex items-center justify-center p-8">
-          <p className="text-[13px] text-[var(--ink-muted)]">No runs yet. Click Generate PR or Dry Run to start.</p>
+          <p className="text-[13px] text-[var(--ink-muted)]">No runs yet. Click Generate PR to start.</p>
         </div>
       </div>
     );
@@ -434,6 +435,7 @@ export default function ProductContextPage() {
   const triggerMutation = useTriggerOrchestration(id);
   const applyMutation = useApplyChangesToPr(id);
   const chatQuery = useChatHistory(id);
+  const { pushToast } = useToast();
 
   const connectorsQuery = useConnectors();
   const githubConnector = useMemo(() => {
@@ -550,22 +552,19 @@ export default function ProductContextPage() {
 
           <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
-          <div className="flex items-center gap-1.5">
-            <button
-              className="rounded-md px-3 py-1.5 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)] disabled:opacity-40"
-              disabled={hasActiveJob || triggerMutation.isPending}
-              onClick={() => triggerMutation.mutate(true)}
-            >
-              Dry Run
-            </button>
-            <button
-              className="rounded-md bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-40"
-              disabled={hasActiveJob || triggerMutation.isPending}
-              onClick={() => triggerMutation.mutate(false)}
-            >
-              Generate PR
-            </button>
-          </div>
+          <button
+            className="flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-40"
+            disabled={hasActiveJob || triggerMutation.isPending}
+            onClick={() =>
+              triggerMutation.mutate(undefined, {
+                onSuccess: () => pushToast("PR generation started. This may take a minute.", "success"),
+                onError: () => pushToast("Failed to start PR generation.", "error"),
+              })
+            }
+          >
+            {triggerMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {triggerMutation.isPending ? "Starting..." : hasActiveJob ? "Generating..." : "Generate PR"}
+          </button>
 
           <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
