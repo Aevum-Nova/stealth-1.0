@@ -77,11 +77,13 @@ export default function ChatPanel({
       requestAnimationFrame(tick);
     } else if (doneRef.current) {
       tickingRef.current = false;
+      doneRef.current = false;
       setIsStreaming(false);
-      setPendingMessage(null);
-      setDisplayedContent(null);
       queryClient.invalidateQueries({
         queryKey: ["agent-chat", featureRequestId],
+      }).then(() => {
+        setPendingMessage(null);
+        setDisplayedContent(null);
       });
     } else {
       tickingRef.current = false;
