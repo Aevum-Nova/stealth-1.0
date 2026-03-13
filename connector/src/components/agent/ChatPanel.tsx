@@ -3,41 +3,109 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { useChatHistory, useSendChatMessage } from "@/hooks/use-agent";
+import { useChatHistory } from "@/hooks/use-agent";
+import { streamChatMessage } from "@/api/agent";
+import { useQueryClient } from "@tanstack/react-query";
 
-export default function ChatPanel({ featureRequestId }: { featureRequestId: string }) {
+const CHARS_PER_FRAME = 3;
+
+export default function ChatPanel({
+  featureRequestId,
+}: {
+  featureRequestId: string;
+}) {
   const [input, setInput] = useState("");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [displayedContent, setDisplayedContent] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<(() => void) | null>(null);
+
+  const fullTextRef = useRef("");
+  const displayedLenRef = useRef(0);
+  const tickingRef = useRef(false);
+  const doneRef = useRef(false);
 
   const chatQuery = useChatHistory(featureRequestId);
-  const sendMutation = useSendChatMessage(featureRequestId);
+  const queryClient = useQueryClient();
 
   const serverMessages = chatQuery.data?.data?.messages ?? [];
-  const messages =
-    pendingMessage && sendMutation.isPending
+
+  const messages = [
+    ...serverMessages,
+    ...(pendingMessage
       ? [
-          ...serverMessages,
           {
-            id: "pending",
+            id: "pending-user",
             role: "user" as const,
             content: pendingMessage,
             created_at: new Date().toISOString(),
             proposed_changes: null,
           },
         ]
-      : serverMessages;
+      : []),
+    ...(displayedContent !== null
+      ? [
+          {
+            id: "streaming-assistant",
+            role: "assistant" as const,
+            content: displayedContent,
+            created_at: new Date().toISOString(),
+            proposed_changes: null,
+          },
+        ]
+      : []),
+  ];
+
+  const tick = useCallback(() => {
+    const full = fullTextRef.current;
+    const cur = displayedLenRef.current;
+
+    if (cur < full.length) {
+      const ahead = full.length - cur;
+      const speed = ahead > 80 ? 12 : ahead > 40 ? 6 : CHARS_PER_FRAME;
+      const next = Math.min(cur + speed, full.length);
+      displayedLenRef.current = next;
+      setDisplayedContent(full.slice(0, next));
+
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+
+      requestAnimationFrame(tick);
+    } else if (doneRef.current) {
+      tickingRef.current = false;
+      setIsStreaming(false);
+      setPendingMessage(null);
+      setDisplayedContent(null);
+      queryClient.invalidateQueries({
+        queryKey: ["agent-chat", featureRequestId],
+      });
+    } else {
+      tickingRef.current = false;
+    }
+  }, [featureRequestId, queryClient]);
+
+  const startTicking = useCallback(() => {
+    if (!tickingRef.current) {
+      tickingRef.current = true;
+      requestAnimationFrame(tick);
+    }
+  }, [tick]);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (!isStreaming && messages.length > 0 && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages.length]);
+  }, [isStreaming, messages.length]);
 
   useEffect(() => {
-    if (!sendMutation.isPending) setPendingMessage(null);
-  }, [sendMutation.isPending]);
+    return () => {
+      abortRef.current?.();
+    };
+  }, []);
 
   const checkScrollPosition = useCallback(() => {
     const el = scrollRef.current;
@@ -60,20 +128,53 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
   }, [checkScrollPosition, messages.length]);
 
   const scrollToBottom = () => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   };
 
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed || sendMutation.isPending) return;
+    if (!trimmed || isStreaming) return;
     setInput("");
+    setStreamError(null);
     setPendingMessage(trimmed);
-    sendMutation.mutate(trimmed);
+    setDisplayedContent("");
+    fullTextRef.current = "";
+    displayedLenRef.current = 0;
+    doneRef.current = false;
+    tickingRef.current = false;
+    setIsStreaming(true);
+
+    const abort = streamChatMessage(
+      featureRequestId,
+      trimmed,
+      (token) => {
+        fullTextRef.current += token;
+        startTicking();
+      },
+      () => {
+        doneRef.current = true;
+        startTicking();
+      },
+      (error) => {
+        setIsStreaming(false);
+        setPendingMessage(null);
+        setDisplayedContent(null);
+        setStreamError(error);
+      },
+    );
+
+    abortRef.current = abort;
   };
 
   return (
     <div className="relative flex h-full flex-col bg-white">
-      <div ref={scrollRef} className="chat-scroll-area flex-1 min-h-0 overflow-y-auto bg-white">
+      <div
+        ref={scrollRef}
+        className="chat-scroll-area flex-1 min-h-0 overflow-y-auto bg-white"
+      >
         <div className="mx-auto max-w-4xl px-6 py-8">
           {chatQuery.isLoading && (
             <div className="flex h-32 items-center justify-center">
@@ -102,20 +203,32 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
                     <div className="flex-1 border-t border-[#e5e5e5]" />
                   </div>
                 )}
-                <ChatMessage message={msg} />
+                <ChatMessage
+                  message={msg}
+                  isStreaming={
+                    msg.id === "streaming-assistant" && isStreaming
+                  }
+                />
               </div>
             ))}
-            {sendMutation.isPending && (
-              <div className={`flex items-center gap-2 text-[var(--ink-muted)] ${messages.length ? "mt-3" : ""}`}>
+            {isStreaming && displayedContent === "" && (
+              <div
+                className={`flex items-center gap-2 text-[var(--ink-muted)] ${serverMessages.length || pendingMessage ? "mt-3" : ""}`}
+              >
                 <span className="text-[var(--ink-muted)]">&gt;</span>
                 <span className="text-[13px]">Thinking</span>
               </div>
             )}
-            {sendMutation.isError && (
-              <div className={`rounded-lg border border-[#e5e5e5] bg-white px-4 py-3 text-[13px] text-[var(--ink)] ${messages.length ? "mt-3" : ""}`}>
+            {streamError && (
+              <div
+                className={`rounded-lg border border-[#e5e5e5] bg-white px-4 py-3 text-[13px] text-[var(--ink)] ${messages.length ? "mt-3" : ""}`}
+              >
                 Failed to send.{" "}
-                <button className="font-medium underline" onClick={() => sendMutation.reset()}>
-                  Retry
+                <button
+                  className="font-medium underline"
+                  onClick={() => setStreamError(null)}
+                >
+                  Dismiss
                 </button>
               </div>
             )}
@@ -145,7 +258,8 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
               onChange={(e) => {
                 setInput(e.target.value);
                 e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 140) + "px";
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -153,12 +267,12 @@ export default function ChatPanel({ featureRequestId }: { featureRequestId: stri
                   handleSend();
                 }
               }}
-              disabled={sendMutation.isPending}
+              disabled={isStreaming}
             />
             <button
               className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--ink)] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
               onClick={handleSend}
-              disabled={!input.trim() || sendMutation.isPending}
+              disabled={!input.trim() || isStreaming}
             >
               <ArrowUp className="size-4" />
             </button>

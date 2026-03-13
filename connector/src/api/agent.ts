@@ -14,15 +14,99 @@ export function sendChatMessage(featureRequestId: string, message: string) {
     .json<ApiResponse<ChatMessage>>();
 }
 
+export function streamChatMessage(
+  featureRequestId: string,
+  message: string,
+  onToken: (token: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+): () => void {
+  const baseUrl =
+    import.meta.env.VITE_AGENT_URL || "http://localhost:3002/api/v1";
+  const url = `${baseUrl}/feature-requests/${featureRequestId}/chat/stream`;
+
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const { getAccessToken } = await import("@/lib/auth");
+      const token = getAccessToken();
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message }),
+        signal: controller.signal,
+        credentials: "include",
+      });
+
+      if (!response.ok || !response.body) {
+        onError(`Stream request failed: ${response.status}`);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === "token") {
+              onToken(event.content);
+            } else if (event.type === "done") {
+              onDone();
+              return;
+            } else if (event.type === "error") {
+              onError(event.content);
+              return;
+            }
+          } catch {
+            // skip malformed SSE data
+          }
+        }
+      }
+
+      onDone();
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        onError(err instanceof Error ? err.message : "Stream failed");
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
 export function getChatHistory(featureRequestId: string) {
   return agentApi
     .get(`feature-requests/${featureRequestId}/chat`)
     .json<ApiResponse<Conversation>>();
 }
 
-export function triggerOrchestration(featureRequestId: string, dryRun: boolean = true) {
+export function triggerOrchestration(
+  featureRequestId: string,
+  dryRun: boolean = true,
+) {
   return agentApi
-    .post(`feature-requests/${featureRequestId}/trigger`, { json: { dry_run: dryRun } })
+    .post(`feature-requests/${featureRequestId}/trigger`, {
+      json: { dry_run: dryRun },
+    })
     .json<ApiResponse<AgentJob>>();
 }
 
@@ -31,7 +115,10 @@ export interface ApplyChangesResult {
   pull_request_url: string;
 }
 
-export function applyChangesToPr(featureRequestId: string, proposedChanges: ProposedChange[]) {
+export function applyChangesToPr(
+  featureRequestId: string,
+  proposedChanges: ProposedChange[],
+) {
   return agentApi
     .post(`feature-requests/${featureRequestId}/apply-changes`, {
       json: { proposed_changes: proposedChanges },

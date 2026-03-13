@@ -1,8 +1,11 @@
-"""Chat routes: POST /{id}/chat, GET /{id}/chat."""
+"""Chat routes: POST /{id}/chat, POST /{id}/chat/stream, GET /{id}/chat."""
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from stealth_agent.adapters.llm import LLMProvider, create_llm_provider
@@ -70,6 +73,43 @@ async def send_chat_message(
         ) from exc
 
     return ApiResponse(data=_message_out(assistant_msg))
+
+
+@router.post("/{feature_request_id}/chat/stream")
+async def stream_chat_message(
+    feature_request_id: str,
+    payload: ChatMessageIn,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    llm = _get_llm()
+
+    async def event_generator():
+        try:
+            async for token in chat_service.chat_stream(
+                db=db,
+                llm=llm,
+                feature_request_id=feature_request_id,
+                organization_id=org_id,
+                user_message=payload.message,
+            ):
+                data = json.dumps({"type": "token", "content": token})
+                yield f"data: {data}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as exc:
+            error_data = json.dumps({"type": "error", "content": str(exc)})
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{feature_request_id}/chat", response_model=ApiResponse)

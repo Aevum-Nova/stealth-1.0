@@ -7,7 +7,7 @@ export function useChatHistory(featureRequestId?: string) {
   return useQuery({
     queryKey: ["agent-chat", featureRequestId],
     queryFn: () => agentApi.getChatHistory(featureRequestId as string),
-    enabled: Boolean(featureRequestId)
+    enabled: Boolean(featureRequestId),
   });
 }
 
@@ -15,10 +15,13 @@ export function useSendChatMessage(featureRequestId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (message: string) => agentApi.sendChatMessage(featureRequestId, message),
+    mutationFn: (message: string) =>
+      agentApi.sendChatMessage(featureRequestId, message),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["agent-chat", featureRequestId] });
-    }
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-chat", featureRequestId],
+      });
+    },
   });
 }
 
@@ -30,9 +33,11 @@ export function useAgentJobs(featureRequestId?: string) {
     refetchInterval: (query) => {
       const jobs = query.state.data?.data;
       if (!jobs) return false;
-      const hasActive = jobs.some((j: AgentJob) => j.status === "pending" || j.status === "running");
+      const hasActive = jobs.some(
+        (j: AgentJob) => j.status === "pending" || j.status === "running",
+      );
       return hasActive ? 3000 : false;
-    }
+    },
   });
 }
 
@@ -44,8 +49,10 @@ export function useAgentJob(jobId?: string) {
     refetchInterval: (query) => {
       const job = query.state.data?.data;
       if (!job) return false;
-      return job.status === "pending" || job.status === "running" ? 2000 : false;
-    }
+      return job.status === "pending" || job.status === "running"
+        ? 2000
+        : false;
+    },
   });
 }
 
@@ -56,7 +63,9 @@ export function useApplyChangesToPr(featureRequestId: string) {
     mutationFn: (proposedChanges: ProposedChange[]) =>
       agentApi.applyChangesToPr(featureRequestId, proposedChanges),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["agent-jobs", featureRequestId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-jobs", featureRequestId],
+      });
     },
   });
 }
@@ -65,10 +74,13 @@ export function useTriggerOrchestration(featureRequestId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (dryRun: boolean) => agentApi.triggerOrchestration(featureRequestId, dryRun),
+    mutationFn: (dryRun: boolean) =>
+      agentApi.triggerOrchestration(featureRequestId, dryRun),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["agent-jobs", featureRequestId] });
-    }
+      await queryClient.invalidateQueries({
+        queryKey: ["agent-jobs", featureRequestId],
+      });
+    },
   });
 }
 
@@ -90,7 +102,9 @@ export function useTriggerIndex() {
   return useMutation({
     mutationFn: (connectorId: string) => agentApi.triggerIndex(connectorId),
     onSuccess: async (_data, connectorId) => {
-      await queryClient.invalidateQueries({ queryKey: ["code-index-status", connectorId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["code-index-status", connectorId],
+      });
     },
   });
 }

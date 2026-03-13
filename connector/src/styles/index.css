@@ -176,6 +176,11 @@ button:not(:disabled):hover {
   background: var(--selection);
 }
 
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 /* Chat message markdown styles */
 .chat-message-content strong {
   font-weight: 600;

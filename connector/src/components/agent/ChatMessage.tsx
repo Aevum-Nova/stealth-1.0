@@ -130,7 +130,13 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
   );
 }
 
-export default function ChatMessage({ message }: { message: ChatMessageType }) {
+export default function ChatMessage({
+  message,
+  isStreaming = false,
+}: {
+  message: ChatMessageType;
+  isStreaming?: boolean;
+}) {
   const isUser = message.role === "user";
   const changes = message.proposed_changes;
   const hasChanges = changes && changes.length > 0;
@@ -161,14 +167,19 @@ export default function ChatMessage({ message }: { message: ChatMessageType }) {
 
   return (
     <div className="space-y-1.5">
-      {displayContent && (
-        <div
-          className="chat-message-content text-[14px] leading-snug text-[var(--ink)]"
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
-        />
+      {displayContent !== undefined && displayContent !== null && (
+        <div className="chat-message-content text-[14px] leading-snug text-[var(--ink)]">
+          <span dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+          {isStreaming && (
+            <span
+              className="chat-streaming-cursor ml-0.5 inline-block h-[1em] w-[2px] shrink-0 align-baseline bg-[var(--ink)] [animation:cursor-blink_1s_ease-in-out_infinite]"
+              aria-hidden
+            />
+          )}
+        </div>
       )}
 
-      {hasChanges && (
+      {hasChanges && !isStreaming && (
         <div className="space-y-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-3">
           <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
             <FileCode className="size-3.5" />
