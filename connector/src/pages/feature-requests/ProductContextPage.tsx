@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink } from "lucide-react";
 
 import ChatPanel from "@/components/agent/ChatPanel";
+import PanelResizer from "@/components/layout/PanelResizer";
 import { highlightLine } from "@/lib/syntax-highlight";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import EmptyState from "@/components/shared/EmptyState";
@@ -20,6 +21,19 @@ import type { AgentJob, ProposedChange } from "@/types/agent";
 import type { FeatureRequest, SupportingEvidence } from "@/types/feature-request";
 
 type CenterTab = "thread" | "chat";
+
+const LEFT_COLLAPSED_THRESHOLD = 96;
+const LEFT_DEFAULT_WIDTH = 260;
+
+const STORAGE_LEFT = "product-context-left-panel-width";
+const STORAGE_RIGHT = "product-context-right-panel-width";
+
+function loadStoredWidth(key: string, fallback: number): number {
+  if (typeof window === "undefined") return fallback;
+  const v = localStorage.getItem(key);
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
 
 const STATUS_DOT: Record<string, string> = {
   pending: "bg-amber-400",
@@ -391,6 +405,35 @@ export default function ProductContextPage() {
   const [tab, setTab] = useState<CenterTab>("thread");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() =>
+    loadStoredWidth(STORAGE_LEFT, 260),
+  );
+  const [rightPanelWidth, setRightPanelWidth] = useState(() =>
+    loadStoredWidth(STORAGE_RIGHT, 280),
+  );
+
+  const handleLeftResize = useCallback((deltaX: number) => {
+    setLeftPanelWidth((w) => {
+      const next = Math.max(60, Math.round(w + deltaX));
+      localStorage.setItem(STORAGE_LEFT, String(next));
+      return next;
+    });
+  }, []);
+
+  const expandLeftPanel = useCallback(() => {
+    const w = LEFT_DEFAULT_WIDTH;
+    setLeftPanelWidth(w);
+    localStorage.setItem(STORAGE_LEFT, String(w));
+  }, []);
+
+  const handleRightResize = useCallback((deltaX: number) => {
+    setRightPanelWidth((w) => {
+      const next = Math.max(60, Math.round(w + deltaX));
+      localStorage.setItem(STORAGE_RIGHT, String(next));
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (fr?.id) setExpandedIds(new Set([fr.id]));
   }, [fr?.id]);
@@ -507,22 +550,38 @@ export default function ProductContextPage() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
 
         {/* Left */}
-        <aside className="hidden w-[260px] shrink-0 flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface)] xl:flex">
-          <div className="flex-1 overflow-y-auto">
-            {allFeatureRequests.map((item) => (
-              <FeatureRequestGroup
-                key={item.id}
-                item={item}
-                isActive={item.id === fr.id}
-                isExpanded={expandedIds.has(item.id)}
-                onToggle={() => toggleExpand(item.id)}
-                onNavigate={() => {
-                  navigate(`/feature-requests/${item.id}/context`);
-                  setExpandedIds(new Set([item.id]));
-                }}
-              />
-            ))}
-          </div>
+        <aside
+          className="relative hidden shrink-0 flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface)] xl:flex"
+          style={{ width: leftPanelWidth }}
+        >
+          {leftPanelWidth <= LEFT_COLLAPSED_THRESHOLD ? (
+            <button
+              type="button"
+              onClick={expandLeftPanel}
+              className="flex flex-1 items-center justify-center bg-transparent transition-colors hover:bg-[var(--surface-subtle)]"
+              title="Expand Feature Requests"
+              aria-label="Expand Feature Requests panel"
+            >
+              <ChevronRight className="size-4 shrink-0 text-[var(--ink-muted)]" />
+            </button>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              {allFeatureRequests.map((item) => (
+                <FeatureRequestGroup
+                  key={item.id}
+                  item={item}
+                  isActive={item.id === fr.id}
+                  isExpanded={expandedIds.has(item.id)}
+                  onToggle={() => toggleExpand(item.id)}
+                  onNavigate={() => {
+                    navigate(`/feature-requests/${item.id}/context`);
+                    setExpandedIds(new Set([item.id]));
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          <PanelResizer side="left" onResize={handleLeftResize} />
         </aside>
 
         {/* Center */}
@@ -562,7 +621,11 @@ export default function ProductContextPage() {
         </main>
 
         {/* Right */}
-        <aside className="hidden w-[280px] shrink-0 flex-col overflow-hidden border-l border-[var(--line-soft)] bg-[var(--surface)] xl:flex">
+        <aside
+          className="relative hidden shrink-0 flex-col overflow-hidden border-l border-[var(--line-soft)] bg-[var(--surface)] xl:flex"
+          style={{ width: rightPanelWidth }}
+        >
+          <PanelResizer side="right" onResize={handleRightResize} />
           <div className="flex shrink-0 items-center border-b border-[var(--line-soft)] px-4 py-3">
             <span className="text-[13px] font-medium text-[var(--ink)]">Changes</span>
           </div>
