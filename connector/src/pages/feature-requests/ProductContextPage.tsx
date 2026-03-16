@@ -659,7 +659,7 @@ export default function ProductContextPage() {
                 ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading runs..." /></div>
                 : <AgentThread jobs={jobs} featureRequest={fr} />
             ) : (
-              <div className="h-full"><ChatPanel featureRequestId={fr.id} /></div>
+              <div className="h-full"><ChatPanel featureRequestId={fr.id} latestPrUrl={latestPrUrl} /></div>
             )}
           </div>
         </main>

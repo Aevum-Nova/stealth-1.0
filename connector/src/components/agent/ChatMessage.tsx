@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, FileCode, Copy, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, FileCode, Copy, Check, GitPullRequest } from "lucide-react";
 
 import { highlightLine } from "@/lib/syntax-highlight";
 import type { ChatMessage as ChatMessageType, ProposedChange } from "@/types/agent";
@@ -8,6 +8,22 @@ function stripJsonBlocks(text: string): string {
   let cleaned = text.replace(/```json\s*\n\[[\s\S]*?\]\s*\n```/g, "").trim();
   cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "").trim();
   return cleaned;
+}
+
+function stripStreamingJsonBlock(text: string): string {
+  // Strip complete JSON array code blocks
+  let cleaned = text.replace(/```json\s*\n\[[\s\S]*?\]\s*\n```/g, "");
+  // Strip any unclosed ```json block (proposed changes still being streamed)
+  const idx = cleaned.lastIndexOf("```json");
+  if (idx !== -1) {
+    const afterFence = cleaned.slice(idx + 7);
+    if (!afterFence.includes("```")) {
+      cleaned = cleaned.slice(0, idx);
+    }
+  }
+  // Strip trailing "X proposed changes" text
+  cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "");
+  return cleaned.trim();
 }
 
 function escapeHtml(s: string): string {
@@ -133,17 +149,26 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
 export default function ChatMessage({
   message,
   isStreaming = false,
+  onApplyToPr,
+  canApplyToPr = false,
+  isApplyingToPr = false,
 }: {
   message: ChatMessageType;
   isStreaming?: boolean;
+  onApplyToPr?: (changes: ProposedChange[]) => void;
+  canApplyToPr?: boolean;
+  isApplyingToPr?: boolean;
 }) {
   const isUser = message.role === "user";
   const changes = message.proposed_changes;
   const hasChanges = changes && changes.length > 0;
 
-  const displayContent = isUser || !hasChanges
-    ? message.content
-    : stripJsonBlocks(message.content);
+  const displayContent = useMemo(() => {
+    if (isUser) return message.content;
+    if (hasChanges) return stripJsonBlocks(message.content);
+    if (isStreaming) return stripStreamingJsonBlock(message.content);
+    return message.content;
+  }, [isUser, hasChanges, isStreaming, message.content]);
 
   const renderedHtml = useMemo(
     () => (!isUser && displayContent ? renderMarkdown(displayContent) : ""),
@@ -180,14 +205,26 @@ export default function ChatMessage({
       )}
 
       {hasChanges && !isStreaming && (
-        <div className="space-y-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-3">
-          <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
-            <FileCode className="size-3.5" />
-            {changes.length} proposed {changes.length === 1 ? "file" : "files"}
-          </p>
-          {changes.map((change, i) => (
-            <FileChangeCard key={`${change.file_path}-${i}`} change={change} />
-          ))}
+        <div className="space-y-2.5">
+          <div className="space-y-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-3">
+            <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
+              <FileCode className="size-3.5" />
+              {changes.length} proposed {changes.length === 1 ? "file" : "files"}
+            </p>
+            {changes.map((change, i) => (
+              <FileChangeCard key={`${change.file_path}-${i}`} change={change} />
+            ))}
+          </div>
+          {canApplyToPr && onApplyToPr && (
+            <button
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+              disabled={isApplyingToPr}
+              onClick={() => onApplyToPr(changes!)}
+            >
+              <GitPullRequest className="size-3.5" />
+              {isApplyingToPr ? "Applying..." : "Apply to PR"}
+            </button>
+          )}
         </div>
       )}
 

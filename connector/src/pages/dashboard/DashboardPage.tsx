@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
 
 import { getDashboardStats } from "@/api/dashboard";
 import SourceBreakdownChart from "@/components/dashboard/SourceBreakdownChart";
@@ -47,26 +48,27 @@ export default function DashboardPage() {
   const stats = statsQuery.data.data;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Overview</h2>
-          <p className="mt-0.5 text-[13px] text-[var(--ink-soft)]">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="mt-1 text-[13px] text-[var(--ink-soft)]">
             Monitor ingestion and synthesis at a glance.
           </p>
         </div>
         <button
-          className="rounded-lg bg-[var(--action-primary)] px-3.5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--action-primary)] px-4 py-2.5 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           onClick={() => runMutation.mutate({ mode: "incremental" })}
           disabled={runMutation.isPending}
         >
+          <Sparkles className="size-3.5" />
           Run Synthesis
         </button>
       </div>
 
       <StatsGrid stats={stats} />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <SourceBreakdownChart data={stats.sources_breakdown} />
         <PriorityDistribution data={stats.feature_requests_by_priority} />
       </div>

@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { useChatHistory } from "@/hooks/use-agent";
+import { useApplyChangesToPr, useChatHistory } from "@/hooks/use-agent";
 import { streamChatMessage } from "@/api/agent";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -11,8 +11,10 @@ const CHARS_PER_FRAME = 3;
 
 export default function ChatPanel({
   featureRequestId,
+  latestPrUrl,
 }: {
   featureRequestId: string;
+  latestPrUrl?: string | null;
 }) {
   const [input, setInput] = useState("");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export default function ChatPanel({
   const doneRef = useRef(false);
 
   const chatQuery = useChatHistory(featureRequestId);
+  const applyMutation = useApplyChangesToPr(featureRequestId);
   const queryClient = useQueryClient();
 
   const serverMessages = chatQuery.data?.data?.messages ?? [];
@@ -210,6 +213,9 @@ export default function ChatPanel({
                   isStreaming={
                     msg.id === "streaming-assistant" && isStreaming
                   }
+                  onApplyToPr={(changes) => applyMutation.mutate(changes)}
+                  canApplyToPr={!!latestPrUrl}
+                  isApplyingToPr={applyMutation.isPending}
                 />
               </div>
             ))}
