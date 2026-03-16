@@ -98,6 +98,7 @@ class AgentConversation(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
+        Index("uq_agent_conv_feature_request_org", "feature_request_id", "organization_id", unique=True),
         Index("idx_agent_conv_fr", "feature_request_id"),
         Index("idx_agent_conv_org", "organization_id"),
     )

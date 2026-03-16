@@ -144,6 +144,7 @@ async def get_chat_history(
     db: AsyncSession = Depends(get_db),
 ):
     conversation = await chat_service.get_or_create_conversation(db, feature_request_id, org_id)
+    await db.commit()
     messages = await chat_service.get_conversation_messages(db, conversation.id)
 
     return ApiResponse(

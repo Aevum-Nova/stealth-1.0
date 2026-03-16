@@ -5,7 +5,8 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncIterator
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import structlog
@@ -91,15 +92,42 @@ async def get_or_create_conversation(
     fr_uuid = uuid.UUID(feature_request_id)
     org_uuid = uuid.UUID(organization_id)
 
-    result = await db.execute(
-        select(AgentConversation).where(
-            AgentConversation.feature_request_id == fr_uuid,
-            AgentConversation.organization_id == org_uuid,
+    async def _load_conversations() -> list[AgentConversation]:
+        result = await db.execute(
+            select(AgentConversation)
+            .where(
+                AgentConversation.feature_request_id == fr_uuid,
+                AgentConversation.organization_id == org_uuid,
+            )
+            .order_by(AgentConversation.created_at.asc(), AgentConversation.id.asc())
         )
-    )
-    conversation = result.scalar_one_or_none()
-    if conversation:
-        return conversation
+        return list(result.scalars().all())
+
+    conversations = await _load_conversations()
+    if conversations:
+        canonical = conversations[0]
+        duplicates = conversations[1:]
+        if not duplicates:
+            return canonical
+
+        duplicate_ids = [conversation.id for conversation in duplicates]
+        await db.execute(
+            update(AgentMessage)
+            .where(AgentMessage.conversation_id.in_(duplicate_ids))
+            .values(conversation_id=canonical.id)
+        )
+        for duplicate in duplicates:
+            await db.delete(duplicate)
+        await db.flush()
+
+        log.warning(
+            "agent_conversations_deduplicated",
+            feature_request_id=feature_request_id,
+            organization_id=organization_id,
+            canonical_conversation_id=str(canonical.id),
+            duplicate_count=len(duplicates),
+        )
+        return canonical
 
     conversation = AgentConversation(
         id=uuid.uuid4(),
@@ -107,8 +135,17 @@ async def get_or_create_conversation(
         organization_id=org_uuid,
     )
     db.add(conversation)
-    await db.flush()
-    return conversation
+    try:
+        await db.flush()
+        return conversation
+    except IntegrityError:
+        # A concurrent request created the row after our initial read. Reset the
+        # transaction state and return the now-canonical conversation.
+        await db.rollback()
+        conversations = await _load_conversations()
+        if conversations:
+            return conversations[0]
+        raise
 
 
 async def get_conversation_messages(
