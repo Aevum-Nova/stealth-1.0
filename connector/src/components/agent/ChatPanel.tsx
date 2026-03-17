@@ -257,7 +257,7 @@ export default function ChatPanel({
 
       <div className="shrink-0 border-t border-[#eeeeee] bg-white px-6 py-4">
         <div className="mx-auto max-w-4xl">
-          <div className="chat-input-container flex items-end gap-3 rounded-full bg-[#f5f5f5] px-5 py-3 transition-colors focus-within:bg-[#eeeeee]">
+          <div className="chat-input-container flex items-center gap-3 rounded-full bg-[#f5f5f5] px-5 py-3 transition-colors focus-within:bg-[#eeeeee]">
             <textarea
               className="min-h-[22px] max-h-[140px] min-w-0 flex-1 resize-none border-none bg-transparent text-[14px] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
               placeholder="Find leads, enrich data, paste or drop images..."
