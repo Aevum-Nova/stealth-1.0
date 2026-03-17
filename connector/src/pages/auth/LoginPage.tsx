@@ -133,7 +133,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-[13px] text-[var(--ink-soft)]">Welcome back to Vocalize</p>
+          <p className="mt-1 text-[13px] text-[var(--ink-soft)]">Welcome back to Vector</p>
         </div>
 
         <label className="block space-y-1.5">

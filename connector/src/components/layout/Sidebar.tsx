@@ -47,7 +47,7 @@ export default function Sidebar() {
           >
             V
           </div>
-          <span className="text-base font-bold tracking-tight">Vocalize</span>
+          <span className="text-base font-bold tracking-tight">Vector</span>
         </div>
       </div>
 

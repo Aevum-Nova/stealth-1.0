@@ -8,7 +8,7 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const THEME_STORAGE_KEY = "vocalize-theme";
+const THEME_STORAGE_KEY = "vector-theme";
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
