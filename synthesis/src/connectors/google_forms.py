@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 import httpx
 
+from src.config import settings
 from src.connectors.base import BaseConnector, RawIngestionItem
 
 GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -24,7 +25,11 @@ class GoogleFormsConnector(BaseConnector):
             "client_id": client_id,
             "redirect_uri": redirect_uri,
             "response_type": "code",
-            "scope": GOOGLE_FORMS_SCOPES,
+            "scope": " ".join([
+                "https://www.googleapis.com/auth/forms.responses.readonly",
+                "https://www.googleapis.com/auth/forms.body.readonly",
+                "https://www.googleapis.com/auth/drive.readonly",
+            ]),
             "access_type": "offline",
             "prompt": "consent",
             "state": state,

@@ -43,13 +43,25 @@ class SynthesisEngine:
         return [0.0] * max(dimension, 1)
 
     async def start_run(
-        self, db: AsyncSession, organization_id: str, mode: str = "incremental"
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        mode: str = "incremental",
+        *,
+        signal_ids: list[str] | None = None,
+        trigger_id: str | None = None,
+        event_buffer_id: str | None = None,
+        trigger_context: str | None = None,
     ) -> SynthesisRun:
         run = SynthesisRun(
             organization_id=UUID(organization_id),
+            trigger_id=UUID(trigger_id) if trigger_id else None,
+            event_buffer_id=UUID(event_buffer_id) if event_buffer_id else None,
             status="pending",
             started_at=datetime.now(UTC),
+            input_signal_ids=signal_ids or [],
             model=settings.ANTHROPIC_SYNTHESIS_MODEL,
+            trigger_context=trigger_context,
         )
         db.add(run)
         await db.commit()
@@ -58,16 +70,31 @@ class SynthesisEngine:
         await get_event_bus().publish(
             organization_id,
             "synthesis_started",
-            {"run_id": str(run.id), "signal_count": 0, "mode": mode},
+            {
+                "run_id": str(run.id),
+                "signal_count": 0,
+                "mode": mode,
+                "trigger_id": trigger_id,
+                "event_buffer_id": event_buffer_id,
+            },
         )
         return run
 
     async def run(
-        self, db: AsyncSession, organization_id: str, run: SynthesisRun, mode: str = "incremental"
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        run: SynthesisRun,
+        mode: str = "incremental",
+        *,
+        signal_ids: list[str] | None = None,
+        trigger_context: str | None = None,
     ) -> None:
         try:
             await self._set_status(db, run, "clustering")
-            signals = await self._gather_signals(db, organization_id, mode)
+            selected_signal_ids = signal_ids or list(run.input_signal_ids or [])
+            effective_context = trigger_context or run.trigger_context
+            signals = await self._gather_signals(db, organization_id, mode, selected_signal_ids)
             run.signal_count = len(signals)
             await db.commit()
 
@@ -116,7 +143,7 @@ class SynthesisEngine:
 
             await self._publish_progress(organization_id, run.id, "synthesizing", 40)
             await self._set_status(db, run, "synthesizing")
-            drafts = await feature_extractor.extract(clusters)
+            drafts = await feature_extractor.extract(clusters, context=effective_context)
 
             await self._publish_progress(organization_id, run.id, "deduplicating", 60)
             await self._set_status(db, run, "deduplicating")
@@ -173,12 +200,21 @@ class SynthesisEngine:
         )
 
     async def _gather_signals(
-        self, db: AsyncSession, organization_id: str, mode: str
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        mode: str,
+        signal_ids: list[str] | None = None,
     ) -> list[Signal]:
         query = select(Signal).where(
             Signal.organization_id == UUID(organization_id),
             Signal.status == "completed",
         )
+        if signal_ids:
+            query = query.where(Signal.id.in_([UUID(signal_id) for signal_id in signal_ids]))
+            query = query.order_by(Signal.created_at.desc())
+            result = await db.execute(query)
+            return list(result.scalars().all())
         if mode != "full":
             query = query.where(Signal.synthesized.is_(False))
 

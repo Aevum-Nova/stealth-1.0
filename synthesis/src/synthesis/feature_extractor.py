@@ -126,14 +126,14 @@ class FeatureExtractor:
 
         return max(0.0, min(1.0, confidence))
 
-    async def extract(self, clusters: list[SignalCluster]) -> list[DraftFeatureRequest]:
+    async def extract(self, clusters: list[SignalCluster], context: str | None = None) -> list[DraftFeatureRequest]:
         drafts: list[DraftFeatureRequest] = []
         semaphore = asyncio.Semaphore(settings.SYNTHESIS_CLUSTER_CONCURRENCY)
 
         grouped = [cluster for cluster in clusters if len(cluster.signals) >= 2]
         if grouped:
             grouped_results = await asyncio.gather(
-                *(self._extract_grouped_cluster(cluster, semaphore) for cluster in grouped)
+                *(self._extract_grouped_cluster(cluster, semaphore, context=context) for cluster in grouped)
             )
             for cluster_drafts in grouped_results:
                 drafts.extend(cluster_drafts)
@@ -159,9 +159,11 @@ class FeatureExtractor:
         self,
         cluster: SignalCluster,
         semaphore: asyncio.Semaphore,
+        *,
+        context: str | None = None,
     ) -> list[DraftFeatureRequest]:
         async with semaphore:
-            cluster_card = self._format_cluster_card(cluster)
+            cluster_card = self._format_cluster_card(cluster, context=context)
             telemetry = {
                 "cluster_id": cluster.id,
                 "cluster_size": len(cluster.signals),
@@ -342,7 +344,7 @@ class FeatureExtractor:
         return len(sentiments) >= 3 or len(urgencies) >= 3 or len(sources) >= 3
 
     @staticmethod
-    def _format_cluster_card(cluster: SignalCluster) -> str:
+    def _format_cluster_card(cluster: SignalCluster, context: str | None = None) -> str:
         source_counts = Counter(signal.source for signal in cluster.signals)
         urgency_counts = Counter(signal.urgency for signal in cluster.signals)
         sentiment_counts = Counter(signal.sentiment for signal in cluster.signals)
@@ -354,7 +356,10 @@ class FeatureExtractor:
         )
         representative = FeatureExtractor._representative_signals(cluster)
 
-        lines = [
+        lines = []
+        if context:
+            lines.append(f"TRIGGER CONTEXT:\n{context}")
+        lines.extend([
             "CLUSTER CARD",
             f"Cluster ID: {cluster.id}",
             f"Signal count: {len(cluster.signals)}",
@@ -364,7 +369,7 @@ class FeatureExtractor:
             f"Top entities: {FeatureExtractor._format_ranked_pairs(entity_counts, empty='none')}",
             f"Top affected customers: {FeatureExtractor._format_counter(customer_counts, empty='unknown')}",
             "Representative signals:",
-        ]
+        ])
         for signal in representative:
             customer = (
                 str(signal.source_metadata.get("customer_company", "Unknown")).strip() or "Unknown"

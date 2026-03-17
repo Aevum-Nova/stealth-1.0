@@ -4,3 +4,4 @@ from src.schemas.connector import *
 from src.schemas.feature_request import *
 from src.schemas.job import *
 from src.schemas.signal import *
+from src.schemas.trigger import *

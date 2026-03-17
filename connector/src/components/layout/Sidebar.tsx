@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Database, GitMerge, LogOut, Sparkles, Workflow } from "lucide-react";
+import { BarChart3, Boxes, Database, GitMerge, LogOut, RadioTower, Workflow } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -12,7 +12,7 @@ const mainNav = [
 const analysisNav = [
   { to: "/signals", label: "Signals", icon: Workflow },
   { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
-  { to: "/synthesis", label: "Synthesis", icon: Sparkles },
+  { to: "/triggers", label: "Triggers", icon: RadioTower },
 ];
 
 function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }) {

@@ -17,6 +17,15 @@ def test_missing_required_env_vars_for_granola():
     assert missing == []
 
 
+def test_missing_required_env_vars_for_microsoft_teams(monkeypatch):
+    monkeypatch.setattr("src.routes.connectors.settings.MICROSOFT_CLIENT_ID", "")
+    monkeypatch.setattr("src.routes.connectors.settings.MICROSOFT_CLIENT_SECRET", "")
+
+    missing = _missing_required_env_vars("microsoft_teams")
+
+    assert missing == ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"]
+
+
 @pytest.mark.asyncio
 async def test_connector_catalog_includes_availability(monkeypatch):
     monkeypatch.setattr("src.routes.connectors.settings.SLACK_CLIENT_ID", "")

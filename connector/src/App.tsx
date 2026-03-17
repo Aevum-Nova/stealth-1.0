@@ -19,7 +19,7 @@ const ProductContextPage = lazy(() => import("@/pages/feature-requests/ProductCo
 const IngestPage = lazy(() => import("@/pages/ingest/IngestPage"));
 const SignalDetailPage = lazy(() => import("@/pages/signals/SignalDetailPage"));
 const SignalsPage = lazy(() => import("@/pages/signals/SignalsPage"));
-const SynthesisPage = lazy(() => import("@/pages/synthesis/SynthesisPage"));
+const TriggersPage = lazy(() => import("@/pages/triggers/TriggersPage"));
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<LoadingSpinner label="Loading page" />}>{element}</Suspense>;
@@ -59,7 +59,8 @@ const router = createBrowserRouter([
           { path: "/feature-requests", element: withSuspense(<FeatureRequestsPage />) },
           { path: "/feature-requests/:id", element: withSuspense(<ProductContextPage />) },
           { path: "/feature-requests/:id/context", element: <Navigate to=".." relative="path" replace /> },
-          { path: "/synthesis", element: withSuspense(<SynthesisPage />) }
+          { path: "/triggers", element: withSuspense(<TriggersPage />) },
+          { path: "/synthesis", element: <Navigate to="/triggers" replace /> }
         ]
       }
     ]

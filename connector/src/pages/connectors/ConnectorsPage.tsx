@@ -54,7 +54,7 @@ export default function ConnectorsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Connectors</h2>
-        <p className="text-[13px] text-[var(--ink-soft)]">Manage data sources and output integrations.</p>
+        <p className="text-[13px] text-[var(--ink-soft)]">Manage data sources, bot installs, and output integrations.</p>
       </div>
 
       {/* Input sources */}
@@ -63,7 +63,7 @@ export default function ConnectorsPage() {
         {inputConnectors.length === 0 ? (
           <EmptyState
             title="No data sources connected"
-            description="Add a data source from the catalog below to start ingesting signals."
+            description="Add a data source from the catalog below so you can start creating ingestion triggers."
           />
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

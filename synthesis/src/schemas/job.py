@@ -27,12 +27,16 @@ class SynthesisRunRead(BaseModel):
 
     id: UUID
     organization_id: UUID
+    trigger_id: UUID | None = None
+    event_buffer_id: UUID | None = None
     status: str
     signal_count: int
     cluster_count: int
     feature_request_count: int
+    input_signal_ids: list[str] = Field(default_factory=list)
     feature_request_ids: list[str] = Field(default_factory=list)
     model: str | None = None
+    trigger_context: str | None = None
     error: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
