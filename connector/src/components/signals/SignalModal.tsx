@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ExternalLink, X } from "lucide-react";
 
@@ -9,6 +9,36 @@ import { formatDate, formatSourceLabel } from "@/lib/utils";
 interface SignalModalProps {
   signalId: string;
   onClose: () => void;
+}
+
+function ContentSection({ signal }: { signal: NonNullable<ReturnType<typeof useSignal>["data"]>["data"] }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasContent = signal.original_text || signal.transcript || signal.extracted_text;
+
+  return (
+    <section>
+      <h3 className="mb-1.5 text-[12px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">Content</h3>
+      <div className={`text-[13px] leading-relaxed text-[var(--ink-soft)] ${!expanded && hasContent ? "line-clamp-3" : ""}`}>
+        {signal.original_text && <p>{signal.original_text}</p>}
+        {signal.transcript && <p className="mt-2">{signal.transcript}</p>}
+        {signal.extracted_text && <p className="mt-2">{signal.extracted_text}</p>}
+        {!hasContent && (
+          <p className="text-[var(--ink-muted)]">No raw content available.</p>
+        )}
+        {signal.source_data_type === "image" && signal.raw_artifact_r2_key && (
+          <p className="mt-2 text-[12px] text-[var(--ink-muted)]">Image key: {signal.raw_artifact_r2_key}</p>
+        )}
+      </div>
+      {hasContent && !expanded && (
+        <button
+          className="mt-1.5 text-[12px] font-medium text-[var(--accent)] hover:underline"
+          onClick={() => setExpanded(true)}
+        >
+          Show more
+        </button>
+      )}
+    </section>
+  );
 }
 
 export default function SignalModal({ signalId, onClose }: SignalModalProps) {
@@ -26,7 +56,7 @@ export default function SignalModal({ signalId, onClose }: SignalModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-lg"
+        className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -110,20 +140,7 @@ export default function SignalModal({ signalId, onClose }: SignalModalProps) {
             )}
 
             {/* Raw Content */}
-            <section>
-              <h3 className="mb-1.5 text-[12px] font-medium uppercase tracking-wide text-[var(--ink-muted)]">Content</h3>
-              <div className="space-y-2 text-[13px] leading-relaxed text-[var(--ink-soft)]">
-                {signal.original_text && <p>{signal.original_text}</p>}
-                {signal.transcript && <p>{signal.transcript}</p>}
-                {signal.extracted_text && <p>{signal.extracted_text}</p>}
-                {!signal.original_text && !signal.transcript && !signal.extracted_text && (
-                  <p className="text-[var(--ink-muted)]">No raw content available.</p>
-                )}
-                {signal.source_data_type === "image" && signal.raw_artifact_r2_key && (
-                  <p className="text-[12px] text-[var(--ink-muted)]">Image key: {signal.raw_artifact_r2_key}</p>
-                )}
-              </div>
-            </section>
+            <ContentSection signal={signal} />
 
             {/* Source Metadata */}
             {signal.source_metadata && Object.keys(signal.source_metadata).length > 0 && (
