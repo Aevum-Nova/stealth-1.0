@@ -503,7 +503,11 @@ export default function ProductContextPage() {
   const allFeatureRequests = featureRequestsQuery.data?.data ?? [];
   const jobs = jobsQuery.data?.data ?? [];
   const hasActiveJob = jobs.some((j) => j.status === "pending" || j.status === "running");
+  const latestCompletedJob = jobs.find((j) => j.status === "completed" && j.result);
   const latestPrUrl = jobs.find((job) => job.result?.pull_request_url)?.result?.pull_request_url ?? null;
+
+  const hasChangedSinceLastJob = !latestCompletedJob
+    || new Date(fr.updated_at) > new Date(latestCompletedJob.created_at);
 
   const toggleExpand = (itemId: string) => {
     setExpandedIds((prev) => {
@@ -555,12 +559,16 @@ export default function ProductContextPage() {
           <button
             className="flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-40"
             disabled={hasActiveJob || triggerMutation.isPending}
-            onClick={() =>
+            onClick={() => {
+              if (!hasChangedSinceLastJob) {
+                pushToast("Nothing has changed since the last PR was generated.", "info");
+                return;
+              }
               triggerMutation.mutate(undefined, {
                 onSuccess: () => pushToast("PR generation started. This may take a minute.", "success"),
                 onError: () => pushToast("Failed to start PR generation.", "error"),
-              })
-            }
+              });
+            }}
           >
             {triggerMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
             {triggerMutation.isPending ? "Starting..." : hasActiveJob ? "Generating..." : "Generate PR"}

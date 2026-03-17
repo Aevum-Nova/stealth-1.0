@@ -79,7 +79,11 @@ class LLMSpecPlanner:
             f"Key paths: {', '.join(repo_analysis.key_paths[:5])}\n\n"
             "Return ONLY valid JSON."
         )
-        raw = await self._llm.complete(system, [{"role": "user", "content": prompt}])
+        raw = await self._llm.complete(
+            system,
+            [{"role": "user", "content": prompt}],
+            max_tokens=settings.ANTHROPIC_PR_MAX_TOKENS,
+        )
         data = _parse_json(raw)
         spec = FeatureSpec(
             summary=data.get("summary", ""),

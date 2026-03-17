@@ -1,0 +1,12 @@
+{
+  "request_id": "req_abc",
+  "feature": "Export tagged feedback",
+  "spec_summary": "Implement 'Export tagged feedback' to address: Users need faster recurring exports. Target stack: python.",
+  "tasks": [
+    "Map request fields into a feature decision",
+    "Build technical task list from spec",
+    "Prepare code-change proposal artifacts",
+    "Draft PR title/body from evidence + implementation summary"
+  ],
+  "repo_language": "python"
+}

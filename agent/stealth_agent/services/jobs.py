@@ -25,6 +25,7 @@ from stealth_agent.adapters.local import (
 from stealth_agent.database import async_session
 from stealth_agent.domain.models import PullRequestDraft, RepositoryContext
 from stealth_agent.mappers import feature_request_from_row
+from stealth_agent.config import settings
 from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
 from stealth_agent.services.code_indexer import ensure_indexed
 from stealth_agent.services.orchestrator import OrchestrationDependencies
@@ -38,6 +39,39 @@ async def _safe_ensure_indexed(connector_id: str, organization_id: str) -> None:
         await ensure_indexed(connector_id, organization_id)
     except Exception as exc:
         log.warning("auto_index_failed", connector_id=connector_id, error=str(exc))
+
+
+async def _should_skip_regeneration(
+    db: AsyncSession,
+    feature_request_id: str,
+    organization_id: str,
+) -> dict | None:
+    """Return the last job result if regeneration can be skipped, else None."""
+    result = await db.execute(
+        select(AgentJob)
+        .where(
+            AgentJob.feature_request_id == uuid.UUID(feature_request_id),
+            AgentJob.organization_id == uuid.UUID(organization_id),
+            AgentJob.status == "completed",
+        )
+        .order_by(AgentJob.created_at.desc())
+        .limit(1)
+    )
+    last_job = result.scalar_one_or_none()
+    if not last_job or not last_job.result:
+        return None
+
+    fr_result = await db.execute(
+        select(FeatureRequestRow.updated_at).where(
+            FeatureRequestRow.id == uuid.UUID(feature_request_id),
+            FeatureRequestRow.organization_id == uuid.UUID(organization_id),
+        )
+    )
+    fr_updated = fr_result.scalar_one_or_none()
+    if fr_updated and fr_updated > last_job.created_at:
+        return None
+
+    return last_job.result
 
 
 def _estimate_line_delta(content: str) -> tuple[int, int]:
@@ -123,6 +157,10 @@ async def _run_orchestration(
     codegen_llm: LLMProvider,
 ) -> None:
     async with async_session() as db:
+        git_provider: LocalGitProvider | GitHubGitProvider = LocalGitProvider()
+        pr_provider: LocalPullRequestProvider | GitHubPullRequestProvider = (
+            LocalPullRequestProvider()
+        )
         try:
             orchestration_started_at = time.perf_counter()
             # Update job to running
@@ -132,6 +170,22 @@ async def _run_orchestration(
             job = job_result.scalar_one()
             job.status = "running"
             await db.commit()
+
+            # Check if regeneration can be skipped (nothing changed since last job)
+            cached_result = await _should_skip_regeneration(
+                db, feature_request_id, organization_id
+            )
+            if cached_result is not None:
+                log.info(
+                    "orchestration_skipped_no_changes",
+                    job_id=job_id,
+                    feature_request_id=feature_request_id,
+                )
+                await db.refresh(job)
+                job.status = "completed"
+                job.result = cached_result
+                await db.commit()
+                return
 
             # Load feature request
             load_fr_started_at = time.perf_counter()
@@ -171,10 +225,7 @@ async def _run_orchestration(
 
             # Build repository context and adapters based on GitHub connector
             repo_context: RepositoryContext | None = None
-            git_provider: LocalGitProvider | GitHubGitProvider = LocalGitProvider()
-            pr_provider: LocalPullRequestProvider | GitHubPullRequestProvider = (
-                LocalPullRequestProvider()
-            )
+            index_task: asyncio.Task | None = None
 
             if gh_connector:
                 gh_config = gh_connector.config or {}
@@ -206,9 +257,8 @@ async def _run_orchestration(
                         base_branch=gh_default_branch,
                     )
 
-                    # Auto-index the repo in background (non-blocking). PR generation proceeds
-                    # immediately; RAG context will be available when index is ready.
-                    asyncio.create_task(
+                    # Start indexing; we'll await it before RAG retrieval in step 3
+                    index_task = asyncio.create_task(
                         _safe_ensure_indexed(str(gh_connector.id), organization_id)
                     )
 
@@ -255,6 +305,21 @@ async def _run_orchestration(
                 step="build_spec_and_plan",
                 duration_ms=round((time.perf_counter() - step2_started_at) * 1000, 2),
             )
+
+            # Wait for index to be ready before RAG retrieval (runs in parallel with steps 1-2)
+            if index_task is not None:
+                index_wait_started_at = time.perf_counter()
+                done, _ = await asyncio.wait(
+                    {index_task}, timeout=settings.INDEX_WAIT_TIMEOUT_SECONDS
+                )
+                log.info(
+                    "orchestration_step_timing",
+                    job_id=job_id,
+                    step="wait_for_index",
+                    duration_ms=round((time.perf_counter() - index_wait_started_at) * 1000, 2),
+                    index_ready=bool(done),
+                )
+
             # Step 3: propose_changes (depends on spec + plan)
             step3_started_at = time.perf_counter()
             changes = await deps.code_generator.propose_changes(
@@ -274,10 +339,10 @@ async def _run_orchestration(
             pr_url = None
             if isinstance(git_provider, GitHubGitProvider):
                 github_started_at = time.perf_counter()
-                git_provider.create_branch(
+                await git_provider.create_branch(
                     domain_fr.repository.default_branch, branch_name
                 )
-                commit_sha = git_provider.apply_changes_and_commit(
+                commit_sha = await git_provider.apply_changes_and_commit(
                     changes, commit_message=f"feat: {feature.name.lower()}"
                 )
                 pr_draft = PullRequestDraft(
@@ -286,7 +351,7 @@ async def _run_orchestration(
                     branch_name=branch_name,
                     changed_files=[c.file_path for c in changes],
                 )
-                pr_url = pr_provider.open_draft_pr(pr_draft)
+                pr_url = await pr_provider.open_draft_pr(pr_draft)
                 log.info(
                     "orchestration_step_timing",
                     job_id=job_id,
@@ -351,3 +416,8 @@ async def _run_orchestration(
                 await db.commit()
             except Exception:
                 log.error("failed_to_update_job_status", job_id=job_id)
+        finally:
+            if isinstance(git_provider, GitHubGitProvider):
+                await git_provider.aclose()
+            if isinstance(pr_provider, GitHubPullRequestProvider):
+                await pr_provider.aclose()

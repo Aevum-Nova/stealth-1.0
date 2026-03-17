@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     RAG_MAX_CHARS_PER_CHUNK: int = 1200
     RAG_MAX_TOTAL_CHARS: int = 6000
 
+    INDEX_WAIT_TIMEOUT_SECONDS: float = 30.0
+
     EMBEDDING_PROVIDER: str = "voyage"  # "voyage" or "openai"
     EMBEDDING_DIMENSION: int = 1536
     VOYAGE_API_KEY: str = ""

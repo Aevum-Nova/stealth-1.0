@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 import uuid
 
@@ -19,15 +18,15 @@ from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
 log = structlog.get_logger()
 
 
-def _fetch_branch_from_pr_url(pr_url: str, token: str) -> str | None:
+async def _fetch_branch_from_pr_url(pr_url: str, token: str) -> str | None:
     """Extract owner/repo/pull_number from PR URL and fetch head ref from GitHub API."""
     # Match https://github.com/owner/repo/pull/123
     m = re.search(r"github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
     if not m:
         return None
     owner, repo, pull_number = m.groups()
-    with httpx.Client() as client:
-        resp = client.get(
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
             f"{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pull_number}",
             headers={
                 "Authorization": f"Bearer {token}",
@@ -108,7 +107,7 @@ async def apply_changes_to_pr(
 
         # Fallback: fetch branch from PR URL if not stored (e.g. older jobs)
         if not branch_name:
-            branch_name = _fetch_branch_from_pr_url(pr_url, gh_token)
+            branch_name = await _fetch_branch_from_pr_url(pr_url, gh_token)
         if not branch_name:
             raise ValueError(
                 "Could not determine PR branch. Re-run Generate PR to create a new job with branch info."
@@ -125,14 +124,14 @@ async def apply_changes_to_pr(
         ]
 
         git_provider = GitHubGitProvider(token=gh_token, owner=owner, repo=repo_name)
-
-        # apply_changes_and_commit is sync; run in thread
-        commit_sha = await asyncio.to_thread(
-            git_provider.apply_changes_and_commit,
-            changes,
-            "chore: apply chat-suggested changes",
-            branch_name=branch_name,
-        )
+        try:
+            commit_sha = await git_provider.apply_changes_and_commit(
+                changes,
+                "chore: apply chat-suggested changes",
+                branch_name=branch_name,
+            )
+        finally:
+            await git_provider.aclose()
 
         log.info(
             "chat_changes_applied",

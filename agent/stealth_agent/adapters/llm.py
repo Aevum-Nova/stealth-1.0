@@ -68,6 +68,10 @@ class ClaudeLLMProvider:
             async for text in stream.text_stream:
                 yield text
 
+    @staticmethod
+    def _cacheable_system(system: str) -> list[dict]:
+        return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+
     async def _complete_standard(
         self,
         system: str,
@@ -78,7 +82,7 @@ class ClaudeLLMProvider:
         response = await self._client.messages.create(
             model=self._model,
             max_tokens=max_tokens,
-            system=system,
+            system=self._cacheable_system(system),
             messages=messages,
         )
         self._log_response(
@@ -101,7 +105,7 @@ class ClaudeLLMProvider:
             model=self._model,
             max_tokens=max_tokens,
             speed="fast",
-            system=system,
+            system=self._cacheable_system(system),
             messages=messages,
         )
         self._log_response(
