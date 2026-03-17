@@ -18,6 +18,7 @@ from stealth_agent.domain.models import (
     TechnicalPlan,
 )
 from stealth_agent.services.code_retriever import retrieve_relevant_chunks
+from stealth_agent.config import settings
 
 log = structlog.get_logger()
 
@@ -42,7 +43,11 @@ class LLMSignalProcessor:
             f"Evidence:\n{evidence_text}\n\n"
             "Return ONLY valid JSON."
         )
-        raw = await self._llm.complete(system, [{"role": "user", "content": prompt}])
+        raw = await self._llm.complete(
+            system,
+            [{"role": "user", "content": prompt}],
+            max_tokens=settings.ANTHROPIC_PR_MAX_TOKENS,
+        )
         data = _parse_json(raw)
         return PrioritizedFeature(
             name=data.get("name", request.title),
@@ -127,16 +132,37 @@ class LLMCodeGenerator:
         if self._connector_id and self._organization_id:
             try:
                 query = f"{feature.name}. {spec.summary}. Tasks: {' '.join(plan.tasks)}"
+                reduce_context = (
+                    len(plan.tasks) > 8
+                    or len(spec.summary) > 500
+                    or repo_analysis.primary_language == "unknown"
+                )
+                top_k = (
+                    settings.RAG_TOP_K_REDUCED
+                    if reduce_context
+                    else settings.RAG_TOP_K_DEFAULT
+                )
                 chunks = await retrieve_relevant_chunks(
                     query,
                     self._connector_id,
                     uuid.UUID(self._organization_id),
-                    top_k=12,
+                    top_k=top_k,
                 )
                 if chunks:
+                    max_chunk_chars = settings.RAG_MAX_CHARS_PER_CHUNK
+                    max_total_chars = settings.RAG_MAX_TOTAL_CHARS
+                    total_chars = 0
+                    trimmed_chunks = []
+                    for c in chunks:
+                        content = c.content[:max_chunk_chars]
+                        total_chars += len(content)
+                        if total_chars > max_total_chars:
+                            break
+                        trimmed_chunks.append(
+                            f"--- {c.file_path} (lines {c.start_line}-{c.end_line}) ---\n{content}"
+                        )
                     code_context = "\n\n".join(
-                        f"--- {c.file_path} (lines {c.start_line}-{c.end_line}) ---\n{c.content}"
-                        for c in chunks
+                        trimmed_chunks
                     )
                     prompt_parts.append(
                         f"RELEVANT CODE FROM REPOSITORY (use for context when modifying):\n{code_context}"

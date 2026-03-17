@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 
 import structlog
@@ -123,6 +124,7 @@ async def _run_orchestration(
 ) -> None:
     async with async_session() as db:
         try:
+            orchestration_started_at = time.perf_counter()
             # Update job to running
             job_result = await db.execute(
                 select(AgentJob).where(AgentJob.id == uuid.UUID(job_id))
@@ -132,6 +134,7 @@ async def _run_orchestration(
             await db.commit()
 
             # Load feature request
+            load_fr_started_at = time.perf_counter()
             fr_result = await db.execute(
                 select(FeatureRequestRow).where(
                     FeatureRequestRow.id == uuid.UUID(feature_request_id),
@@ -139,8 +142,15 @@ async def _run_orchestration(
                 )
             )
             fr_row = fr_result.scalar_one()
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="load_feature_request",
+                duration_ms=round((time.perf_counter() - load_fr_started_at) * 1000, 2),
+            )
 
             # Look up GitHub connector for this organization
+            lookup_connector_started_at = time.perf_counter()
             gh_result = await db.execute(
                 select(ConnectorRow).where(
                     ConnectorRow.organization_id == uuid.UUID(organization_id),
@@ -149,6 +159,15 @@ async def _run_orchestration(
                 )
             )
             gh_connector = gh_result.scalar_one_or_none()
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="lookup_github_connector",
+                duration_ms=round(
+                    (time.perf_counter() - lookup_connector_started_at) * 1000, 2
+                ),
+                has_connector=bool(gh_connector),
+            )
 
             # Build repository context and adapters based on GitHub connector
             repo_context: RepositoryContext | None = None
@@ -212,19 +231,41 @@ async def _run_orchestration(
 
             # Run orchestration with parallelized steps where possible
             # Step 1: prioritize_feature + repo_analysis (independent, run in parallel)
+            step1_started_at = time.perf_counter()
             feature, repo_analysis = await asyncio.gather(
                 deps.signal_processor.prioritize_feature(domain_fr),
                 asyncio.to_thread(
                     deps.repository_analyzer.analyze, domain_fr.repository.path
                 ),
             )
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="prioritize_feature_and_repo_analysis",
+                duration_ms=round((time.perf_counter() - step1_started_at) * 1000, 2),
+            )
             # Step 2: spec + plan (depends on feature + repo_analysis)
+            step2_started_at = time.perf_counter()
             spec, plan = await deps.spec_planner.build_spec_and_plan(
                 domain_fr, feature, repo_analysis
             )
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="build_spec_and_plan",
+                duration_ms=round((time.perf_counter() - step2_started_at) * 1000, 2),
+            )
             # Step 3: propose_changes (depends on spec + plan)
+            step3_started_at = time.perf_counter()
             changes = await deps.code_generator.propose_changes(
                 domain_fr, feature, spec, plan, repo_analysis
+            )
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="propose_changes",
+                duration_ms=round((time.perf_counter() - step3_started_at) * 1000, 2),
+                change_count=len(changes),
             )
 
             # Create branch and PR when GitHub is connected
@@ -232,6 +273,7 @@ async def _run_orchestration(
             commit_sha = None
             pr_url = None
             if isinstance(git_provider, GitHubGitProvider):
+                github_started_at = time.perf_counter()
                 git_provider.create_branch(
                     domain_fr.repository.default_branch, branch_name
                 )
@@ -245,6 +287,12 @@ async def _run_orchestration(
                     changed_files=[c.file_path for c in changes],
                 )
                 pr_url = pr_provider.open_draft_pr(pr_draft)
+                log.info(
+                    "orchestration_step_timing",
+                    job_id=job_id,
+                    step="github_create_branch_commit_pr",
+                    duration_ms=round((time.perf_counter() - github_started_at) * 1000, 2),
+                )
                 log.info("github_pr_created", pr_url=pr_url, commit_sha=commit_sha)
 
             proposed_files = []
@@ -281,6 +329,14 @@ async def _run_orchestration(
             job.result = result_data
             await db.commit()
 
+            log.info(
+                "orchestration_step_timing",
+                job_id=job_id,
+                step="total",
+                duration_ms=round(
+                    (time.perf_counter() - orchestration_started_at) * 1000, 2
+                ),
+            )
             log.info("orchestration_completed", job_id=job_id)
 
         except Exception as exc:

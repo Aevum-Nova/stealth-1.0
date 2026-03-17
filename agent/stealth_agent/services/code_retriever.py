@@ -37,11 +37,11 @@ async def retrieve_relevant_chunks(
         result = await db.execute(
             text("""
                 SELECT file_path, start_line, end_line, content, language,
-                       1 - (embedding <=> :query_vec::vector) AS score
+                       1 - (embedding <=> CAST(:query_vec AS vector)) AS score
                 FROM code_chunks
                 WHERE connector_id = :cid AND organization_id = :oid
                       AND embedding IS NOT NULL
-                ORDER BY embedding <=> :query_vec::vector
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :top_k
             """),
             {

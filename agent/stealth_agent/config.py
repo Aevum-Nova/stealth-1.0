@@ -15,11 +15,17 @@ class Settings(BaseSettings):
 
     LLM_PROVIDER: str = "claude"  # "claude" or "openai"
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-opus-4-6"
-    ANTHROPIC_PR_MODEL: str = "claude-opus-4-6"
-    ANTHROPIC_PR_FAST_MODE: bool = True
+    ANTHROPIC_MODEL: str = "claude-haiku-4-5"
+    ANTHROPIC_PR_MODEL: str = "claude-haiku-4-5"
+    ANTHROPIC_PR_FAST_MODE: bool = False
     ANTHROPIC_PR_FAST_MODE_BETA: str = "fast-mode-2026-02-01"
     OPENAI_API_KEY: str = ""
+    ANTHROPIC_PR_MAX_TOKENS: int = 2048
+
+    RAG_TOP_K_DEFAULT: int = 6
+    RAG_TOP_K_REDUCED: int = 4
+    RAG_MAX_CHARS_PER_CHUNK: int = 1200
+    RAG_MAX_TOTAL_CHARS: int = 6000
 
     EMBEDDING_PROVIDER: str = "voyage"  # "voyage" or "openai"
     EMBEDDING_DIMENSION: int = 1536
