@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, Database, GitMerge, LogOut, RadioTower, Workflow } from "lucide-react";
+import { BarChart3, Boxes, Database, GitMerge, LogOut, PenTool, RadioTower, Workflow } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +13,10 @@ const analysisNav = [
   { to: "/signals", label: "Signals", icon: Workflow },
   { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
   { to: "/triggers", label: "Triggers", icon: RadioTower },
+];
+
+const buildNav = [
+  { to: "/create", label: "Create", icon: PenTool },
 ];
 
 function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
@@ -64,6 +68,17 @@ export default function Sidebar() {
         </div>
 
         {analysisNav.map((item) => (
+          <NavItem key={item.to} {...item} />
+        ))}
+
+        <div className="hidden lg:block">
+          <div className="my-3 border-t border-[var(--line-soft)]" />
+          <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--ink-muted)]">
+            Build
+          </p>
+        </div>
+
+        {buildNav.map((item) => (
           <NavItem key={item.to} {...item} />
         ))}
       </nav>

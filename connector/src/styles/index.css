@@ -106,9 +106,11 @@ body {
   letter-spacing: -0.006em;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 h1, h2, h3, h4 {
@@ -293,6 +295,43 @@ button:not(:disabled):hover {
 .chat-message-content .chat-break {
   display: block;
   height: 1px;
+}
+
+/* ── React Flow theme overrides ── */
+.react-flow {
+  --xy-background-color: var(--canvas-subtle);
+  --xy-node-border-radius: 12px;
+  --xy-edge-stroke: var(--ink-muted);
+  --xy-edge-stroke-width: 1.5px;
+  --xy-connectionline-stroke: var(--ink-muted);
+  --xy-connectionline-stroke-width: 1.5px;
+}
+
+.react-flow__node {
+  cursor: grab;
+}
+
+.react-flow__node:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls {
+  box-shadow: none !important;
+}
+
+.react-flow__controls button {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.react-flow__controls button svg {
+  max-width: 14px !important;
+  max-height: 14px !important;
+  fill: var(--ink-soft) !important;
+}
+
+.react-flow__minimap {
+  box-shadow: none !important;
 }
 
 input:focus, textarea:focus, select:focus {

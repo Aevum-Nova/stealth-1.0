@@ -19,11 +19,11 @@ class Settings(BaseSettings):
 
     ASSEMBLYAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_SIGNAL_MODEL: str = "claude-sonnet-4-6"
+    ANTHROPIC_SIGNAL_MODEL: str = "claude-haiku-4-5"
     ANTHROPIC_SIGNAL_EFFORT: str = "low"
-    ANTHROPIC_SYNTHESIS_MODEL: str = "claude-sonnet-4-6"
+    ANTHROPIC_SYNTHESIS_MODEL: str = "claude-haiku-4-5"
     ANTHROPIC_SYNTHESIS_EFFORT: str = "medium"
-    ANTHROPIC_SYNTHESIS_RETRY_MODEL: str = "claude-opus-4-6"
+    ANTHROPIC_SYNTHESIS_RETRY_MODEL: str = "claude-haiku-4-5"
     ANTHROPIC_SYNTHESIS_RETRY_EFFORT: str = "medium"
     ANTHROPIC_ENABLE_PROMPT_CACHING: bool = True
 

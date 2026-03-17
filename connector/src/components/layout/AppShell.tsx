@@ -5,7 +5,9 @@ import TopBar from "@/components/layout/TopBar";
 
 export default function AppShell() {
   const location = useLocation();
-  const isFullBleed = /^\/feature-requests\/[^/]+(?:\/context)?$/.test(location.pathname);
+  const isFullBleed =
+    /^\/feature-requests\/[^/]+(?:\/context)?$/.test(location.pathname) ||
+    location.pathname === "/create";
 
   return (
     <div className="flex flex-col bg-[var(--surface)] lg:h-screen lg:flex-row lg:overflow-hidden">
