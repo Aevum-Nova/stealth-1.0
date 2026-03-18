@@ -7,8 +7,11 @@ import { useSlackChannels } from "@/hooks/use-connectors";
 interface SlackChannelPickerProps {
   connectorId: string;
   initialChannelIds?: string[];
-  onSave: (channelIds: string[]) => void;
+  /** Called on save (full mode with join + save button). */
+  onSave?: (channelIds: string[]) => void;
   saving?: boolean;
+  /** Called on every toggle (inline/controlled mode — no save button). */
+  onChange?: (channelIds: string[]) => void;
 }
 
 export default function SlackChannelPicker({
@@ -16,7 +19,9 @@ export default function SlackChannelPicker({
   initialChannelIds,
   onSave,
   saving,
+  onChange,
 }: SlackChannelPickerProps) {
+  const inline = Boolean(onChange);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set(initialChannelIds ?? []));
   const [joining, setJoining] = useState(false);
@@ -43,6 +48,7 @@ export default function SlackChannelPicker({
       } else {
         next.add(id);
       }
+      if (onChange) onChange(Array.from(next));
       return next;
     });
   };
@@ -78,9 +84,11 @@ export default function SlackChannelPicker({
 
   return (
     <div className="space-y-3">
-      <p className="text-[13px] text-[var(--ink-soft)]">
-        Select the channels you want to monitor. The bot will automatically join the selected channels.
-      </p>
+      {!inline ? (
+        <p className="text-[13px] text-[var(--ink-soft)]">
+          Select the channels you want to monitor. The bot will automatically join the selected channels.
+        </p>
+      ) : null}
 
       {/* Search + count inline */}
       <div className="relative">
@@ -170,29 +178,33 @@ export default function SlackChannelPicker({
         })}
       </div>
 
-      {/* Save */}
-      <div className="flex items-center gap-3">
-        <button
-          className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
-          disabled={selected.size === 0 || saving || joining}
-          onClick={() => void handleSave()}
-        >
-          {joining || saving ? "Saving..." : saved ? "Channels Saved" : "Save & Join Channels"}
-        </button>
-        {selected.size > 0 ? (
-          <button
-            className="text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
-            onClick={() => setSelected(new Set())}
-          >
-            Clear all
-          </button>
-        ) : null}
-      </div>
+      {/* Save — hidden in inline/controlled mode */}
+      {!inline ? (
+        <>
+          <div className="flex items-center gap-3">
+            <button
+              className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
+              disabled={selected.size === 0 || saving || joining}
+              onClick={() => void handleSave()}
+            >
+              {joining || saving ? "Saving..." : saved ? "Channels Saved" : "Save & Join Channels"}
+            </button>
+            {selected.size > 0 ? (
+              <button
+                className="text-[12px] text-[var(--ink-muted)] hover:text-[var(--ink)] transition-colors"
+                onClick={() => setSelected(new Set())}
+              >
+                Clear all
+              </button>
+            ) : null}
+          </div>
 
-      {error ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">
-          {error}
-        </div>
+          {error ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-[13px] text-rose-700">
+              {error}
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

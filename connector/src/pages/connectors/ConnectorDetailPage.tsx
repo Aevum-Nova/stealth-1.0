@@ -10,6 +10,7 @@ import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
 import { useConnector, useConnectorCatalog, useConnectorMutations } from "@/hooks/use-connectors";
+import { useTriggers } from "@/hooks/use-triggers";
 import { formatDate } from "@/lib/utils";
 
 export default function ConnectorDetailPage() {
@@ -19,6 +20,7 @@ export default function ConnectorDetailPage() {
   const connectorQuery = useConnector(id);
   const catalogQuery = useConnectorCatalog();
   const { updateConnector, syncConnector, deleteConnector } = useConnectorMutations();
+  const triggersQuery = useTriggers();
 
   const [changingRepo, setChangingRepo] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -329,6 +331,26 @@ export default function ConnectorDetailPage() {
           )}
         </div>
       ) : null}
+
+      {connector.type === "slack" && (connector.config?.channel_ids as string[] | undefined)?.length ? (() => {
+        const hasTrigger = (triggersQuery.data?.data ?? []).some((t) => t.connector?.type === connector.type);
+        return (
+          <div className="panel inline-flex items-center gap-3 px-5 py-3.5">
+            <p className="text-[13px] text-[var(--ink-soft)]">
+              {hasTrigger
+                ? "You have triggers set up for this connector."
+                : "Next step — set up a trigger to process incoming messages automatically."}
+            </p>
+            <button
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#2d6a6a] px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#245757]"
+              onClick={() => navigate("/triggers")}
+            >
+              {hasTrigger ? "View Triggers" : "Create Trigger"}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        );
+      })() : null}
 
       <ConfirmDialog
         open={confirmDisconnect}

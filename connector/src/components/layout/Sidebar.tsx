@@ -25,7 +25,7 @@ function NavItem({ to, label, icon: Icon }: { to: string; label: string; icon: R
       to={to}
       end={to === "/"}
       className={({ isActive }) =>
-        `flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all ${
+        `flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all lg:w-full ${
           isActive
             ? "bg-[var(--surface-active)] text-[var(--ink)] shadow-sm"
             : "text-[var(--ink-soft)] hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
@@ -55,7 +55,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex gap-0.5 overflow-x-auto px-2.5 pb-2.5 lg:block lg:flex-1 lg:space-y-0.5 lg:overflow-visible">
+      <nav className="flex gap-0.5 overflow-x-auto px-2.5 pb-2.5 lg:flex-col lg:flex-1 lg:gap-0.5 lg:overflow-visible">
         {mainNav.map((item) => (
           <NavItem key={item.to} {...item} />
         ))}
