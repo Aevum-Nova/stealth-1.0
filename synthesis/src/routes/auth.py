@@ -38,8 +38,8 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=True,
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
         path="/api/v1/auth",
     )
