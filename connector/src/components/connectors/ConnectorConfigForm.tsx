@@ -32,7 +32,7 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-5"
       onSubmit={handleSubmit((values) => {
         const normalized = { ...values };
         catalogItem.config_fields
@@ -52,26 +52,42 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
       {catalogItem.config_fields.map((field) => {
         const value = watch(field.key);
 
-        return (
-          <label key={field.key} className="block space-y-1">
-            <span className="text-[13px] text-[var(--ink-soft)]">{field.label}</span>
+        if (field.type === "boolean") {
+          return (
+            <label key={field.key} className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-[var(--line)] accent-[var(--action-primary)]"
+                {...register(field.key)}
+                defaultChecked={Boolean(defaults[field.key])}
+              />
+              <div>
+                <span className="text-[13px] font-medium text-[var(--ink)]">{field.label}</span>
+                {field.help ? <p className="text-[11px] text-[var(--ink-muted)]">{field.help}</p> : null}
+              </div>
+            </label>
+          );
+        }
 
-            {field.type === "boolean" ? (
-              <input type="checkbox" className="size-4" {...register(field.key)} defaultChecked={Boolean(defaults[field.key])} />
-            ) : field.type === "number" ? (
+        return (
+          <div key={field.key} className="space-y-1.5">
+            <label className="text-[13px] font-medium text-[var(--ink)]">{field.label}</label>
+
+            {field.type === "number" ? (
               <input
                 type="number"
-                className="w-full rounded-lg border border-[var(--line)] px-3 py-2"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]"
                 {...register(field.key, { valueAsNumber: true })}
               />
             ) : field.type === "multi_select" ? (
-              <div className="space-y-2 rounded-lg border border-[var(--line)] p-2">
+              <div className="space-y-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
                 {(field.options ?? []).map((option) => {
                   const selected = Array.isArray(value) ? value.includes(option) : false;
                   return (
-                    <label key={option} className="flex items-center gap-2 text-[13px]">
+                    <label key={option} className="flex items-center gap-2.5 text-[13px] text-[var(--ink)] cursor-pointer">
                       <input
                         type="checkbox"
+                        className="size-3.5 rounded border-[var(--line)] accent-[var(--action-primary)]"
                         checked={selected}
                         onChange={(event) => {
                           const current = Array.isArray(value) ? value : [];
@@ -87,7 +103,10 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
                 })}
               </div>
             ) : field.type === "select" ? (
-              <select className="w-full rounded-lg border border-[var(--line)] px-3 py-2" {...register(field.key)}>
+              <select
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]"
+                {...register(field.key)}
+              >
                 {(field.options ?? []).map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -96,18 +115,21 @@ export default function ConnectorConfigForm({ catalogItem, initialValues, onSubm
               </select>
             ) : (
               <input
-                className="w-full rounded-lg border border-[var(--line)] px-3 py-2"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]"
                 {...register(field.key)}
-                placeholder={field.type === "multi_text" ? "a,b,c" : ""}
+                placeholder={field.type === "multi_text" ? "Enter values separated by commas" : ""}
               />
             )}
 
-            {field.help ? <p className="text-[11px] text-[var(--ink-soft)]">{field.help}</p> : null}
-          </label>
+            {field.help ? <p className="text-[11px] text-[var(--ink-muted)]">{field.help}</p> : null}
+          </div>
         );
       })}
 
-      <button className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors" type="submit">
+      <button
+        className="rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
+        type="submit"
+      >
         Save Configuration
       </button>
     </form>
