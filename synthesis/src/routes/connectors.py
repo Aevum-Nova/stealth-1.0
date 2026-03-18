@@ -485,3 +485,66 @@ async def list_github_branches(
     except Exception as exc:
         _raise_github_fetch_error(exc, "list branches")
     return ApiResponse(data=branches)
+
+
+@router.get("/{connector_id}/slack-channels", response_model=ApiResponse[list[dict]])
+async def list_slack_channels(
+    connector_id: UUID,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Connector).where(Connector.id == connector_id, Connector.organization_id == UUID(org_id))
+    )
+    connector = result.scalar_one_or_none()
+    if not connector:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found")
+    if connector.type != "slack":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a Slack connector")
+
+    impl = _build_connector(connector)
+    if not impl or not hasattr(impl, "list_channels"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slack connector unavailable")
+
+    try:
+        channels = await impl.list_channels()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch Slack channels: {exc}",
+        ) from exc
+    return ApiResponse(data=channels)
+
+
+@router.post("/{connector_id}/slack-join-channels", response_model=ApiResponse[dict])
+async def join_slack_channels(
+    connector_id: UUID,
+    payload: dict,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Connector).where(Connector.id == connector_id, Connector.organization_id == UUID(org_id))
+    )
+    connector = result.scalar_one_or_none()
+    if not connector:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found")
+    if connector.type != "slack":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a Slack connector")
+
+    channel_ids = payload.get("channel_ids", [])
+    if not channel_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No channel IDs provided")
+
+    impl = _build_connector(connector)
+    if not impl or not hasattr(impl, "join_channels"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slack connector unavailable")
+
+    try:
+        results = await impl.join_channels(channel_ids)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to join Slack channels: {exc}",
+        ) from exc
+    return ApiResponse(data=results)

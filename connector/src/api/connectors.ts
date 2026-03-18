@@ -65,3 +65,15 @@ export function getGithubBranches(connectorId: string, repo: string) {
     .get(`connectors/${connectorId}/github-branches`, { searchParams: { repo } })
     .json<ApiResponse<string[]>>();
 }
+
+export function getSlackChannels(connectorId: string) {
+  return api
+    .get(`connectors/${connectorId}/slack-channels`)
+    .json<ApiResponse<{ id: string; name: string; is_private: boolean; num_members: number; topic: string }[]>>();
+}
+
+export function joinSlackChannels(connectorId: string, channelIds: string[]) {
+  return api
+    .post(`connectors/${connectorId}/slack-join-channels`, { json: { channel_ids: channelIds } })
+    .json<ApiResponse<Record<string, string>>>();
+}

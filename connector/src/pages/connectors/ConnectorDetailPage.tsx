@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
 import ConnectorLogo from "@/components/connectors/ConnectorLogo";
 import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
+import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -287,19 +288,36 @@ export default function ConnectorDetailPage() {
             <h3 className="text-[14px] font-semibold text-[var(--ink)]">Configuration</h3>
             <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">Customize how this connector ingests data</p>
           </div>
-          <ConnectorConfigForm
-            catalogItem={catalogItem}
-            initialValues={connector.config}
-            onSubmit={(values) => {
-              updateConnector.mutate(
-                { id: connector.id, payload: { config: values } },
-                {
-                  onSuccess: () => pushToast("Configuration saved", "success"),
-                  onError: () => pushToast("Failed to save configuration", "error")
-                }
-              );
-            }}
-          />
+          {connector.type === "slack" ? (
+            <SlackChannelPicker
+              connectorId={connector.id}
+              initialChannelIds={(connector.config?.channel_ids as string[]) ?? []}
+              saving={updateConnector.isPending}
+              onSave={(channelIds) => {
+                updateConnector.mutate(
+                  { id: connector.id, payload: { config: { ...connector.config, channel_ids: channelIds } } },
+                  {
+                    onSuccess: () => pushToast("Channels updated", "success"),
+                    onError: () => pushToast("Failed to update channels", "error")
+                  }
+                );
+              }}
+            />
+          ) : (
+            <ConnectorConfigForm
+              catalogItem={catalogItem}
+              initialValues={connector.config}
+              onSubmit={(values) => {
+                updateConnector.mutate(
+                  { id: connector.id, payload: { config: values } },
+                  {
+                    onSuccess: () => pushToast("Configuration saved", "success"),
+                    onError: () => pushToast("Failed to save configuration", "error")
+                  }
+                );
+              }}
+            />
+          )}
         </div>
       ) : null}
 

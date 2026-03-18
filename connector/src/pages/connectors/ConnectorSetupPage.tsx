@@ -9,6 +9,7 @@ import {
 } from "@/api/connectors";
 import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
 import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
+import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import OAuthButton from "@/components/connectors/OAuthButton";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { startConnectorOAuthFlow, startOAuthFlow } from "@/lib/oauth";
@@ -30,6 +31,7 @@ export default function ConnectorSetupPage() {
   const [catalog, setCatalog] = useState<any[] | null>(null);
 
   const isGitHub = type === "github";
+  const isSlack = type === "slack";
 
   useEffect(() => {
     void (async () => {
@@ -266,6 +268,15 @@ export default function ConnectorSetupPage() {
                   connectorId={connectorId}
                   saving={loading}
                   onSelect={(repo, branch) => void handleGitHubRepoSelect(repo, branch)}
+                />
+              </>
+            ) : isSlack && connectorId ? (
+              <>
+                <h3 className="text-[15px] font-medium">Select Channels</h3>
+                <SlackChannelPicker
+                  connectorId={connectorId}
+                  saving={loading}
+                  onSave={(channelIds) => void saveConfig({ channel_ids: channelIds, include_threads: true, include_images: true, min_message_length: 10 })}
                 />
               </>
             ) : (

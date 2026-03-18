@@ -22,7 +22,7 @@ class SlackConnector(BaseConnector):
         params = {
             "client_id": settings.SLACK_CLIENT_ID,
             "redirect_uri": redirect_uri,
-            "scope": "channels:history,channels:read,groups:history,groups:read,im:history,reactions:read,users:read,chat:write",
+            "scope": "channels:history,channels:read,groups:history,groups:read,im:history,reactions:read,users:read,chat:write,channels:join",
             "state": state,
             "user_scope": "",
         }
@@ -51,3 +51,64 @@ class SlackConnector(BaseConnector):
             "bot_user_id": data.get("bot_user_id"),
             "scopes": (data.get("scope") or "").split(","),
         }
+
+    async def list_channels(self) -> list[dict]:
+        token = (self.config.credentials or {}).get("access_token")
+        if not token:
+            return []
+
+        channels: list[dict] = []
+        cursor = None
+
+        async with httpx.AsyncClient() as client:
+            while True:
+                params: dict = {
+                    "types": "public_channel,private_channel",
+                    "exclude_archived": "true",
+                    "limit": "200",
+                }
+                if cursor:
+                    params["cursor"] = cursor
+
+                resp = await client.get(
+                    "https://slack.com/api/conversations.list",
+                    headers={"Authorization": f"Bearer {token}"},
+                    params=params,
+                )
+                data = resp.json()
+
+                if not data.get("ok"):
+                    break
+
+                for ch in data.get("channels", []):
+                    channels.append({
+                        "id": ch["id"],
+                        "name": ch["name"],
+                        "is_private": ch.get("is_private", False),
+                        "num_members": ch.get("num_members", 0),
+                        "topic": (ch.get("topic") or {}).get("value", ""),
+                    })
+
+                cursor = data.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
+                    break
+
+        return channels
+
+    async def join_channels(self, channel_ids: list[str]) -> dict[str, str]:
+        token = (self.config.credentials or {}).get("access_token")
+        if not token:
+            return {}
+
+        results: dict[str, str] = {}
+        async with httpx.AsyncClient() as client:
+            for channel_id in channel_ids:
+                resp = await client.post(
+                    "https://slack.com/api/conversations.join",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"channel": channel_id},
+                )
+                data = resp.json()
+                results[channel_id] = "ok" if data.get("ok") else data.get("error", "unknown")
+
+        return results

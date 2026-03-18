@@ -41,6 +41,14 @@ export function useGithubBranches(connectorId?: string, repo?: string) {
   });
 }
 
+export function useSlackChannels(connectorId?: string) {
+  return useQuery({
+    queryKey: ["connector", connectorId, "slack-channels"],
+    queryFn: () => connectorsApi.getSlackChannels(connectorId as string),
+    enabled: Boolean(connectorId),
+  });
+}
+
 export function useConnectorMutations() {
   const queryClient = useQueryClient();
 
