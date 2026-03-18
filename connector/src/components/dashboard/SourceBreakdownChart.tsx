@@ -4,6 +4,25 @@ import { formatSourceLabel } from "@/lib/utils";
 
 const BAR_COLORS = ["#6366f1", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ec4899", "#f97316"];
 
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { source: string; count: number; fill: string } }> }) {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+  return (
+    <div style={{
+      fontSize: 12,
+      borderRadius: 8,
+      backgroundColor: "var(--surface)",
+      color: "var(--ink)",
+      border: "1px solid var(--line)",
+      boxShadow: "0 4px 12px var(--shadow-soft)",
+      padding: "8px 12px",
+    }}>
+      <p style={{ fontWeight: 600 }}>{item.source}</p>
+      <p style={{ color: "var(--ink-soft)", marginTop: 2 }}>{item.count} signals</p>
+    </div>
+  );
+}
+
 export default function SourceBreakdownChart({ data }: { data: Record<string, number> }) {
   const items = Object.entries(data).map(([source, count], i) => ({
     source: formatSourceLabel(source),
@@ -31,18 +50,11 @@ export default function SourceBreakdownChart({ data }: { data: Record<string, nu
               axisLine={false}
               tickLine={false}
               width={36}
+              allowDecimals={false}
             />
             <Tooltip
-              cursor={{ fill: "var(--accent-soft)", radius: 4 }}
-              contentStyle={{
-                fontSize: 12,
-                borderRadius: 8,
-                backgroundColor: "var(--surface)",
-                color: "var(--ink)",
-                border: "1px solid var(--line)",
-                boxShadow: "0 4px 12px var(--shadow-soft)",
-                padding: "8px 12px",
-              }}
+              cursor={false}
+              content={<CustomTooltip />}
             />
             <Bar dataKey="count" radius={[6, 6, 0, 0]}>
               {items.map((entry, index) => (
