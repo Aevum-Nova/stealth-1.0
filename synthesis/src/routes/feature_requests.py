@@ -70,6 +70,30 @@ async def list_feature_requests(
     )
     feature_requests = list(rows.scalars().all())
 
+    updated = False
+    for fr in feature_requests:
+        try:
+            edited_fields = set(fr.human_edited_fields or [])
+            if "title" in edited_fields:
+                continue
+            title = (fr.title or "").strip()
+            if title.lower().startswith("address recurring feedback from"):
+                evidence = fr.supporting_evidence or []
+                top_summary = ""
+                if evidence:
+                    top_summary = (evidence[0].get("signal_summary") or "").strip()
+                if top_summary:
+                    cleaned = " ".join(top_summary.split()).strip()
+                    if len(cleaned) > 90:
+                        cleaned = cleaned[:87].rstrip() + "..."
+                    fr.title = cleaned
+                    updated = True
+        except Exception:
+            continue
+
+    if updated:
+        await db.commit()
+
     return PaginatedResponse(
         data=[FeatureRequestRead.model_validate(fr) for fr in feature_requests],
         pagination=Pagination(page=page, limit=limit, total=total),
@@ -91,6 +115,26 @@ async def get_feature_request(
     feature_request = result.scalar_one_or_none()
     if not feature_request:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature request not found")
+
+    # If title is still the generic fallback and has not been human-edited, replace with top signal summary.
+    try:
+        edited_fields = set(feature_request.human_edited_fields or [])
+        if "title" not in edited_fields:
+            title = (feature_request.title or "").strip()
+            if title.lower().startswith("address recurring feedback from"):
+                evidence = feature_request.supporting_evidence or []
+                top_summary = ""
+                if evidence:
+                    top_summary = (evidence[0].get("signal_summary") or "").strip()
+                if top_summary:
+                    cleaned = " ".join(top_summary.split()).strip()
+                    if len(cleaned) > 90:
+                        cleaned = cleaned[:87].rstrip() + "..."
+                    feature_request.title = cleaned
+                    await db.commit()
+    except Exception:
+        # If any auto-title logic fails, fall back to returning the original row.
+        pass
 
     return ApiResponse(data=FeatureRequestRead.model_validate(feature_request))
 
@@ -149,24 +193,6 @@ async def delete_feature_request(
     )
     await db.commit()
     return ApiResponse(data={"deleted": True})
-
-
-@router.post("/{feature_request_id}/approve", response_model=ApiResponse[dict])
-async def approve_feature_request(
-    feature_request_id: UUID,
-    org_id: str = Depends(get_current_org),
-    db: AsyncSession = Depends(get_db),
-):
-    return await _set_status(feature_request_id, org_id, db, "approved")
-
-
-@router.post("/{feature_request_id}/reject", response_model=ApiResponse[dict])
-async def reject_feature_request(
-    feature_request_id: UUID,
-    org_id: str = Depends(get_current_org),
-    db: AsyncSession = Depends(get_db),
-):
-    return await _set_status(feature_request_id, org_id, db, "rejected")
 
 
 async def _set_status(feature_request_id: UUID, org_id: str, db: AsyncSession, value: str) -> ApiResponse[dict]:

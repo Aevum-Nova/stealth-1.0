@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import EvidencePanel from "@/components/feature-requests/EvidencePanel";
@@ -7,7 +6,6 @@ import ImageGallery from "@/components/feature-requests/ImageGallery";
 import ImpactMetricsDisplay from "@/components/feature-requests/ImpactMetricsDisplay";
 import MergeDialog from "@/components/feature-requests/MergeDialog";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
-import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAgentJobs } from "@/hooks/use-agent";
@@ -22,7 +20,6 @@ import {
 
 export default function FeatureRequestDetailPage() {
   const { id = "" } = useParams();
-  const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
   const [openMerge, setOpenMerge] = useState(false);
 
   const featureRequestQuery = useFeatureRequest(id);
@@ -111,16 +108,6 @@ export default function FeatureRequestDetailPage() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--line-soft)] pt-4">
-          {latestPrUrl && (
-            <>
-              <button className="rounded-lg bg-emerald-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-emerald-700 transition-colors" onClick={() => setConfirmAction("approve")}>
-                Approve
-              </button>
-              <button className="rounded-lg bg-rose-600 px-3.5 py-2 text-[13px] font-medium text-white hover:bg-rose-700 transition-colors" onClick={() => setConfirmAction("reject")}>
-                Reject
-              </button>
-            </>
-          )}
           <button className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpenMerge(true)}>
             Merge
           </button>
@@ -140,30 +127,6 @@ export default function FeatureRequestDetailPage() {
           </Link>
         </div>
       </div>
-
-      <ConfirmDialog
-        open={confirmAction === "approve"}
-        title="Approve feature request"
-        description="Mark this feature request as approved?"
-        confirmLabel="Approve"
-        onCancel={() => setConfirmAction(null)}
-        onConfirm={() => {
-          actions.approve.mutate(featureRequest.id);
-          setConfirmAction(null);
-        }}
-      />
-
-      <ConfirmDialog
-        open={confirmAction === "reject"}
-        title="Reject feature request"
-        description="Mark this feature request as rejected?"
-        confirmLabel="Reject"
-        onCancel={() => setConfirmAction(null)}
-        onConfirm={() => {
-          actions.reject.mutate(featureRequest.id);
-          setConfirmAction(null);
-        }}
-      />
 
       <MergeDialog
         open={openMerge}

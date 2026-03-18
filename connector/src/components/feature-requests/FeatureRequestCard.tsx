@@ -59,11 +59,18 @@ function urgencyColor(score: number): string {
 interface FeatureRequestCardProps {
   featureRequest: FeatureRequest;
   onDelete: (id: string) => void;
+  prStatus?: string;
 }
 
-export default function FeatureRequestCard({ featureRequest, onDelete }: FeatureRequestCardProps) {
+export default function FeatureRequestCard({ featureRequest, onDelete, prStatus }: FeatureRequestCardProps) {
   const navigate = useNavigate();
   const metrics = featureRequest.impact_metrics;
+  const prStateClasses: Record<string, string> = {
+    open: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    closed: "border-rose-200 bg-rose-50 text-rose-700",
+    merged: "border-purple-200 bg-purple-50 text-purple-700",
+  };
+  const prStateClass = prStatus ? prStateClasses[prStatus] : "";
 
   return (
     <article
@@ -89,6 +96,11 @@ export default function FeatureRequestCard({ featureRequest, onDelete }: Feature
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[featureRequest.status] ?? "bg-zinc-400"}`} />
             {featureRequest.status.replace("_", " ")}
           </span>
+          {prStatus && (
+            <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${prStateClass}`}>
+              {prStatus.charAt(0).toUpperCase() + prStatus.slice(1)}
+            </span>
+          )}
           <button
             className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-0.5 text-[11px] font-medium text-red-500 opacity-0 transition-all hover:border-red-200 hover:bg-red-50 focus:opacity-100 group-hover:opacity-100"
             onClick={(e) => {

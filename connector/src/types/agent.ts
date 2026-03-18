@@ -42,6 +42,8 @@ export interface OrchestrationResult {
   proposed_files: { file_path: string; reason: string; content?: string; additions?: number; deletions?: number }[];
   commit_sha?: string | null;
   pull_request_url?: string | null;
+  pull_request_state?: "open" | "closed" | "merged" | "unknown" | null;
+  pull_request_merged?: boolean | null;
 }
 
 export type CodeIndexStatusType = "not_started" | "pending" | "indexing" | "ready" | "failed";

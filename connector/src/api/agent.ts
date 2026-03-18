@@ -137,6 +137,12 @@ export function listJobs(featureRequestId: string) {
     .json<ApiResponse<AgentJob[]>>();
 }
 
+export function getPrStatus(featureRequestId: string) {
+  return agentApi
+    .get(`feature-requests/${featureRequestId}/pr-status`)
+    .json<ApiResponse<{ exists: boolean; url: string | null; state: string }>>();
+}
+
 export function triggerIndex(connectorId: string) {
   return agentApi
     .post(`connectors/${connectorId}/index`)

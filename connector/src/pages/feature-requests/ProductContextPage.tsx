@@ -504,10 +504,21 @@ export default function ProductContextPage() {
   const jobs = jobsQuery.data?.data ?? [];
   const hasActiveJob = jobs.some((j) => j.status === "pending" || j.status === "running");
   const latestCompletedJob = jobs.find((j) => j.status === "completed" && j.result);
-  const latestPrUrl = jobs.find((job) => job.result?.pull_request_url)?.result?.pull_request_url ?? null;
+  const latestPrJob = jobs.find((job) => job.result?.pull_request_url);
+  const latestPrUrl = latestPrJob?.result?.pull_request_url ?? null;
+  const prState = latestPrJob?.result?.pull_request_state ?? "unknown";
+  const prStateClasses: Record<string, string> = {
+    open: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    closed: "border-rose-200 bg-rose-50 text-rose-700",
+    merged: "border-purple-200 bg-purple-50 text-purple-700",
+  };
+  const prStateClass = prStateClasses[prState] ?? "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]";
 
-  const hasChangedSinceLastJob = !latestCompletedJob
-    || new Date(fr.updated_at) > new Date(latestCompletedJob.created_at);
+  const latestSignalMention = fr.impact_metrics?.latest_mention ?? null;
+  const hasNewSignalsSinceLastRun = !latestCompletedJob
+    || (latestSignalMention
+      ? new Date(latestSignalMention) > new Date(latestCompletedJob.created_at)
+      : false);
 
   const toggleExpand = (itemId: string) => {
     setExpandedIds((prev) => {
@@ -560,8 +571,8 @@ export default function ProductContextPage() {
             className="flex items-center gap-1.5 rounded-md bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-40"
             disabled={hasActiveJob || triggerMutation.isPending}
             onClick={() => {
-              if (!hasChangedSinceLastJob) {
-                pushToast("Nothing has changed since the last PR was generated.", "info");
+              if (!hasNewSignalsSinceLastRun) {
+                pushToast("No new signals since the last PR run. Add or update signals to generate a new PR.", "info");
                 return;
               }
               triggerMutation.mutate(undefined, {
@@ -577,22 +588,9 @@ export default function ProductContextPage() {
           <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
           {latestPrUrl && (
-            <div className="flex items-center gap-1.5">
-              <button
-                className="rounded-md px-3 py-1.5 text-[12px] font-medium text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-40"
-                disabled={actions.approve.isPending}
-                onClick={() => actions.approve.mutate(fr.id)}
-              >
-                Approve
-              </button>
-              <button
-                className="rounded-md px-3 py-1.5 text-[12px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40"
-                disabled={actions.reject.isPending}
-                onClick={() => actions.reject.mutate(fr.id)}
-              >
-                Reject
-              </button>
-            </div>
+            <span className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${prStateClass}`}>
+              {prState.charAt(0).toUpperCase() + prState.slice(1)}
+            </span>
           )}
         </div>
       </header>

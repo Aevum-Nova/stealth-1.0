@@ -22,6 +22,34 @@ from src.synthesis.prioritizer import (
 )
 
 
+def _clean_one_liner(text: str) -> str:
+    cleaned = " ".join(text.split()).strip()
+    if not cleaned:
+        return ""
+    for sep in (". ", ".\n", ".\t"):
+        if sep in cleaned:
+            cleaned = cleaned.split(sep, 1)[0].strip()
+            break
+    return cleaned
+
+
+def _truncate_title(text: str, max_len: int = 90) -> str:
+    if len(text) <= max_len:
+        return text
+    trimmed = text[: max_len - 3].rstrip()
+    return f"{trimmed}..."
+
+
+def _title_from_signal(signal: Signal) -> str:
+    candidate = (
+        (signal.structured_summary or "").strip()
+        or (signal.extracted_text or "").strip()
+        or (signal.original_text or "").strip()
+    )
+    one_liner = _clean_one_liner(candidate)
+    return _truncate_title(one_liner) if one_liner else ""
+
+
 class SynthesisEngine:
     @staticmethod
     def _coerce_embedding(value: object) -> list[float] | None:
@@ -234,6 +262,7 @@ class SynthesisEngine:
         if mode == "full":
             await self._delete_existing_draft_feature_requests(db, organization_id)
 
+        signals_by_id = {str(signal.id): signal for signal in signals}
         created_ids: list[str] = []
         async with db.begin_nested():
             for draft in drafts:
@@ -242,9 +271,20 @@ class SynthesisEngine:
                 priority = priority_from_score(score)
                 images = resolve_images(draft.supporting_signal_ids, signals)
 
+                title = ""
+                for sig_id in draft.supporting_signal_ids:
+                    sig = signals_by_id.get(sig_id)
+                    if not sig:
+                        continue
+                    title = _title_from_signal(sig)
+                    if title:
+                        break
+                if not title:
+                    title = draft.title
+
                 evidence = []
                 for sig_id in draft.supporting_signal_ids:
-                    sig = next((s for s in signals if str(s.id) == sig_id), None)
+                    sig = signals_by_id.get(sig_id)
                     if not sig:
                         continue
                     evidence.append(
@@ -265,7 +305,7 @@ class SynthesisEngine:
 
                 fr = FeatureRequest(
                     organization_id=UUID(organization_id),
-                    title=draft.title,
+                    title=title,
                     type=draft.type,
                     status="draft",
                     priority=priority,

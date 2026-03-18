@@ -30,14 +30,6 @@ export function deleteFeatureRequest(id: string) {
   return api.delete(`feature-requests/${id}`).json<ApiResponse<{ deleted: boolean }>>();
 }
 
-export function approveFeatureRequest(id: string) {
-  return api.post(`feature-requests/${id}/approve`).json<ApiResponse<{ id: string; status: string }>>();
-}
-
-export function rejectFeatureRequest(id: string) {
-  return api.post(`feature-requests/${id}/reject`).json<ApiResponse<{ id: string; status: string }>>();
-}
-
 export function mergeFeatureRequest(id: string, targetId: string) {
   return api
     .post(`feature-requests/${id}/merge`, { json: { target_id: targetId } })

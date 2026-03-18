@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+import uuid
 
 from stealth_agent.adapters.llm import create_llm_provider
 from stealth_agent.config import settings
@@ -16,6 +18,7 @@ from stealth_agent.schemas import (
     JobOut,
     TriggerRequest,
 )
+from stealth_agent.models import AgentJob
 from stealth_agent.services import apply_changes as apply_changes_service
 from stealth_agent.services import jobs as jobs_service
 
@@ -143,4 +146,35 @@ async def list_jobs(
             )
             for j in jobs
         ]
+    )
+
+
+@router.get("/feature-requests/{feature_request_id}/pr-status", response_model=ApiResponse)
+async def get_pr_status(
+    feature_request_id: str,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(AgentJob)
+        .where(
+            AgentJob.feature_request_id == uuid.UUID(feature_request_id),
+            AgentJob.organization_id == uuid.UUID(org_id),
+        )
+        .order_by(AgentJob.created_at.desc())
+    )
+    jobs = list(result.scalars().all())
+    pr_url = None
+    pr_state = None
+    for job in jobs:
+        if job.result and job.result.get("pull_request_url"):
+            pr_url = job.result.get("pull_request_url")
+            pr_state = job.result.get("pull_request_state")
+            break
+    return ApiResponse(
+        data={
+            "exists": bool(pr_url),
+            "url": pr_url,
+            "state": pr_state or "unknown",
+        }
     )

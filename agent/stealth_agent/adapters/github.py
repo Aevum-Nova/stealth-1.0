@@ -170,3 +170,77 @@ class GitHubPullRequestProvider:
         )
         resp.raise_for_status()
         return resp.json()["html_url"]
+
+
+def _webhook_config(url: str, secret: str | None) -> dict[str, str]:
+    config = {"url": url, "content_type": "json"}
+    if secret:
+        config["secret"] = secret
+    return config
+
+
+async def ensure_github_webhook(
+    *,
+    token: str,
+    owner: str,
+    repo: str,
+    webhook_url: str,
+    secret: str | None = None,
+) -> bool:
+    if not webhook_url:
+        return False
+
+    async with httpx.AsyncClient(
+        base_url=f"{GITHUB_API_BASE}/repos/{owner}/{repo}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        timeout=30.0,
+    ) as client:
+        list_resp = await client.get("/hooks")
+        list_resp.raise_for_status()
+        hooks = list_resp.json() or []
+
+        target_hook = None
+        for hook in hooks:
+            config = hook.get("config") or {}
+            if config.get("url") == webhook_url:
+                target_hook = hook
+                break
+
+        desired_events = ["pull_request"]
+        desired_config = _webhook_config(webhook_url, secret)
+
+        if target_hook:
+            hook_id = target_hook.get("id")
+            needs_update = (
+                target_hook.get("active") is False
+                or any(event not in (target_hook.get("events") or []) for event in desired_events)
+                or (target_hook.get("config") or {}).get("content_type") != "json"
+                or (secret and (target_hook.get("config") or {}).get("secret") != secret)
+            )
+            if needs_update and hook_id:
+                update_resp = await client.patch(
+                    f"/hooks/{hook_id}",
+                    json={
+                        "active": True,
+                        "events": desired_events,
+                        "config": desired_config,
+                    },
+                )
+                update_resp.raise_for_status()
+            return True
+
+        create_resp = await client.post(
+            "/hooks",
+            json={
+                "name": "web",
+                "active": True,
+                "events": desired_events,
+                "config": desired_config,
+            },
+        )
+        create_resp.raise_for_status()
+        return True

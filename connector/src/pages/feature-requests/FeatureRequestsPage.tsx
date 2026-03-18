@@ -75,8 +75,6 @@ export default function FeatureRequestsPage() {
           <option value="">All status</option>
           <option value="draft">Draft</option>
           <option value="reviewed">Reviewed</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
           <option value="merged">Merged</option>
         </select>
 

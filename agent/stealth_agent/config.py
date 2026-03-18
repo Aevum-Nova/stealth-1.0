@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     INDEX_WAIT_TIMEOUT_SECONDS: float = 30.0
 
+    WEBHOOK_BASE_URL: str = ""
+    GITHUB_WEBHOOK_SECRET: str = ""
+
     EMBEDDING_PROVIDER: str = "voyage"  # "voyage" or "openai"
     EMBEDDING_DIMENSION: int = 1536
     VOYAGE_API_KEY: str = ""

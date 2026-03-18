@@ -74,18 +74,6 @@ export function useFeatureRequestActions() {
   const queryClient = useQueryClient();
 
   return {
-    approve: useMutation({
-      mutationFn: (id: string) => featureRequestsApi.approveFeatureRequest(id),
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
-      }
-    }),
-    reject: useMutation({
-      mutationFn: (id: string) => featureRequestsApi.rejectFeatureRequest(id),
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
-      }
-    }),
     merge: useMutation({
       mutationFn: ({ id, targetId }: { id: string; targetId: string }) =>
         featureRequestsApi.mergeFeatureRequest(id, targetId),

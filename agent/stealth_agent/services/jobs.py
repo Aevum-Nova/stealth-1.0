@@ -10,7 +10,11 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from stealth_agent.adapters.github import GitHubGitProvider, GitHubPullRequestProvider
+from stealth_agent.adapters.github import (
+    GitHubGitProvider,
+    GitHubPullRequestProvider,
+    ensure_github_webhook,
+)
 from stealth_agent.adapters.llm import LLMProvider
 from stealth_agent.adapters.llm_adapters import (
     LLMCodeGenerator,
@@ -339,6 +343,27 @@ async def _run_orchestration(
             pr_url = None
             if isinstance(git_provider, GitHubGitProvider):
                 github_started_at = time.perf_counter()
+                webhook_url = ""
+                if settings.WEBHOOK_BASE_URL:
+                    webhook_url = (
+                        settings.WEBHOOK_BASE_URL.rstrip("/")
+                        + "/api/v1/webhooks/github"
+                    )
+                if webhook_url:
+                    try:
+                        await ensure_github_webhook(
+                            token=git_provider.token,
+                            owner=git_provider.owner,
+                            repo=git_provider.repo,
+                            webhook_url=webhook_url,
+                            secret=settings.GITHUB_WEBHOOK_SECRET or None,
+                        )
+                    except Exception as exc:
+                        log.warning(
+                            "github_webhook_setup_failed",
+                            repo=f"{git_provider.owner}/{git_provider.repo}",
+                            error=str(exc),
+                        )
                 await git_provider.create_branch(
                     domain_fr.repository.default_branch, branch_name
                 )
@@ -385,6 +410,8 @@ async def _run_orchestration(
                 "dry_run": False,
                 "commit_sha": commit_sha,
                 "pull_request_url": pr_url,
+                "pull_request_state": "open" if pr_url else None,
+                "pull_request_merged": False if pr_url else None,
                 "branch_name": branch_name if pr_url else None,
             }
 

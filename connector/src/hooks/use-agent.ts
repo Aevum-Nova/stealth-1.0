@@ -50,6 +50,15 @@ export function useAgentJobs(featureRequestId?: string) {
   });
 }
 
+export function usePrStatus(featureRequestId?: string) {
+  return useQuery({
+    queryKey: ["pr-status", featureRequestId],
+    queryFn: () => agentApi.getPrStatus(featureRequestId as string),
+    enabled: Boolean(featureRequestId),
+    staleTime: 30_000,
+  });
+}
+
 export function useAgentJob(jobId?: string) {
   return useQuery({
     queryKey: ["agent-job", jobId],
