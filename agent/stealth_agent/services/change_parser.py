@@ -10,6 +10,7 @@ def extract_proposed_changes(text: str) -> list[dict] | None:
     """Extract proposed code changes from an assistant message.
 
     Looks for a JSON array of objects with file_path, content, reason keys.
+    Falls back to "# Proposed Changes for path" + code block pattern.
     Returns None if no changes are found.
     """
     # Look for ```json ... ``` blocks containing an array
@@ -25,6 +26,20 @@ def extract_proposed_changes(text: str) -> list[dict] | None:
         parsed = _try_parse_changes(array_match.group())
         if parsed is not None:
             return parsed
+
+    # Fallback: "# Proposed Changes for path" + ```lang code block
+    md_match = re.search(
+        r"#+\s*Proposed Changes? (?:for\s+)?([^\n]+)\s*\n+```\w*\n([\s\S]*?)```",
+        text,
+        re.IGNORECASE,
+    )
+    if md_match:
+        file_path = md_match.group(1).strip()
+        content = md_match.group(2).strip()
+        if file_path and content:
+            return [
+                {"file_path": file_path, "content": content, "reason": ""},
+            ]
 
     return None
 

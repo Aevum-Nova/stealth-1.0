@@ -309,11 +309,12 @@ async def chat(
         "Help the user understand the code, reason about implementation, and suggest precise changes.\n\n"
         "IMPORTANT FORMATTING RULES:\n"
         "1. First, write your explanation and reasoning in plain text.\n"
-        "2. If you are proposing code changes, put them at the VERY END of your response as a JSON array inside a ```json block.\n"
-        "3. Do NOT repeat or describe the JSON content in the prose — the UI will render the changes as interactive file cards automatically.\n"
-        "4. Keep explanations concise and focused.\n\n"
-        "JSON format for code changes:\n"
-        '```json\n[{"file_path": "path/to/file.py", "content": "full file content...", "reason": "short reason"}]\n```'
+        "2. Use the proposed_changes JSON format ONLY when you are proposing NEW changes for the user to apply to the PR (e.g. implementing a feature, fixing a bug). Do NOT use it when the user asks to SHOW, DISPLAY, or SUMMARIZE existing PR content — for that, use plain markdown and code blocks only.\n"
+        "3. When proposing NEW changes: ALL proposed file changes MUST go at the VERY END as a JSON array inside a ```json block. Do NOT use headings like '# Proposed Changes for X' with inline code blocks.\n"
+        "4. The prose explains your approach; the JSON contains the actual files. The UI renders each as a collapsible Apply-to-PR card.\n"
+        "5. Keep explanations concise and focused.\n\n"
+        "JSON format (one object per file, for NEW proposals only):\n"
+        '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
     )
 
     system = "\n\n".join(system_parts)
@@ -341,11 +342,17 @@ async def chat(
     # Parse any proposed changes from the response
     proposed_changes = extract_proposed_changes(response_text)
 
-    # Strip the raw JSON block from the display content when changes were extracted
+    # Strip JSON block and "# Proposed Changes for X" + code block from display when extracted
     display_content = response_text
     if proposed_changes:
         import re
         display_content = re.sub(r"```json\s*\n\[[\s\S]*?\]\s*\n```", "", display_content).strip()
+        display_content = re.sub(
+            r"#+\s*Proposed Changes? (?:for\s+)?[^\n]+\s*\n+```\w*\n[\s\S]*?```",
+            "",
+            display_content,
+            flags=re.IGNORECASE,
+        ).strip()
         display_content = re.sub(r"\n*\d+ proposed changes?\s*$", "", display_content, flags=re.IGNORECASE).strip()
 
     # Save assistant response
@@ -452,11 +459,12 @@ async def chat_stream(
         "Help the user understand the code, reason about implementation, and suggest precise changes.\n\n"
         "IMPORTANT FORMATTING RULES:\n"
         "1. First, write your explanation and reasoning in plain text.\n"
-        "2. If you are proposing code changes, put them at the VERY END of your response as a JSON array inside a ```json block.\n"
-        "3. Do NOT repeat or describe the JSON content in the prose — the UI will render the changes as interactive file cards automatically.\n"
-        "4. Keep explanations concise and focused.\n\n"
-        "JSON format for code changes:\n"
-        '```json\n[{"file_path": "path/to/file.py", "content": "full file content...", "reason": "short reason"}]\n```'
+        "2. Use the proposed_changes JSON format ONLY when you are proposing NEW changes for the user to apply to the PR (e.g. implementing a feature, fixing a bug). Do NOT use it when the user asks to SHOW, DISPLAY, or SUMMARIZE existing PR content — for that, use plain markdown and code blocks only.\n"
+        "3. When proposing NEW changes: ALL proposed file changes MUST go at the VERY END as a JSON array inside a ```json block. Do NOT use headings like '# Proposed Changes for X' with inline code blocks.\n"
+        "4. The prose explains your approach; the JSON contains the actual files. The UI renders each as a collapsible Apply-to-PR card.\n"
+        "5. Keep explanations concise and focused.\n\n"
+        "JSON format (one object per file, for NEW proposals only):\n"
+        '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
     )
 
     system = "\n\n".join(system_parts)
@@ -487,6 +495,12 @@ async def chat_stream(
     if proposed_changes:
         import re
         display_content = re.sub(r"```json\s*\n\[[\s\S]*?\]\s*\n```", "", display_content).strip()
+        display_content = re.sub(
+            r"#+\s*Proposed Changes? (?:for\s+)?[^\n]+\s*\n+```\w*\n[\s\S]*?```",
+            "",
+            display_content,
+            flags=re.IGNORECASE,
+        ).strip()
         display_content = re.sub(r"\n*\d+ proposed changes?\s*$", "", display_content, flags=re.IGNORECASE).strip()
 
     assistant_msg = AgentMessage(
