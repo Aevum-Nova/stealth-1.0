@@ -349,6 +349,8 @@ async def sync_connector(
     org_id: str = Depends(get_current_org),
     db: AsyncSession = Depends(get_db),
 ):
+    from src.services.signal_builder import signal_builder
+
     result = await db.execute(
         select(Connector).where(Connector.id == connector_id, Connector.organization_id == UUID(org_id))
     )
@@ -362,17 +364,65 @@ async def sync_connector(
         {"connector_id": str(connector.id), "connector_type": connector.type},
     )
 
-    connector.last_sync_at = datetime.now(timezone.utc)
-    connector.last_sync_error = None
+    impl = _build_connector(connector)
+    new_signals = 0
+    failed = 0
+    fetched = 0
+    last_error: str | None = None
+
+    if impl:
+        try:
+            items = await impl.fetch_new_data(since=connector.last_sync_at)
+            fetched = len(items)
+            for item in items:
+                try:
+                    raw_bytes = item.content if isinstance(item.content, bytes) else item.content.encode("utf-8")
+                    signal = await signal_builder.create_pending_signal(
+                        db,
+                        organization_id=org_id,
+                        source=connector.type,
+                        source_data_type=item.data_type,
+                        raw_bytes=raw_bytes,
+                        mime_type=item.mime_type,
+                        filename=f"{item.external_id}.txt",
+                        metadata=item.metadata,
+                    )
+                    await signal_builder.process_signal(db, str(signal.id), raw_bytes)
+                    new_signals += 1
+                    # Acknowledge in Slack
+                    if hasattr(impl, "acknowledge_message") and item.metadata:
+                        try:
+                            await impl.acknowledge_message(
+                                item.metadata.get("channel_id", ""),
+                                item.metadata.get("ts", ""),
+                            )
+                        except Exception:
+                            pass  # non-critical
+                except Exception as exc:
+                    failed += 1
+                    last_error = str(exc)
+        except Exception as exc:
+            last_error = str(exc)
+
+    if not last_error:
+        connector.last_sync_at = datetime.now(timezone.utc)
+    connector.last_sync_error = last_error
     await db.commit()
 
     await get_event_bus().publish(
         org_id,
         "connector_sync_completed",
-        {"connector_id": str(connector.id), "new_signals": 0, "failed": 0},
+        {"connector_id": str(connector.id), "new_signals": new_signals, "failed": failed},
     )
 
-    return ApiResponse(data={"connector_id": str(connector.id), "status": "completed", "new_signals": 0})
+    return ApiResponse(data={
+        "connector_id": str(connector.id),
+        "status": "completed",
+        "fetched": fetched,
+        "new_signals": new_signals,
+        "failed": failed,
+        "error": last_error,
+    })
 
 
 @router.get("/{connector_id}/auth-url", response_model=ApiResponse[dict])

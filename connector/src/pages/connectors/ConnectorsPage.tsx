@@ -6,6 +6,7 @@ import ConnectorCatalog from "@/components/connectors/ConnectorCatalog";
 import ConnectorLogo from "@/components/connectors/ConnectorLogo";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/components/shared/Toast";
 import { useConnectorCatalog, useConnectorMutations, useConnectors } from "@/hooks/use-connectors";
 import { startOAuthFlow } from "@/lib/oauth";
 
@@ -15,6 +16,7 @@ export default function ConnectorsPage() {
   const navigate = useNavigate();
   const connectorsQuery = useConnectors();
   const catalogQuery = useConnectorCatalog();
+  const { pushToast } = useToast();
   const { syncConnector } = useConnectorMutations();
   const [connectingType, setConnectingType] = useState<string | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
@@ -72,7 +74,20 @@ export default function ConnectorsPage() {
                 key={connector.id}
                 connector={connector}
                 icon={catalogIconsByType.get(connector.type) ?? connector.type}
-                onSync={(id) => syncConnector.mutate(id)}
+                syncing={syncConnector.isPending && syncConnector.variables === connector.id}
+                onSync={(id) => syncConnector.mutate(id, {
+                  onSuccess: (data) => {
+                    const d = data.data as Record<string, unknown>;
+                    if (d.error) {
+                      pushToast(`Sync error: ${d.error}`, "error");
+                    } else if ((d.new_signals as number) > 0) {
+                      pushToast(`Sync complete — ${d.new_signals} new signals`, "success");
+                    } else {
+                      pushToast("Sync complete — no new data found", "success");
+                    }
+                  },
+                  onError: () => pushToast("Sync failed", "error"),
+                })}
                 onOpen={(id) => navigate(`/connectors/${id}`)}
               />
             ))}
@@ -89,7 +104,19 @@ export default function ConnectorsPage() {
               key={connector.id}
               connector={connector}
               icon={catalogIconsByType.get(connector.type) ?? connector.type}
-              onSync={(id) => syncConnector.mutate(id)}
+              onSync={(id) => syncConnector.mutate(id, {
+                  onSuccess: (data) => {
+                    const d = data.data as Record<string, unknown>;
+                    if (d.error) {
+                      pushToast(`Sync error: ${d.error}`, "error");
+                    } else if ((d.new_signals as number) > 0) {
+                      pushToast(`Sync complete — ${d.new_signals} new signals`, "success");
+                    } else {
+                      pushToast("Sync complete — no new data found", "success");
+                    }
+                  },
+                  onError: () => pushToast("Sync failed", "error"),
+                })}
               onOpen={(id) => navigate(`/connectors/${id}`)}
               hideSync
             />

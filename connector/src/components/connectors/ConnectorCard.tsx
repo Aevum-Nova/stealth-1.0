@@ -7,12 +7,13 @@ import ConnectorLogo from "@/components/connectors/ConnectorLogo";
 interface ConnectorCardProps {
   connector: Connector;
   icon: string;
+  syncing?: boolean;
   onSync: (id: string) => void;
   onOpen: (id: string) => void;
   hideSync?: boolean;
 }
 
-export default function ConnectorCard({ connector, icon, onSync, onOpen, hideSync }: ConnectorCardProps) {
+export default function ConnectorCard({ connector, icon, syncing, onSync, onOpen, hideSync }: ConnectorCardProps) {
   const hasCredentials = connector.credentials && Object.keys(connector.credentials).length > 0;
   const isConnected = connector.enabled && hasCredentials;
 
@@ -52,24 +53,21 @@ export default function ConnectorCard({ connector, icon, onSync, onOpen, hideSyn
       <div className="mt-3.5 flex flex-wrap gap-1.5">
         {!hideSync ? (
           <button
-            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
+            disabled={syncing}
             onClick={() => onSync(connector.id)}
           >
-            <span className="inline-flex items-center gap-1.5">
-              <RefreshCw className="size-3.5" />
-              Sync Now
-            </span>
+            <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync Now"}
           </button>
         ) : null}
         <button
-          className="rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)]"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)]"
           onClick={() => onOpen(connector.id)}
         >
-          <span className="inline-flex items-center gap-1.5">
-            <Settings2 className="size-3.5" />
-            Configure
-            <ArrowRight className="size-3.5" />
-          </span>
+          <Settings2 className="size-3.5" />
+          Configure
+          <ArrowRight className="size-3.5" />
         </button>
       </div>
     </article>

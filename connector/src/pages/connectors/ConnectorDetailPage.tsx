@@ -229,7 +229,16 @@ export default function ConnectorDetailPage() {
             disabled={syncConnector.isPending}
             onClick={() =>
               syncConnector.mutate(connector.id, {
-                onSuccess: (data) => pushToast(`Sync complete — ${data.data.new_signals} new signals`, "success"),
+                onSuccess: (data) => {
+                  const d = data.data as Record<string, unknown>;
+                  if (d.error) {
+                    pushToast(`Sync error: ${d.error}`, "error");
+                  } else if ((d.new_signals as number) > 0) {
+                    pushToast(`Sync complete — ${d.new_signals} new signals`, "success");
+                  } else {
+                    pushToast("Sync complete — no new data found", "success");
+                  }
+                },
                 onError: () => pushToast("Sync failed", "error")
               })
             }

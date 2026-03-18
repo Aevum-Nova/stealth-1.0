@@ -20,6 +20,7 @@ export default function SlackChannelPicker({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set(initialChannelIds ?? []));
   const [joining, setJoining] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const channelsQuery = useSlackChannels(connectorId);
@@ -34,6 +35,7 @@ export default function SlackChannelPicker({
   }, [channels, search]);
 
   const toggle = (id: string) => {
+    setSaved(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -54,6 +56,7 @@ export default function SlackChannelPicker({
     try {
       await joinSlackChannels(connectorId, ids);
       onSave(ids);
+      setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join channels");
     } finally {
@@ -174,7 +177,7 @@ export default function SlackChannelPicker({
           disabled={selected.size === 0 || saving || joining}
           onClick={() => void handleSave()}
         >
-          {joining || saving ? "Saving..." : "Save & Join Channels"}
+          {joining || saving ? "Saving..." : saved ? "Channels Saved" : "Save & Join Channels"}
         </button>
         {selected.size > 0 ? (
           <button
