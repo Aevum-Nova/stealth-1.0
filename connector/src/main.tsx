@@ -10,8 +10,12 @@ import "@/styles/index.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      staleTime: 15_000
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      staleTime: 30_000,
+      // Disable refetch on window focus to avoid race conditions when switching
+      // tabs then quickly navigating—can cause stuck loading states
+      refetchOnWindowFocus: false
     }
   }
 });

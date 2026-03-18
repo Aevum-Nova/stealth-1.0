@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import AppShell from "@/components/layout/AppShell";
@@ -6,21 +6,22 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { ToastProvider } from "@/components/shared/Toast";
 import { useAuth } from "@/hooks/use-auth";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
-const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
-const ConnectorsPage = lazy(() => import("@/pages/connectors/ConnectorsPage"));
-const ConnectorDetailPage = lazy(() => import("@/pages/connectors/ConnectorDetailPage"));
-const ConnectorSetupPage = lazy(() => import("@/pages/connectors/ConnectorSetupPage"));
-const OAuthCallbackPage = lazy(() => import("@/pages/connectors/OAuthCallbackPage"));
-const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
-const FeatureRequestsPage = lazy(() => import("@/pages/feature-requests/FeatureRequestsPage"));
-const ProductContextPage = lazy(() => import("@/pages/feature-requests/ProductContextPage"));
-const IngestPage = lazy(() => import("@/pages/ingest/IngestPage"));
-const SignalDetailPage = lazy(() => import("@/pages/signals/SignalDetailPage"));
-const SignalsPage = lazy(() => import("@/pages/signals/SignalsPage"));
-const TriggersPage = lazy(() => import("@/pages/triggers/TriggersPage"));
-const WorkflowCreatePage = lazy(() => import("@/pages/workflows/CreatePage"));
+const LoginPage = lazyWithRetry(() => import("@/pages/auth/LoginPage"));
+const RegisterPage = lazyWithRetry(() => import("@/pages/auth/RegisterPage"));
+const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorsPage"));
+const ConnectorDetailPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorDetailPage"));
+const ConnectorSetupPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorSetupPage"));
+const OAuthCallbackPage = lazyWithRetry(() => import("@/pages/connectors/OAuthCallbackPage"));
+const DashboardPage = lazyWithRetry(() => import("@/pages/dashboard/DashboardPage"));
+const FeatureRequestsPage = lazyWithRetry(() => import("@/pages/feature-requests/FeatureRequestsPage"));
+const ProductContextPage = lazyWithRetry(() => import("@/pages/feature-requests/ProductContextPage"));
+const IngestPage = lazyWithRetry(() => import("@/pages/ingest/IngestPage"));
+const SignalDetailPage = lazyWithRetry(() => import("@/pages/signals/SignalDetailPage"));
+const SignalsPage = lazyWithRetry(() => import("@/pages/signals/SignalsPage"));
+const TriggersPage = lazyWithRetry(() => import("@/pages/triggers/TriggersPage"));
+const WorkflowCreatePage = lazyWithRetry(() => import("@/pages/workflows/CreatePage"));
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<LoadingSpinner label="Loading page" />}>{element}</Suspense>;
