@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown } from "lucide-react";
 
+import { ChatComposer } from "@/components/agent/ChatComposer";
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useApplyChangesToPr, useChatHistory } from "@/hooks/use-agent";
 import { streamChatMessage } from "@/api/agent";
 import { useQueryClient } from "@tanstack/react-query";
 import { extractProposedChangesFromText } from "@/lib/extract-proposed-changes";
+import type { ProposedChange } from "@/types/agent";
 
 const CHARS_PER_FRAME = 6;
 
@@ -17,7 +19,6 @@ export default function ChatPanel({
   featureRequestId: string;
   latestPrUrl?: string | null;
 }) {
-  const [input, setInput] = useState("");
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [displayedContent, setDisplayedContent] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -39,31 +40,54 @@ export default function ChatPanel({
 
   const serverMessages = chatQuery.data?.data?.messages ?? [];
 
-  const messages = [
-    ...serverMessages,
-    ...(pendingMessage
-      ? [
-          {
-            id: "pending-user",
-            role: "user" as const,
-            content: pendingMessage,
-            created_at: new Date().toISOString(),
-            proposed_changes: null,
-          },
-        ]
-      : []),
-    ...(displayedContent !== null
-      ? [
-          {
-            id: "streaming-assistant",
-            role: "assistant" as const,
-            content: displayedContent,
-            created_at: new Date().toISOString(),
-            proposed_changes: extractProposedChangesFromText(displayedContent) ?? undefined,
-          },
-        ]
-      : []),
-  ];
+  const streamingProposedChanges = useMemo(
+    () =>
+      displayedContent !== null
+        ? extractProposedChangesFromText(displayedContent) ?? undefined
+        : undefined,
+    [displayedContent],
+  );
+
+  const messages = useMemo(
+    () => [
+      ...serverMessages,
+      ...(pendingMessage
+        ? [
+            {
+              id: "pending-user",
+              role: "user" as const,
+              content: pendingMessage,
+              created_at: new Date().toISOString(),
+              proposed_changes: null,
+            },
+          ]
+        : []),
+      ...(displayedContent !== null
+        ? [
+            {
+              id: "streaming-assistant",
+              role: "assistant" as const,
+              content: displayedContent,
+              created_at: new Date().toISOString(),
+              proposed_changes: streamingProposedChanges,
+            },
+          ]
+        : []),
+    ],
+    [
+      serverMessages,
+      pendingMessage,
+      displayedContent,
+      streamingProposedChanges,
+    ],
+  );
+
+  const handleApplyToPr = useCallback(
+    (changes: ProposedChange[]) => {
+      applyMutation.mutate(changes);
+    },
+    [applyMutation],
+  );
 
   const tick = useCallback(() => {
     const full = fullTextRef.current;
@@ -188,41 +212,57 @@ export default function ChatPanel({
     }
   };
 
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
-    setInput("");
-    setStreamError(null);
-    userScrolledUpRef.current = false;
-    setPendingMessage(trimmed);
-    setDisplayedContent("");
-    fullTextRef.current = "";
-    displayedLenRef.current = 0;
+  const handleSendMessage = useCallback(
+    (trimmed: string) => {
+      if (!trimmed || isStreaming) return;
+      setStreamError(null);
+      userScrolledUpRef.current = false;
+      setPendingMessage(trimmed);
+      setDisplayedContent("");
+      fullTextRef.current = "";
+      displayedLenRef.current = 0;
+      doneRef.current = false;
+      tickingRef.current = false;
+      setIsStreaming(true);
+
+      const abort = streamChatMessage(
+        featureRequestId,
+        trimmed,
+        (token) => {
+          fullTextRef.current += token;
+          startTicking();
+        },
+        () => {
+          doneRef.current = true;
+          startTicking();
+        },
+        (error) => {
+          setIsStreaming(false);
+          setPendingMessage(null);
+          setDisplayedContent(null);
+          setStreamError(error);
+        },
+      );
+
+      abortRef.current = abort;
+    },
+    [featureRequestId, isStreaming, startTicking],
+  );
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.();
+    abortRef.current = null;
     doneRef.current = false;
     tickingRef.current = false;
-    setIsStreaming(true);
-
-    const abort = streamChatMessage(
-      featureRequestId,
-      trimmed,
-      (token) => {
-        fullTextRef.current += token;
-        startTicking();
-      },
-      () => {
-        doneRef.current = true;
-        startTicking();
-      },
-      (error) => {
-        setIsStreaming(false);
-        setPendingMessage(null);
-        setDisplayedContent(null);
-        setStreamError(error);
-      },
-    );
-
-    abortRef.current = abort;
-  };
+    fullTextRef.current = "";
+    displayedLenRef.current = 0;
+    setIsStreaming(false);
+    setPendingMessage(null);
+    setDisplayedContent(null);
+    queryClient.invalidateQueries({
+      queryKey: ["agent-chat", featureRequestId],
+    });
+  }, [featureRequestId, queryClient]);
 
   return (
     <div className="relative flex h-full flex-col bg-white">
@@ -261,7 +301,7 @@ export default function ChatPanel({
                 <ChatMessage
                   message={msg}
                   isStreaming={msg.id === "streaming-assistant" && isStreaming}
-                  onApplyToPr={(changes) => applyMutation.mutate(changes)}
+                  onApplyToPr={handleApplyToPr}
                   canApplyToPr={!!latestPrUrl}
                   isApplyingToPr={applyMutation.isPending}
                 />
@@ -303,38 +343,11 @@ export default function ChatPanel({
         </button>
       )}
 
-      <div className="shrink-0 border-t border-[#eeeeee] bg-white px-6 py-4">
-        <div className="mx-auto max-w-4xl">
-          <div className="chat-input-container flex items-center gap-3 rounded-full bg-[#f5f5f5] px-5 py-3 transition-colors focus-within:bg-[#eeeeee]">
-            <textarea
-              className="min-h-[22px] max-h-[140px] min-w-0 flex-1 resize-none border-none bg-transparent text-[14px] leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]"
-              placeholder="Find leads, enrich data, paste or drop images..."
-              rows={1}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height =
-                  Math.min(e.target.scrollHeight, 140) + "px";
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              disabled={isStreaming}
-            />
-            <button
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--ink)] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-            >
-              <ArrowUp className="size-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <ChatComposer
+        isStreaming={isStreaming}
+        onSend={handleSendMessage}
+        onStop={handleStop}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -360,7 +360,7 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
 
 /* ── Main ChatMessage component ── */
 
-export default function ChatMessage({
+const ChatMessage = memo(function ChatMessage({
   message,
   isStreaming = false,
   onApplyToPr,
@@ -438,4 +438,6 @@ export default function ChatMessage({
       </time>
     </div>
   );
-}
+});
+
+export default ChatMessage;
