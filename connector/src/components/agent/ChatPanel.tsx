@@ -8,7 +8,7 @@ import { streamChatMessage } from "@/api/agent";
 import { useQueryClient } from "@tanstack/react-query";
 import { extractProposedChangesFromText } from "@/lib/extract-proposed-changes";
 
-const CHARS_PER_FRAME = 3;
+const CHARS_PER_FRAME = 6;
 
 export default function ChatPanel({
   featureRequestId,
@@ -71,7 +71,7 @@ export default function ChatPanel({
 
     if (cur < full.length) {
       const ahead = full.length - cur;
-      const speed = ahead > 80 ? 12 : ahead > 40 ? 6 : CHARS_PER_FRAME;
+      const speed = ahead > 200 ? 40 : ahead > 80 ? 20 : ahead > 30 ? 10 : CHARS_PER_FRAME;
       const next = Math.min(cur + speed, full.length);
       displayedLenRef.current = next;
       setDisplayedContent(full.slice(0, next));
@@ -86,14 +86,11 @@ export default function ChatPanel({
       tickingRef.current = false;
       doneRef.current = false;
       setIsStreaming(false);
-      queryClient
-        .invalidateQueries({
-          queryKey: ["agent-chat", featureRequestId],
-        })
-        .then(() => {
-          setPendingMessage(null);
-          setDisplayedContent(null);
-        });
+      setPendingMessage(null);
+      setDisplayedContent(null);
+      queryClient.invalidateQueries({
+        queryKey: ["agent-chat", featureRequestId],
+      });
     } else {
       tickingRef.current = false;
     }
@@ -107,7 +104,13 @@ export default function ChatPanel({
   }, [tick]);
 
   useEffect(() => {
-    if (!isStreaming && messages.length > 0 && scrollRef.current) {
+    if (
+      !isStreaming &&
+      messages.length > 0 &&
+      scrollRef.current &&
+      !userScrolledUpRef.current
+    ) {
+      programmaticScrollRef.current = true;
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [isStreaming, messages.length]);
@@ -125,7 +128,7 @@ export default function ChatPanel({
     };
   }, []);
 
-  const SCROLL_BOTTOM_THRESHOLD = 80;
+  const SCROLL_BOTTOM_THRESHOLD = 60;
 
   const checkScrollPosition = useCallback(() => {
     const el = scrollRef.current;
@@ -133,17 +136,29 @@ export default function ChatPanel({
     const { scrollTop, scrollHeight, clientHeight } = el;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     setShowScrollToBottom(distanceFromBottom > 60);
+
     if (programmaticScrollRef.current) {
       programmaticScrollRef.current = false;
-      userScrolledUpRef.current = false;
       return;
     }
-    userScrolledUpRef.current = distanceFromBottom > SCROLL_BOTTOM_THRESHOLD;
+
+    if (distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD) {
+      userScrolledUpRef.current = false;
+    }
   }, []);
 
-  const handleUserScrollIntent = useCallback(() => {
-    if (isStreaming) userScrolledUpRef.current = true;
-  }, [isStreaming]);
+  const handleUserScrollIntent = useCallback(
+    (e: Event) => {
+      if (!isStreaming) return;
+      const we = e as WheelEvent;
+      if (we.deltaY !== undefined && we.deltaY < 0) {
+        userScrolledUpRef.current = true;
+      } else if (e.type === "touchmove") {
+        userScrolledUpRef.current = true;
+      }
+    },
+    [isStreaming],
+  );
 
   useEffect(() => {
     const el = scrollRef.current;

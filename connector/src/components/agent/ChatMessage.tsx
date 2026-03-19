@@ -14,7 +14,8 @@ import type {
   ProposedChange,
 } from "@/types/agent";
 
-/** Strip "# Proposed Changes for X" + following code block (shows in FileChangeCard instead) */
+/* ── Stripping helpers (for proposed-changes JSON / markdown) ── */
+
 function stripProposedChangesMarkdown(text: string): string {
   return text
     .replace(
@@ -32,11 +33,8 @@ function stripJsonBlocks(text: string): string {
 }
 
 function stripStreamingJsonBlock(text: string): string {
-  // Strip complete JSON array code blocks
   let cleaned = text.replace(/```json\s*\n\[[\s\S]*?\]\s*\n```/g, "");
-  // Strip "# Proposed Changes for X" + code block
   cleaned = stripProposedChangesMarkdown(cleaned);
-  // Strip any unclosed ```json block (proposed changes still being streamed)
   const idx = cleaned.lastIndexOf("```json");
   if (idx !== -1) {
     const afterFence = cleaned.slice(idx + 7);
@@ -44,60 +42,76 @@ function stripStreamingJsonBlock(text: string): string {
       cleaned = cleaned.slice(0, idx);
     }
   }
-  // Strip trailing "X proposed changes" text
   cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "");
   return cleaned.trim();
 }
+
+/* ── Segment parser ── */
+
+type Segment =
+  | { type: "text"; content: string }
+  | { type: "code"; language: string; code: string };
+
+function parseSegments(text: string, isStreaming: boolean): Segment[] {
+  const segments: Segment[] = [];
+  const fenceRe = /```(\w*)\n/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = fenceRe.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: "text", content: text.slice(lastIndex, match.index) });
+    }
+
+    const lang = match[1] || "plaintext";
+    const codeStart = match.index + match[0].length;
+    const closeIndex = text.indexOf("```", codeStart);
+
+    if (closeIndex !== -1) {
+      segments.push({ type: "code", language: lang, code: text.slice(codeStart, closeIndex) });
+      lastIndex = closeIndex + 3;
+      fenceRe.lastIndex = lastIndex;
+    } else if (isStreaming) {
+      segments.push({ type: "code", language: lang, code: text.slice(codeStart) });
+      lastIndex = text.length;
+      break;
+    } else {
+      fenceRe.lastIndex = codeStart;
+      break;
+    }
+  }
+
+  if (lastIndex < text.length) {
+    const trailing = text.slice(lastIndex);
+    if (trailing.trim()) {
+      segments.push({ type: "text", content: trailing });
+    }
+  }
+
+  return segments;
+}
+
+/* ── Prose-only markdown renderer (no code fences) ── */
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderCodeBlock(code: string): string {
-  const rawCode = code
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-  const lines = rawCode.trimEnd().split("\n");
-  const rendered = lines
-    .map((line: string, i: number) => {
-      const highlighted = highlightLine(line);
-      return `<div class="chat-code-line"><span class="chat-line-num">${i + 1}</span><span class="chat-line-content">${highlighted}</span></div>`;
-    })
-    .join("");
-  return `<div class="chat-code-block">${rendered}</div>`;
-}
-
-function renderMarkdown(text: string, isStreaming = false): string {
+function renderMarkdownText(text: string): string {
   let html = escapeHtml(text);
 
-  // Fenced code blocks with syntax highlighting (complete blocks)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) =>
-    renderCodeBlock(code),
-  );
-
-  // During streaming: trailing unclosed code block (```lang\n... without closing)
-  if (isStreaming) {
-    html = html.replace(/```(\w*)\n([\s\S]*)$/, (_m, _lang, code) =>
-      renderCodeBlock(code),
-    );
-  }
-
-  // Inline code
   html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
 
-  // Headers
+  html = html.replace(/^#### (.+)$/gm, '<strong class="chat-h4">$1</strong>');
   html = html.replace(/^### (.+)$/gm, '<strong class="chat-h3">$1</strong>');
   html = html.replace(/^## (.+)$/gm, '<strong class="chat-h2">$1</strong>');
+  html = html.replace(/^# (.+)$/gm, '<strong class="chat-h1">$1</strong>');
 
-  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-  // Lists
   html = html.replace(/^- (.+)$/gm, '<span class="chat-li">$1</span>');
   html = html.replace(/^\d+\.\s+(.+)$/gm, '<span class="chat-li">$1</span>');
 
-  // Line breaks
   html = html.replace(
     /\n\n/g,
     '<br class="chat-break"/><br class="chat-break"/>',
@@ -106,6 +120,150 @@ function renderMarkdown(text: string, isStreaming = false): string {
 
   return html;
 }
+
+/* ── CodeBlockPanel (interactive React component) ── */
+
+function CodeBlockPanel({
+  language,
+  code,
+  isStreamingBlock = false,
+}: {
+  language: string;
+  code: string;
+  isStreamingBlock?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const trimmed = code.trimEnd();
+  const lines = trimmed ? trimmed.split("\n") : [];
+  const lineCount = lines.length;
+
+  const highlighted = useMemo(
+    () => lines.map((l) => highlightLine(l)),
+    [trimmed],
+  );
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(trimmed);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="my-2 overflow-hidden rounded-lg border border-[#e5e5e5] bg-[#fafafa]">
+      <div className="flex items-center gap-1 px-3 py-1.5 text-[11px]">
+        <button
+          className="flex flex-1 items-center gap-1.5 text-left"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3 shrink-0 text-[var(--ink-muted)]" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />
+          )}
+          <span className="font-mono text-[var(--ink-muted)]">
+            {language || "code"}
+          </span>
+          {!expanded && (
+            <span className="tabular-nums text-[var(--ink-muted)]">
+              · {lineCount} {lineCount === 1 ? "line" : "lines"}
+            </span>
+          )}
+        </button>
+        <button
+          className="rounded p-1 text-[var(--ink-muted)] transition-colors hover:bg-[#e5e5e5] hover:text-[var(--ink)]"
+          onClick={handleCopy}
+          title="Copy code"
+        >
+          {copied ? (
+            <Check className="size-3" />
+          ) : (
+            <Copy className="size-3" />
+          )}
+        </button>
+      </div>
+
+      {expanded && (
+        <div
+          className="overflow-auto border-t border-[#e5e5e5] bg-white"
+          style={{ maxHeight: "400px" }}
+        >
+          {highlighted.map((html, i) => (
+            <div key={i} className="flex text-[12px] leading-[20px]">
+              <span className="w-10 shrink-0 select-none pr-3 text-right font-mono text-[var(--ink-muted)] opacity-40">
+                {i + 1}
+              </span>
+              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-3 font-mono">
+                <code dangerouslySetInnerHTML={{ __html: html }} />
+              </pre>
+            </div>
+          ))}
+          {isStreamingBlock && (
+            <div className="flex text-[12px] leading-[20px]">
+              <span className="w-10 shrink-0" />
+              <span
+                className="inline-block h-[14px] w-[2px] bg-[var(--ink)] [animation:cursor-blink_1s_ease-in-out_infinite]"
+                aria-hidden
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Segment-based message content renderer ── */
+
+function MessageContent({
+  content,
+  isStreaming,
+}: {
+  content: string;
+  isStreaming: boolean;
+}) {
+  const segments = useMemo(
+    () => parseSegments(content, isStreaming),
+    [content, isStreaming],
+  );
+
+  const lastIdx = segments.length - 1;
+  const lastSegment = segments[lastIdx];
+  const cursorInCodeBlock =
+    isStreaming && lastSegment?.type === "code";
+  const cursorInText =
+    isStreaming && (!lastSegment || lastSegment.type === "text");
+
+  return (
+    <div className="chat-message-content text-[14px] leading-snug text-[var(--ink)]">
+      {segments.map((seg, i) => {
+        if (seg.type === "code") {
+          return (
+            <CodeBlockPanel
+              key={i}
+              language={seg.language}
+              code={seg.code}
+              isStreamingBlock={cursorInCodeBlock && i === lastIdx}
+            />
+          );
+        }
+        const html = renderMarkdownText(seg.content);
+        return (
+          <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
+        );
+      })}
+      {cursorInText && (
+        <span
+          className="ml-0.5 inline-block h-[1em] w-[2px] shrink-0 align-baseline bg-[var(--ink)] [animation:cursor-blink_1s_ease-in-out_infinite]"
+          aria-hidden
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── FileChangeCard (for proposed changes / Apply to PR) ── */
 
 function estimateLines(content: string): number {
   return content.split("\n").length;
@@ -200,6 +358,8 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
   );
 }
 
+/* ── Main ChatMessage component ── */
+
 export default function ChatMessage({
   message,
   isStreaming = false,
@@ -224,14 +384,6 @@ export default function ChatMessage({
     return message.content;
   }, [isUser, hasChanges, isStreaming, message.content]);
 
-  const renderedHtml = useMemo(
-    () =>
-      !isUser && displayContent
-        ? renderMarkdown(displayContent, isStreaming)
-        : "",
-    [isUser, displayContent, isStreaming],
-  );
-
   if (isUser) {
     return (
       <div className="flex justify-end">
@@ -250,15 +402,7 @@ export default function ChatMessage({
   return (
     <div className="space-y-1.5">
       {displayContent !== undefined && displayContent !== null && (
-        <div className="chat-message-content text-[14px] leading-snug text-[var(--ink)]">
-          <span dangerouslySetInnerHTML={{ __html: renderedHtml }} />
-          {isStreaming && (
-            <span
-              className="chat-streaming-cursor ml-0.5 inline-block h-[1em] w-[2px] shrink-0 align-baseline bg-[var(--ink)] [animation:cursor-blink_1s_ease-in-out_infinite]"
-              aria-hidden
-            />
-          )}
-        </div>
+        <MessageContent content={displayContent} isStreaming={isStreaming} />
       )}
 
       {hasChanges && (
