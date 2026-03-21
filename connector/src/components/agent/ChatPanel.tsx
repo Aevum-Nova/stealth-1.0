@@ -48,10 +48,19 @@ export default function ChatPanel({
     [displayedContent],
   );
 
-  const messages = useMemo(
-    () => [
+  const messages = useMemo(() => {
+    const serverHasUserMsg = pendingMessage
+      ? serverMessages.some(
+          (m) => m.role === "user" && m.content === pendingMessage,
+        )
+      : false;
+    const serverHasAssistant =
+      serverHasUserMsg &&
+      serverMessages[serverMessages.length - 1]?.role === "assistant";
+
+    return [
       ...serverMessages,
-      ...(pendingMessage
+      ...(!serverHasUserMsg && pendingMessage
         ? [
             {
               id: "pending-user",
@@ -62,7 +71,7 @@ export default function ChatPanel({
             },
           ]
         : []),
-      ...(displayedContent !== null
+      ...(!serverHasAssistant && displayedContent !== null
         ? [
             {
               id: "streaming-assistant",
@@ -73,14 +82,13 @@ export default function ChatPanel({
             },
           ]
         : []),
-    ],
-    [
-      serverMessages,
-      pendingMessage,
-      displayedContent,
-      streamingProposedChanges,
-    ],
-  );
+    ];
+  }, [
+    serverMessages,
+    pendingMessage,
+    displayedContent,
+    streamingProposedChanges,
+  ]);
 
   const handleApplyToPr = useCallback(
     (changes: ProposedChange[]) => {
@@ -110,11 +118,12 @@ export default function ChatPanel({
       tickingRef.current = false;
       doneRef.current = false;
       setIsStreaming(false);
-      setPendingMessage(null);
-      setDisplayedContent(null);
-      queryClient.invalidateQueries({
-        queryKey: ["agent-chat", featureRequestId],
-      });
+      queryClient
+        .invalidateQueries({ queryKey: ["agent-chat", featureRequestId] })
+        .then(() => {
+          setPendingMessage(null);
+          setDisplayedContent(null);
+        });
     } else {
       tickingRef.current = false;
     }

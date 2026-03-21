@@ -152,10 +152,17 @@ async def get_conversation_messages(
     db: AsyncSession,
     conversation_id: uuid.UUID,
 ) -> list[AgentMessage]:
+    from sqlalchemy import case
+
+    role_order = case(
+        (AgentMessage.role == "user", 0),
+        (AgentMessage.role == "assistant", 1),
+        else_=2,
+    )
     result = await db.execute(
         select(AgentMessage)
         .where(AgentMessage.conversation_id == conversation_id)
-        .order_by(AgentMessage.created_at)
+        .order_by(AgentMessage.created_at, role_order)
     )
     return list(result.scalars().all())
 
