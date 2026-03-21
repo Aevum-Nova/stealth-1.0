@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { ExternalLink, X } from "lucide-react";
 
@@ -53,16 +54,26 @@ export default function SignalModal({ signalId, onClose }: SignalModalProps) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+  /** Portal to body so `position:fixed` is viewport-relative (nested layout can create a fixed containing block). */
+  const modal = (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      role="presentation"
+      onClick={onClose}
+    >
       <div
         className="relative max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signal-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-[16px] font-semibold tracking-tight">Signal Detail</h2>
+            <h2 id="signal-modal-title" className="text-[16px] font-semibold tracking-tight">
+              Signal Detail
+            </h2>
             {signal && (
               <p className="mt-1 truncate text-[12px] text-[var(--ink-muted)]">
                 {formatSourceLabel(signal.source)} · {signal.source_data_type} · {formatDate(signal.created_at)}
@@ -156,4 +167,10 @@ export default function SignalModal({ signalId, onClose }: SignalModalProps) {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(modal, document.body);
 }

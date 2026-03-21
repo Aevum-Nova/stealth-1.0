@@ -11,7 +11,7 @@ export default function AppShell() {
     location.pathname === "/create";
 
   return (
-    <div className="flex flex-col bg-[var(--surface)] lg:h-screen lg:flex-row lg:overflow-hidden">
+    <div className="flex flex-col bg-[var(--canvas)] lg:h-screen lg:flex-row lg:overflow-hidden">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-hidden">
         <TopBar />

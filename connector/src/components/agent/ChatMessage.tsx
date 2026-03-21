@@ -311,15 +311,13 @@ function HighlightedCodeBlock({
 
   return (
     <div
-      className="overflow-auto rounded-b-lg border border-t-0 border-[#e5e5e5] bg-white"
+      className="proposed-file-code-scroll rounded-b-lg"
       style={{ maxHeight }}
     >
       {highlighted.map((html, i) => (
-        <div key={i} className="flex text-[11px] leading-[18px]">
-          <span className="w-9 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">
-            {i + 1}
-          </span>
-          <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono">
+        <div key={i} className="proposed-file-code-line">
+          <span className="proposed-file-line-num">{i + 1}</span>
+          <pre>
             <code dangerouslySetInnerHTML={{ __html: html }} />
           </pre>
         </div>
@@ -334,31 +332,24 @@ function SearchReplaceDiff({
   patches: { search: string; replace: string }[];
 }) {
   return (
-    <div className="overflow-auto rounded-b-lg border border-t-0 border-[#e5e5e5] bg-white">
+    <div className="proposed-file-code-scroll rounded-b-lg">
       {patches.map((patch, pi) => (
-        <div key={pi} className={pi > 0 ? "border-t border-[#e5e5e5]" : ""}>
+        <div
+          key={pi}
+          className={`proposed-file-patch-block${pi > 0 ? " border-t border-[var(--line)]" : ""}`}
+        >
           {patch.search.split("\n").map((line, i) => (
-            <div
-              key={`s-${pi}-${i}`}
-              className="flex text-[11px] leading-[18px] bg-[#fff0f0]"
-            >
-              <span className="w-5 shrink-0 select-none text-center font-mono text-red-400">
-                −
-              </span>
-              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono text-red-700">
+            <div key={`s-${pi}-${i}`} className="proposed-diff-row proposed-diff-row--del">
+              <span className="proposed-diff-gutter">−</span>
+              <pre>
                 <code>{line}</code>
               </pre>
             </div>
           ))}
           {patch.replace.split("\n").map((line, i) => (
-            <div
-              key={`r-${pi}-${i}`}
-              className="flex text-[11px] leading-[18px] bg-[#f0fff0]"
-            >
-              <span className="w-5 shrink-0 select-none text-center font-mono text-green-500">
-                +
-              </span>
-              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono text-green-700">
+            <div key={`r-${pi}-${i}`} className="proposed-diff-row proposed-diff-row--add">
+              <span className="proposed-diff-gutter">+</span>
+              <pre>
                 <code>{line}</code>
               </pre>
             </div>
@@ -397,9 +388,10 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#e5e5e5] bg-white">
+    <div className="proposed-file-card">
       <button
-        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors hover:bg-[#fafafa]"
+        type="button"
+        className="proposed-file-card__toggle"
         onClick={() => setExpanded(!expanded)}
       >
         {expanded ? (
@@ -419,17 +411,16 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
       </button>
 
       {change.reason && (
-        <div className="border-t border-[#e5e5e5] bg-[#fafafa]/80 px-3.5 py-2.5">
-          <p className="text-[12px] leading-relaxed text-[var(--ink-muted)]">
-            {change.reason}
-          </p>
+        <div className="proposed-file-card__reason">
+          <p>{change.reason}</p>
         </div>
       )}
 
       {expanded && (
-        <div className="relative border-t border-[#e5e5e5] bg-white">
+        <div className="proposed-file-card__body">
           <button
-            className="absolute right-2.5 top-2.5 z-10 rounded-lg bg-white p-1.5 text-[var(--ink-muted)] transition-colors hover:bg-[#eeeeee] hover:text-[var(--ink)]"
+            type="button"
+            className="proposed-file-copy-btn"
             onClick={handleCopy}
             title="Copy to clipboard"
           >

@@ -57,7 +57,7 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="border-b border-[var(--line)] bg-[var(--surface)] lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:border-b-0 lg:border-r">
+    <aside className="app-sidebar border-b border-[var(--line)] lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:border-b-0 lg:border-r">
       <div className="px-4 py-4">
         <div className="flex items-center gap-2.5">
           <div
