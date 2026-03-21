@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ChevronDown,
@@ -206,7 +206,7 @@ function AgentThread({
 
 /* ── PR files panel (GitHub consolidated diff vs base) ─────── */
 
-function PrPatchPreview({ patch }: { patch: string }) {
+const PrPatchPreview = memo(function PrPatchPreview({ patch }: { patch: string }) {
   const lines = patch.split("\n");
   return (
     <div className="max-h-[320px] overflow-auto bg-[var(--surface-muted)] px-2 py-2 font-mono text-[11px] leading-[17px]">
@@ -231,9 +231,9 @@ function PrPatchPreview({ patch }: { patch: string }) {
       })}
     </div>
   );
-}
+});
 
-function AllChanges({
+const AllChanges = memo(function AllChanges({
   files,
   isLoading,
   errorMessage,
@@ -371,7 +371,7 @@ function AllChanges({
       </div>
     </div>
   );
-}
+});
 
 /* ── Indexing status indicator (passive) ───────────────────── */
 
@@ -494,13 +494,27 @@ export default function ProductContextPage() {
   const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     loadStoredWidth(STORAGE_RIGHT, 280),
   );
+  const rightAsideRef = useRef<HTMLElement | null>(null);
+  const rightPanelWidthRef = useRef(rightPanelWidth);
 
+  useEffect(() => {
+    rightPanelWidthRef.current = rightPanelWidth;
+  }, [rightPanelWidth]);
+
+  /** During drag: update DOM only — avoids re-rendering chat + file list on every mousemove. */
   const handleRightResize = useCallback((deltaX: number) => {
-    setRightPanelWidth((w) => {
-      const next = Math.max(60, Math.round(w + deltaX));
-      localStorage.setItem(STORAGE_RIGHT, String(next));
-      return next;
-    });
+    const next = Math.max(60, Math.round(rightPanelWidthRef.current + deltaX));
+    rightPanelWidthRef.current = next;
+    const el = rightAsideRef.current;
+    if (el) {
+      el.style.width = `${next}px`;
+    }
+  }, []);
+
+  const commitRightPanelWidth = useCallback(() => {
+    const w = rightPanelWidthRef.current;
+    setRightPanelWidth(w);
+    localStorage.setItem(STORAGE_RIGHT, String(w));
   }, []);
 
   const waitingForFeatureRequest =
@@ -712,10 +726,15 @@ export default function ProductContextPage() {
 
         {/* Right */}
         <aside
+          ref={rightAsideRef}
           className="relative hidden shrink-0 flex-col overflow-hidden border-l border-[var(--line-soft)] bg-[var(--surface)] xl:flex"
           style={{ width: rightPanelWidth }}
         >
-          <PanelResizer side="right" onResize={handleRightResize} />
+          <PanelResizer
+            side="right"
+            onResize={handleRightResize}
+            onResizeEnd={commitRightPanelWidth}
+          />
           <div className="flex shrink-0 items-center border-b border-[var(--line-soft)] px-4 py-3">
             <span className="text-[13px] font-medium text-[var(--ink)]">
               Changes

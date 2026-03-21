@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PanelResizerProps {
   onResize: (deltaX: number) => void;
+  /** Called once when the drag ends (commit width to React state / storage here). */
+  onResizeEnd?: () => void;
   side: "left" | "right";
 }
 
-export default function PanelResizer({ onResize, side }: PanelResizerProps) {
+export default function PanelResizer({ onResize, onResizeEnd, side }: PanelResizerProps) {
   const [isDragging, setIsDragging] = useState(false);
   const lastXRef = useRef(0);
 
@@ -26,6 +28,7 @@ export default function PanelResizer({ onResize, side }: PanelResizerProps) {
     };
 
     const handleMouseUp = () => {
+      onResizeEnd?.();
       setIsDragging(false);
     };
 
@@ -40,7 +43,7 @@ export default function PanelResizer({ onResize, side }: PanelResizerProps) {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isDragging, onResize, side]);
+  }, [isDragging, onResize, onResizeEnd, side]);
 
   return (
     <div
