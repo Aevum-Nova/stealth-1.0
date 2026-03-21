@@ -186,6 +186,10 @@ async def receive_webhook(
         webhook_logger.info("webhook.url_verification", plugin_type=plugin_type)
         return {"challenge": payload.get("challenge")}
 
+    # Slack retries after 3s if no response — ignore retries to prevent duplicates
+    if request.headers.get("x-slack-retry-num"):
+        return {"ok": True}
+
     try:
         result = await trigger_service.process_webhook(
             db,
