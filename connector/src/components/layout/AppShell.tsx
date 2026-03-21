@@ -6,6 +6,7 @@ import TopBar from "@/components/layout/TopBar";
 export default function AppShell() {
   const location = useLocation();
   const isFullBleed =
+    location.pathname === "/feature-requests" ||
     /^\/feature-requests\/[^/]+(?:\/context)?$/.test(location.pathname) ||
     location.pathname === "/create";
 
@@ -14,7 +15,13 @@ export default function AppShell() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col lg:overflow-hidden">
         <TopBar />
-        <main className={`flex-1 min-w-0 overflow-hidden ${isFullBleed ? "" : "overflow-y-auto bg-[var(--canvas-subtle)] p-5 lg:p-8"}`}>
+        <main
+          className={
+            isFullBleed
+              ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--surface)]"
+              : "min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--canvas-subtle)] p-5 lg:p-8"
+          }
+        >
           {isFullBleed ? (
             <Outlet />
           ) : (
