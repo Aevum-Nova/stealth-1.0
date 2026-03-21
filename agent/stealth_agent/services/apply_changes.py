@@ -133,6 +133,19 @@ async def apply_changes_to_pr(
         finally:
             await git_provider.aclose()
 
+        # Update the job result to reflect the newly applied files
+        updated_result = dict(pr_job.result)
+        existing_files = {f["file_path"]: f for f in updated_result.get("proposed_files", [])}
+        for c in proposed_changes:
+            existing_files[c["file_path"]] = {
+                "file_path": c["file_path"],
+                "content": c["content"],
+                "reason": c.get("reason", ""),
+            }
+        updated_result["proposed_files"] = list(existing_files.values())
+        pr_job.result = updated_result
+        await db.commit()
+
         log.info(
             "chat_changes_applied",
             feature_request_id=feature_request_id,

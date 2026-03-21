@@ -43,17 +43,28 @@ function extractFromMarkdownPattern(text: string): ProposedChange[] | null {
   const pattern =
     /#+\s*Proposed Changes? (?:for\s+)?([^\n]+)\s*\n+```\w*\n([\s\S]*?)```/i;
   const match = text.match(pattern);
-  if (!match) return null;
+  if (match) {
+    const filePath = match[1].trim();
+    const content = match[2].replace(/\r\n/g, "\n").trim();
+    if (filePath && content) {
+      return [{ file_path: filePath, content, reason: "" }];
+    }
+  }
 
-  const filePath = match[1].trim();
-  const content = match[2].replace(/\r\n/g, "\n").trim();
-  if (!filePath || !content) return null;
+  const FILE_EXT =
+    "(?:jsx?|tsx?|css|scss|html|py|rb|go|rs|java|json|ya?ml|md|toml|sh|sql|svelte|vue)";
+  const broad = new RegExp(
+    `(?:^|\\n)#*\\s*.*?([\\w./-]+\\.${FILE_EXT})[:\\s]*\\n+\`\`\`\\w*\\n([\\s\\S]*?)\`\`\``,
+    "i",
+  );
+  const broadMatch = text.match(broad);
+  if (broadMatch) {
+    const filePath = broadMatch[1].trim();
+    const content = broadMatch[2].replace(/\r\n/g, "\n").trim();
+    if (filePath && content) {
+      return [{ file_path: filePath, content, reason: "" }];
+    }
+  }
 
-  return [
-    {
-      file_path: filePath,
-      content,
-      reason: "",
-    },
-  ];
+  return null;
 }

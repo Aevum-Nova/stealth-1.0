@@ -114,10 +114,12 @@ class GitHubRepoFetcher:
         # Files with no extension (Makefile, Dockerfile, etc.)
         return filename in {"Makefile", "Dockerfile", "Procfile", "Gemfile", "Rakefile"}
 
-    async def fetch_file(self, path: str) -> str | None:
+    async def fetch_file(self, path: str, ref: str | None = None) -> str | None:
         try:
+            params = {"ref": ref} if ref else {}
             resp = await self._client.get(
-                f"/repos/{self.owner}/{self.repo}/contents/{path}"
+                f"/repos/{self.owner}/{self.repo}/contents/{path}",
+                params=params,
             )
             if resp.status_code != 200:
                 return None
@@ -126,7 +128,7 @@ class GitHubRepoFetcher:
                 return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
             return None
         except Exception:
-            log.warning("github_fetch_file_error", path=path)
+            log.warning("github_fetch_file_error", path=path, ref=ref)
             return None
 
     async def fetch_indexable_files(self, branch: str = "main") -> list[RepoFile]:

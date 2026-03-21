@@ -81,9 +81,17 @@ export function useApplyChangesToPr(featureRequestId: string) {
     mutationFn: (proposedChanges: ProposedChange[]) =>
       agentApi.applyChangesToPr(featureRequestId, proposedChanges),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["agent-jobs", featureRequestId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["agent-jobs", featureRequestId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["pr-status", featureRequestId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["agent-chat", featureRequestId],
+        }),
+      ]);
     },
   });
 }

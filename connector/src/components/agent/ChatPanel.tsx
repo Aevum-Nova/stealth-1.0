@@ -24,6 +24,7 @@ export default function ChatPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<(() => void) | null>(null);
   const userScrolledUpRef = useRef(false);
@@ -225,6 +226,7 @@ export default function ChatPanel({
     (trimmed: string) => {
       if (!trimmed || isStreaming) return;
       setStreamError(null);
+      setStatusMessage(null);
       userScrolledUpRef.current = false;
       setPendingMessage(trimmed);
       setDisplayedContent("");
@@ -238,10 +240,12 @@ export default function ChatPanel({
         featureRequestId,
         trimmed,
         (token) => {
+          setStatusMessage(null);
           fullTextRef.current += token;
           startTicking();
         },
         () => {
+          setStatusMessage(null);
           doneRef.current = true;
           startTicking();
         },
@@ -249,7 +253,11 @@ export default function ChatPanel({
           setIsStreaming(false);
           setPendingMessage(null);
           setDisplayedContent(null);
+          setStatusMessage(null);
           setStreamError(error);
+        },
+        (status) => {
+          setStatusMessage(status);
         },
       );
 
@@ -268,6 +276,7 @@ export default function ChatPanel({
     setIsStreaming(false);
     setPendingMessage(null);
     setDisplayedContent(null);
+    setStatusMessage(null);
     queryClient.invalidateQueries({
       queryKey: ["agent-chat", featureRequestId],
     });
@@ -316,12 +325,14 @@ export default function ChatPanel({
                 />
               </div>
             ))}
-            {isStreaming && displayedContent === "" && (
+            {isStreaming && (displayedContent === "" || statusMessage) && (
               <div
                 className={`flex items-center gap-2 text-[var(--ink-muted)] ${serverMessages.length || pendingMessage ? "mt-3" : ""}`}
               >
                 <span className="text-[var(--ink-muted)]">&gt;</span>
-                <span className="text-[13px]">Thinking</span>
+                <span className="text-[13px]">
+                  {statusMessage || "Thinking"}
+                </span>
               </div>
             )}
             {streamError && (

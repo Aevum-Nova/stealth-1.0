@@ -20,6 +20,7 @@ export function streamChatMessage(
   onToken: (token: string) => void,
   onDone: () => void,
   onError: (error: string) => void,
+  onStatus?: (status: string) => void,
 ): () => void {
   const baseUrl =
     import.meta.env.VITE_AGENT_URL || "http://localhost:3002/api/v1";
@@ -69,6 +70,8 @@ export function streamChatMessage(
             const event = JSON.parse(raw);
             if (event.type === "token") {
               onToken(event.content);
+            } else if (event.type === "status") {
+              onStatus?.(event.content);
             } else if (event.type === "done") {
               onDone();
               return;

@@ -86,14 +86,14 @@ async def stream_chat_message(
 
     async def event_generator():
         try:
-            async for token in chat_service.chat_stream(
+            async for event in chat_service.chat_stream(
                 db=db,
                 llm=llm,
                 feature_request_id=feature_request_id,
                 organization_id=org_id,
                 user_message=payload.message,
             ):
-                data = json.dumps({"type": "token", "content": token})
+                data = json.dumps({"type": event.type, "content": event.content})
                 yield f"data: {data}\n\n"
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"

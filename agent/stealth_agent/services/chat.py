@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -11,13 +14,51 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import structlog
 
+from stealth_agent.adapters.github_repo import GitHubRepoFetcher
 from stealth_agent.adapters.llm import LLMProvider
 from stealth_agent.mappers import feature_request_from_row
-from stealth_agent.models import AgentConversation, AgentJob, AgentMessage, FeatureRequestRow
+from stealth_agent.models import AgentConversation, AgentJob, AgentMessage, ConnectorRow, FeatureRequestRow
 from stealth_agent.services.change_parser import extract_proposed_changes
+from stealth_agent.services.chat_tools import TOOL_SCHEMAS, ToolExecutor
 from stealth_agent.services.code_retriever import RetrievedChunk, find_github_connector_for_org, retrieve_relevant_chunks
 
 log = structlog.get_logger()
+
+MAX_TOOL_ROUNDS = 10
+
+
+@dataclass
+class StreamEvent:
+    """An event yielded from the agentic chat stream."""
+    type: str  # "token", "status", "done", "error"
+    content: str = ""
+
+
+INTENT_SYSTEM_PROMPT = (
+    "Classify the user's message intent. Reply with EXACTLY one word:\n"
+    "  CHANGE — if the user is requesting a code modification, bug fix, feature implementation, "
+    "refactoring, addition, removal, or update to any file.\n"
+    "  QUESTION — if the user is asking a question, requesting an explanation, asking to show/display "
+    "something, or anything that is NOT a code change request.\n"
+    "Reply with only the single word CHANGE or QUESTION, nothing else."
+)
+
+
+async def classify_intent(llm: LLMProvider, message: str) -> str:
+    """Classify user message as 'change' or 'question' using a fast LLM call."""
+    try:
+        result = await llm.complete(
+            INTENT_SYSTEM_PROMPT,
+            [{"role": "user", "content": message}],
+            max_tokens=4,
+        )
+        word = result.strip().upper()
+        if "CHANGE" in word:
+            return "change"
+        return "question"
+    except Exception:
+        log.warning("intent_classification_failed", message=message[:100])
+        return "question"
 
 
 SUMMARY_SYSTEM_PROMPT = (
@@ -220,6 +261,59 @@ def _format_job_context(job_result: dict | None) -> str:
     return "\n\n".join(parts)
 
 
+AGENTIC_CHANGE_INSTRUCTIONS = (
+    "The user is requesting a CODE CHANGE. You have tools to explore the codebase.\n"
+    "Workflow:\n"
+    "1. Use search_code / list_files / read_file to understand the current code.\n"
+    "2. Once you have enough context, output your explanation and the changes.\n"
+    "3. Output ALL changed files at the VERY END as a JSON array inside a ```json block.\n"
+    "4. Do NOT put file contents in ```css, ```js, or other code blocks — ONLY in the JSON.\n\n"
+    "JSON format (one object per file):\n"
+    '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
+)
+
+
+async def _build_tool_executor(
+    db: AsyncSession,
+    organization_id: str,
+    feature_request_id: str,
+) -> tuple[ToolExecutor | None, str]:
+    """Create a ToolExecutor if a GitHub connector + branch are available.
+    Returns (executor_or_None, branch_name)."""
+    connector = await find_github_connector_for_org(organization_id)
+    if not connector:
+        return None, ""
+
+    config = connector.config or {}
+    creds = connector.credentials or {}
+    gh_token = creds.get("access_token", "")
+    gh_repo = config.get("repository", "")
+    if not gh_token or not gh_repo or "/" not in gh_repo:
+        return None, ""
+
+    owner, repo_name = gh_repo.split("/", 1)
+
+    # Determine the PR branch
+    branch = ""
+    job_result = await _get_latest_job_result(db, feature_request_id, organization_id)
+    if job_result:
+        branch = job_result.get("branch_name", "")
+        if not branch:
+            pr_url = job_result.get("pull_request_url", "")
+            if pr_url:
+                from stealth_agent.services.apply_changes import _fetch_branch_from_pr_url
+                branch = await _fetch_branch_from_pr_url(pr_url, gh_token) or ""
+
+    fetcher = GitHubRepoFetcher(token=gh_token, owner=owner, repo=repo_name)
+    executor = ToolExecutor(
+        fetcher=fetcher,
+        connector_id=connector.id,
+        organization_id=uuid.UUID(organization_id),
+        branch=branch or None,
+    )
+    return executor, branch
+
+
 async def chat(
     db: AsyncSession,
     llm: LLMProvider,
@@ -312,17 +406,26 @@ async def chat(
         hint = "suggest changes based on the feature request" + (" and PR files above" if job_context else "")
         system_parts.append(f"The repository {repo_label} is indexed. No code chunks matched — {hint}.")
 
-    system_parts.append(
-        "Help the user understand the code, reason about implementation, and suggest precise changes.\n\n"
-        "IMPORTANT FORMATTING RULES:\n"
-        "1. First, write your explanation and reasoning in plain text.\n"
-        "2. Use the proposed_changes JSON format ONLY when you are proposing NEW changes for the user to apply to the PR (e.g. implementing a feature, fixing a bug). Do NOT use it when the user asks to SHOW, DISPLAY, or SUMMARIZE existing PR content — for that, use plain markdown and code blocks only.\n"
-        "3. When proposing NEW changes: ALL proposed file changes MUST go at the VERY END as a JSON array inside a ```json block. Do NOT use headings like '# Proposed Changes for X' with inline code blocks.\n"
-        "4. The prose explains your approach; the JSON contains the actual files. The UI renders each as a collapsible Apply-to-PR card.\n"
-        "5. Keep explanations concise and focused.\n\n"
-        "JSON format (one object per file, for NEW proposals only):\n"
-        '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
-    )
+    # Classify user intent
+    intent = await classify_intent(llm, user_message)
+    log.info("chat_intent", intent=intent, message=user_message[:80])
+
+    if intent == "change":
+        system_parts.append(
+            "The user is requesting a CODE CHANGE. You MUST:\n"
+            "1. Briefly explain your approach in plain text.\n"
+            "2. Output ALL changed files at the VERY END as a JSON array inside a ```json block.\n"
+            "3. Do NOT put file contents in ```css, ```js, or other code blocks — ONLY in the JSON.\n"
+            "4. The UI renders each file as a collapsible Apply-to-PR card.\n\n"
+            "JSON format (one object per file):\n"
+            '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
+        )
+    else:
+        system_parts.append(
+            "Help the user understand the code, reason about implementation, and answer their question.\n"
+            "Use plain markdown and code blocks for explanations. Do NOT output a proposed_changes JSON block — "
+            "the user is asking a question, not requesting a code change."
+        )
 
     system = "\n\n".join(system_parts)
 
@@ -347,9 +450,9 @@ async def chat(
     response_text = await llm.complete(system, llm_messages)
 
     # Parse any proposed changes from the response
-    proposed_changes = extract_proposed_changes(response_text)
+    proposed_changes = extract_proposed_changes(response_text, intent=intent)
 
-    # Strip JSON block and "# Proposed Changes for X" + code block from display when extracted
+    # Strip change blocks from display content when extracted
     display_content = response_text
     if proposed_changes:
         import re
@@ -383,8 +486,22 @@ async def chat_stream(
     feature_request_id: str,
     organization_id: str,
     user_message: str,
-) -> AsyncIterator[str]:
-    """Stream chat response tokens via the LLM, then persist the final message."""
+) -> AsyncIterator[StreamEvent]:
+    """Stream chat response as StreamEvents. For change intents, uses the
+    agentic tool-use loop; for questions, uses a simple text stream."""
+
+    # Classify user intent
+    intent = await classify_intent(llm, user_message)
+    log.info("chat_stream_intent", intent=intent, message=user_message[:80])
+
+    if intent == "change":
+        async for event in chat_stream_agentic(
+            db, llm, feature_request_id, organization_id, user_message
+        ):
+            yield event
+        return
+
+    # --- Question path: simple text stream (unchanged) ---
     fr_result = await db.execute(
         select(FeatureRequestRow).where(
             FeatureRequestRow.id == uuid.UUID(feature_request_id),
@@ -463,15 +580,9 @@ async def chat_stream(
         system_parts.append(f"The repository {repo_label} is indexed. No code chunks matched — {hint}.")
 
     system_parts.append(
-        "Help the user understand the code, reason about implementation, and suggest precise changes.\n\n"
-        "IMPORTANT FORMATTING RULES:\n"
-        "1. First, write your explanation and reasoning in plain text.\n"
-        "2. Use the proposed_changes JSON format ONLY when you are proposing NEW changes for the user to apply to the PR (e.g. implementing a feature, fixing a bug). Do NOT use it when the user asks to SHOW, DISPLAY, or SUMMARIZE existing PR content — for that, use plain markdown and code blocks only.\n"
-        "3. When proposing NEW changes: ALL proposed file changes MUST go at the VERY END as a JSON array inside a ```json block. Do NOT use headings like '# Proposed Changes for X' with inline code blocks.\n"
-        "4. The prose explains your approach; the JSON contains the actual files. The UI renders each as a collapsible Apply-to-PR card.\n"
-        "5. Keep explanations concise and focused.\n\n"
-        "JSON format (one object per file, for NEW proposals only):\n"
-        '```json\n[{"file_path": "path/to/file.css", "content": "full file content...", "reason": "short reason"}]\n```'
+        "Help the user understand the code, reason about implementation, and answer their question.\n"
+        "Use plain markdown and code blocks for explanations. Do NOT output a proposed_changes JSON block — "
+        "the user is asking a question, not requesting a code change."
     )
 
     system = "\n\n".join(system_parts)
@@ -493,29 +604,233 @@ async def chat_stream(
     full_response = []
     async for token in llm.stream(system, llm_messages):
         full_response.append(token)
-        yield token
+        yield StreamEvent(type="token", content=token)
 
     response_text = "".join(full_response)
-    proposed_changes = extract_proposed_changes(response_text)
-
-    display_content = response_text
-    if proposed_changes:
-        import re
-        display_content = re.sub(r"```json\s*\n\[[\s\S]*?\]\s*\n```", "", display_content).strip()
-        display_content = re.sub(
-            r"#+\s*Proposed Changes? (?:for\s+)?[^\n]+\s*\n+```\w*\n[\s\S]*?```",
-            "",
-            display_content,
-            flags=re.IGNORECASE,
-        ).strip()
-        display_content = re.sub(r"\n*\d+ proposed changes?\s*$", "", display_content, flags=re.IGNORECASE).strip()
 
     assistant_msg = AgentMessage(
         id=uuid.uuid4(),
         conversation_id=conversation.id,
         role="assistant",
-        content=display_content,
-        proposed_changes=proposed_changes,
+        content=response_text,
+        proposed_changes=None,
     )
     db.add(assistant_msg)
     await db.commit()
+
+
+async def chat_stream_agentic(
+    db: AsyncSession,
+    llm: LLMProvider,
+    feature_request_id: str,
+    organization_id: str,
+    user_message: str,
+) -> AsyncIterator[StreamEvent]:
+    """Agentic tool-use loop for code change requests.
+
+    The LLM iteratively calls tools (read_file, search_code, list_files) to
+    gather context, then emits its final answer with proposed changes.
+    Yields StreamEvent objects so the route can multiplex tokens vs status.
+    """
+
+    # ---- Context gathering (same as question path) ----
+    fr_result = await db.execute(
+        select(FeatureRequestRow).where(
+            FeatureRequestRow.id == uuid.UUID(feature_request_id),
+            FeatureRequestRow.organization_id == uuid.UUID(organization_id),
+        )
+    )
+    fr_row = fr_result.scalar_one_or_none()
+
+    fr_context = ""
+    if fr_row:
+        domain_fr = feature_request_from_row(fr_row)
+        evidence_text = "\n".join(
+            f"  - [{e.source_type.value}] {e.snippet}" for e in domain_fr.evidence
+        )
+        fr_context = (
+            f"FEATURE REQUEST:\n"
+            f"Title: {domain_fr.title}\n"
+            f"Problem: {domain_fr.problem_statement}\n"
+            f"Business context: {domain_fr.business_context}\n"
+            f"Evidence:\n{evidence_text}"
+        )
+
+    job_result = await _get_latest_job_result(db, feature_request_id, organization_id)
+    job_context = _format_job_context(job_result)
+
+    connector = await find_github_connector_for_org(organization_id)
+    repo_label = ""
+    if connector:
+        config = connector.config or {}
+        repo_label = config.get("repository", "")
+
+    # Build system prompt
+    system_parts = [
+        "You are a codebase-aware engineering assistant with access to the user's repository."
+    ]
+    if repo_label:
+        system_parts[0] += f" The linked repo is {repo_label}."
+    system_parts[0] += (
+        " You have tools to read files, search code, and list the project structure. "
+        "Use them to gather context before proposing changes."
+    )
+
+    if fr_context:
+        system_parts.append(fr_context)
+    if job_context:
+        system_parts.append(job_context)
+
+    system_parts.append(AGENTIC_CHANGE_INSTRUCTIONS)
+    system = "\n\n".join(system_parts)
+
+    # ---- Build tool executor ----
+    tool_executor, branch = await _build_tool_executor(db, organization_id, feature_request_id)
+
+    # ---- Save user message ----
+    conversation = await get_or_create_conversation(db, feature_request_id, organization_id)
+    user_msg = AgentMessage(
+        id=uuid.uuid4(),
+        conversation_id=conversation.id,
+        role="user",
+        content=user_message,
+    )
+    db.add(user_msg)
+    await db.flush()
+
+    # Build conversation history
+    all_messages = await get_conversation_messages(db, conversation.id)
+    llm_messages: list[dict[str, Any]] = [
+        {"role": m.role, "content": m.content} for m in all_messages if m.role != "system"
+    ]
+
+    # If no tool executor (no GitHub connector), fall back to streaming without tools
+    if tool_executor is None:
+        log.info("agentic_no_tools_fallback", feature_request_id=feature_request_id)
+        full_response = []
+        async for token in llm.stream(system, llm_messages):
+            full_response.append(token)
+            yield StreamEvent(type="token", content=token)
+        response_text = "".join(full_response)
+        proposed_changes = extract_proposed_changes(response_text, intent="change")
+        display_content = _strip_change_blocks(response_text, proposed_changes)
+        assistant_msg = AgentMessage(
+            id=uuid.uuid4(),
+            conversation_id=conversation.id,
+            role="assistant",
+            content=display_content,
+            proposed_changes=proposed_changes,
+        )
+        db.add(assistant_msg)
+        await db.commit()
+        return
+
+    # ---- Agentic tool-use loop ----
+    all_text_parts: list[str] = []
+    try:
+        for round_num in range(MAX_TOOL_ROUNDS):
+            log.info("agentic_round", round=round_num, message_count=len(llm_messages))
+
+            if not hasattr(llm, "complete_with_tools"):
+                log.warning("llm_missing_tool_support")
+                break
+
+            response = await llm.complete_with_tools(
+                system=system,
+                messages=llm_messages,
+                tools=TOOL_SCHEMAS,
+            )
+
+            stop_reason = getattr(response, "stop_reason", "end_turn")
+
+            text_parts = []
+            tool_calls = []
+            for block in getattr(response, "content", []):
+                if getattr(block, "type", "") == "text":
+                    text_parts.append(block.text)
+                elif getattr(block, "type", "") == "tool_use":
+                    tool_calls.append(block)
+
+            combined_text = "".join(text_parts)
+            if combined_text:
+                all_text_parts.append(combined_text)
+                yield StreamEvent(type="token", content=combined_text)
+
+            if stop_reason != "tool_use" or not tool_calls:
+                break
+
+            # Append assistant message (with tool_use blocks) to LLM context
+            llm_messages.append({
+                "role": "assistant",
+                "content": [
+                    {"type": getattr(b, "type", "text"), **(
+                        {"text": b.text} if getattr(b, "type", "") == "text"
+                        else {"id": b.id, "name": b.name, "input": b.input}
+                    )}
+                    for b in getattr(response, "content", [])
+                ],
+            })
+
+            tool_results = []
+            for tc in tool_calls:
+                tool_name = tc.name
+                tool_input = tc.input or {}
+
+                status_msg = tool_executor.status_message(tool_name, tool_input)
+                yield StreamEvent(type="status", content=status_msg)
+
+                result_text = await tool_executor.execute(tool_name, tool_input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tc.id,
+                    "content": result_text,
+                })
+
+                log.info(
+                    "tool_executed",
+                    tool=tool_name,
+                    input=str(tool_input)[:200],
+                    result_len=len(result_text),
+                    round=round_num,
+                )
+
+            llm_messages.append({"role": "user", "content": tool_results})
+        else:
+            log.warning("agentic_max_rounds_reached", rounds=MAX_TOOL_ROUNDS)
+
+        # ---- Persist final response ----
+        response_text = "".join(all_text_parts)
+        proposed_changes = extract_proposed_changes(response_text, intent="change")
+        display_content = _strip_change_blocks(response_text, proposed_changes)
+
+        assistant_msg = AgentMessage(
+            id=uuid.uuid4(),
+            conversation_id=conversation.id,
+            role="assistant",
+            content=display_content,
+            proposed_changes=proposed_changes,
+        )
+        db.add(assistant_msg)
+        await db.commit()
+
+    finally:
+        # Clean up the HTTP client
+        if tool_executor and hasattr(tool_executor, "_fetcher"):
+            await tool_executor._fetcher.close()
+
+
+def _strip_change_blocks(text: str, proposed_changes: list[dict] | None) -> str:
+    """Remove raw JSON change blocks from the display text when they were parsed."""
+    if not proposed_changes:
+        return text
+
+    import re
+    result = re.sub(r"```json\s*\n\[[\s\S]*?\]\s*\n```", "", text).strip()
+    result = re.sub(
+        r"#+\s*Proposed Changes? (?:for\s+)?[^\n]+\s*\n+```\w*\n[\s\S]*?```",
+        "",
+        result,
+        flags=re.IGNORECASE,
+    ).strip()
+    result = re.sub(r"\n*\d+ proposed changes?\s*$", "", result, flags=re.IGNORECASE).strip()
+    return result

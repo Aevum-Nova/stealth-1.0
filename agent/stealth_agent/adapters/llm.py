@@ -68,6 +68,31 @@ class ClaudeLLMProvider:
             async for text in stream.text_stream:
                 yield text
 
+    async def complete_with_tools(
+        self,
+        system: str,
+        messages: list[dict],
+        tools: list[dict],
+        max_tokens: int = 16384,
+    ) -> object:
+        """Call LLM with tool definitions. Returns the raw Anthropic Message
+        so callers can inspect stop_reason and tool_use blocks."""
+        started_at = time.perf_counter()
+        response = await self._client.messages.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=self._cacheable_system(system),
+            messages=messages,
+            tools=tools,
+        )
+        self._log_response(
+            response,
+            mode="tool_use",
+            max_tokens=max_tokens,
+            duration_ms=(time.perf_counter() - started_at) * 1000,
+        )
+        return response
+
     @staticmethod
     def _cacheable_system(system: str) -> list[dict]:
         return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
