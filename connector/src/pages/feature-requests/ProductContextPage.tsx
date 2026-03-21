@@ -4,7 +4,6 @@ import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink, Load
 
 import ChatPanel from "@/components/agent/ChatPanel";
 import PanelResizer from "@/components/layout/PanelResizer";
-import { highlightLine } from "@/lib/syntax-highlight";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
 import SignalModal from "@/components/signals/SignalModal";
 import EmptyState from "@/components/shared/EmptyState";
@@ -12,15 +11,14 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
 import {
   useAgentJobs,
-  useApplyChangesToPr,
-  useChatHistory,
   useCodeIndexStatus,
   useFeatureRequestSummary,
+  usePrFiles,
   useTriggerOrchestration,
 } from "@/hooks/use-agent";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useFeatureRequest, useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
-import type { AgentJob, ProposedChange } from "@/types/agent";
+import type { AgentJob, PrFile } from "@/types/agent";
 import type { FeatureRequest, SupportingEvidence } from "@/types/feature-request";
 
 type CenterTab = "thread" | "chat";
@@ -155,83 +153,99 @@ function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureReques
   );
 }
 
-/* ── Unified Changes panel ─────────────────────────────────── */
+/* ── PR files panel (GitHub consolidated diff vs base) ─────── */
 
-interface UnifiedFile {
-  file_path: string;
-  reason: string;
-  additions?: number;
-  deletions?: number;
-  content?: string;
-  source: "pr" | "chat";
+function PrPatchPreview({ patch }: { patch: string }) {
+  const lines = patch.split("\n");
+  return (
+    <div className="max-h-[320px] overflow-auto bg-[var(--surface-muted)] px-2 py-2 font-mono text-[11px] leading-[17px]">
+      {lines.map((line, li) => {
+        let rowClass =
+          "whitespace-pre-wrap break-all px-1.5 py-px text-[var(--ink-soft)]";
+        if (line.startsWith("+") && !line.startsWith("+++")) {
+          rowClass =
+            "whitespace-pre-wrap break-all bg-emerald-50 px-1.5 py-px text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200";
+        } else if (line.startsWith("-") && !line.startsWith("---")) {
+          rowClass =
+            "whitespace-pre-wrap break-all bg-rose-50 px-1.5 py-px text-rose-900 dark:bg-rose-950/40 dark:text-rose-200";
+        } else if (line.startsWith("@@")) {
+          rowClass =
+            "whitespace-pre-wrap break-all bg-zinc-100 px-1.5 py-px text-[var(--ink-muted)] dark:bg-zinc-800/80";
+        }
+        return (
+          <div key={li} className={rowClass}>
+            {line || "\u00a0"}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function AllChanges({
-  jobs,
-  chatChanges,
-  onApplyToPr,
-  canApplyToPr,
-  isApplying,
-  applyError,
+  files,
+  isLoading,
+  errorMessage,
+  prUrl,
 }: {
-  jobs: AgentJob[];
-  chatChanges: ProposedChange[];
-  onApplyToPr?: () => void;
-  canApplyToPr?: boolean;
-  isApplying?: boolean;
-  applyError?: string | null;
+  files: PrFile[];
+  isLoading: boolean;
+  errorMessage: string | null;
+  prUrl: string | null;
 }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
-  const files = useMemo(() => {
-    const map = new Map<string, UnifiedFile>();
-
-    const latestWithChanges = jobs.find((j) => (j.result?.proposed_files.length ?? 0) > 0);
-    if (latestWithChanges?.result) {
-      for (const f of latestWithChanges.result.proposed_files) {
-        const lineCount = f.content ? f.content.split("\n").length : 0;
-        map.set(f.file_path, {
-          file_path: f.file_path,
-          reason: f.reason,
-          content: f.content,
-          additions: f.additions ?? lineCount,
-          deletions: f.deletions,
-          source: "pr",
-        });
-      }
-    }
-
-    for (const c of chatChanges) {
-      map.set(c.file_path, {
-        file_path: c.file_path,
-        reason: c.reason,
-        content: c.content,
-        additions: c.content.split("\n").length,
-        deletions: 0,
-        source: "chat",
-      });
-    }
-
-    return Array.from(map.values());
-  }, [jobs, chatChanges]);
-
-  if (files.length === 0) {
+  if (isLoading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <p className="text-[12px] text-[var(--ink-muted)]">No proposed changes yet.</p>
+        <LoadingSpinner label="Loading PR files…" />
       </div>
     );
   }
 
-  const totalAdd = files.reduce((s, f) => s + (f.additions ?? 0), 0);
-  const totalDel = files.reduce((s, f) => s + (f.deletions ?? 0), 0);
-  const expanded = expandedIdx !== null ? files[expandedIdx] : null;
+  if (errorMessage) {
+    return (
+      <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
+        <p className="text-[12px] text-rose-600">{errorMessage}</p>
+        {prUrl && (
+          <a
+            href={prUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] font-medium text-[var(--ink)] underline"
+          >
+            View on GitHub
+          </a>
+        )}
+      </div>
+    );
+  }
 
-  const hasChatChanges = files.some((f) => f.source === "chat");
+  if (!prUrl) {
+    return (
+      <div className="flex h-40 items-center justify-center px-4 text-center">
+        <p className="text-[12px] text-[var(--ink-muted)]">
+          Generate a PR to see all files changed on the branch.
+        </p>
+      </div>
+    );
+  }
+
+  if (files.length === 0) {
+    return (
+      <div className="flex h-40 items-center justify-center px-4 text-center">
+        <p className="text-[12px] text-[var(--ink-muted)]">No file changes on this PR yet.</p>
+      </div>
+    );
+  }
+
+  const totalAdd = files.reduce((s, f) => s + f.additions, 0);
+  const totalDel = files.reduce((s, f) => s + f.deletions, 0);
+  const expanded = expandedIdx !== null ? files[expandedIdx] : null;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-col gap-2.5 border-b border-[var(--line-soft)] px-4 py-3">
+      <div className="flex flex-col gap-2 border-b border-[var(--line-soft)] px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="flex size-5 items-center justify-center rounded-md bg-[var(--ink)] text-[10px] font-semibold tabular-nums text-white">
             {files.length}
@@ -243,64 +257,50 @@ function AllChanges({
             <span className="text-red-600">-{totalDel}</span>
           </span>
         </div>
-        {hasChatChanges && canApplyToPr && (
-          <div className="space-y-1">
-            <button
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ink)] px-3 py-2 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-              disabled={isApplying}
-              onClick={onApplyToPr}
-            >
-              <GitPullRequest className="size-3.5" />
-              {isApplying ? "Applying..." : "Apply to PR"}
-            </button>
-            {applyError && (
-              <p className="text-[10px] text-rose-600">{applyError}</p>
-            )}
-          </div>
-        )}
+        <p className="text-[11px] leading-snug text-[var(--ink-muted)]">
+          Totals reflect the full PR vs base branch (all commits), including chat-applied updates.
+        </p>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {files.map((file, i) => (
-          <div key={`${file.source}-${file.file_path}`}>
+          <div key={file.filename}>
             <button
+              type="button"
               className={`flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-subtle)] ${
                 i < files.length - 1 && expandedIdx !== i ? "border-b border-[var(--line-soft)]" : ""
               } ${expandedIdx === i ? "bg-[var(--surface-subtle)]" : ""}`}
               onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
             >
-              {expandedIdx === i
-                ? <ChevronDown className="size-3 shrink-0 text-[var(--ink-muted)]" />
-                : <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />}
-              <code className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink-soft)]">{file.file_path}</code>
-              {file.source === "chat" && (
-                <span className="shrink-0 rounded-sm bg-[#e5e5e5] px-1.5 py-0.5 text-[9px] font-medium text-[var(--ink-muted)]">chat</span>
+              {expandedIdx === i ? (
+                <ChevronDown className="size-3 shrink-0 text-[var(--ink-muted)]" />
+              ) : (
+                <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />
               )}
-              <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">+{file.additions ?? 0}</span>
-              {(file.deletions ?? 0) > 0 && (
+              <code className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink-soft)]">{file.filename}</code>
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">+{file.additions}</span>
+              {file.deletions > 0 && (
                 <span className="shrink-0 font-mono text-[10px] tabular-nums text-red-600">-{file.deletions}</span>
               )}
             </button>
 
             {expandedIdx === i && expanded && (
               <div className="border-b border-[var(--line-soft)]">
-                {expanded.reason && (
-                  <p className="px-3 py-1.5 text-[10px] text-[var(--ink-muted)]">{expanded.reason}</p>
+                {expanded.patch ? (
+                  <PrPatchPreview patch={expanded.patch} />
+                ) : (
+                  <p className="px-4 py-3 text-[11px] leading-snug text-[var(--ink-muted)]">
+                    Diff too large to preview here.{" "}
+                    <a
+                      href={prUrl ? `${prUrl}/files` : "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-[var(--ink)] underline"
+                    >
+                      Open file list on GitHub
+                    </a>
+                  </p>
                 )}
-                {expanded.content ? (
-                  <div className="max-h-[300px] overflow-auto bg-[var(--surface-muted)]">
-                    {expanded.content.split("\n").map((line, li) => (
-                      <div key={li} className="flex text-[11px] leading-[18px]">
-                        <span className="w-8 shrink-0 select-none pr-2 text-right font-mono text-[var(--ink-muted)] opacity-40">{li + 1}</span>
-                        <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all px-1 font-mono">
-                          <code dangerouslySetInnerHTML={{ __html: highlightLine(line) }} />
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
-                ) : !expanded.reason ? (
-                  <p className="px-3 py-2 text-[10px] italic text-[var(--ink-muted)]">No preview available</p>
-                ) : null}
               </div>
             )}
           </div>
@@ -433,9 +433,11 @@ export default function ProductContextPage() {
   const actions = useFeatureRequestActions();
   const jobsQuery = useAgentJobs(id);
   const triggerMutation = useTriggerOrchestration(id);
-  const applyMutation = useApplyChangesToPr(id);
-  const chatQuery = useChatHistory(id);
   const { pushToast } = useToast();
+
+  const jobsForPrFlag = jobsQuery.data?.data ?? [];
+  const hasOpenPr = jobsForPrFlag.some((job) => job.result?.pull_request_url);
+  const prFilesQuery = usePrFiles(id || undefined, hasOpenPr);
 
   const connectorsQuery = useConnectors();
   const githubConnector = useMemo(() => {
@@ -482,17 +484,6 @@ export default function ProductContextPage() {
     if (fr?.id) setExpandedIds(new Set([fr.id]));
   }, [fr?.id]);
 
-  // Extract the latest proposed changes from chat messages
-  const chatProposedChanges: ProposedChange[] = useMemo(() => {
-    const messages = chatQuery.data?.data?.messages ?? [];
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].proposed_changes && messages[i].proposed_changes!.length > 0) {
-        return messages[i].proposed_changes!;
-      }
-    }
-    return [];
-  }, [chatQuery.data]);
-
   if (featureRequestQuery.isLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner label="Loading feature request" /></div>;
   }
@@ -513,6 +504,10 @@ export default function ProductContextPage() {
     merged: "border-purple-200 bg-purple-50 text-purple-700",
   };
   const prStateClass = prStateClasses[prState] ?? "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]";
+
+  const prPayload = prFilesQuery.data?.data;
+  const prFilesList = prPayload?.files ?? [];
+  const prUrlForChangesPanel = prPayload?.pull_request_url ?? latestPrUrl;
 
   const latestSignalMention = fr.impact_metrics?.latest_mention ?? null;
   const hasNewSignalsSinceLastRun = !latestCompletedJob
@@ -684,16 +679,14 @@ export default function ProductContextPage() {
               <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading..." /></div>
             ) : (
               <AllChanges
-                jobs={jobs}
-                chatChanges={chatProposedChanges}
-                canApplyToPr={chatProposedChanges.length > 0 && !!latestPrUrl}
-                isApplying={applyMutation.isPending}
-                applyError={
-                  applyMutation.isError
-                    ? (applyMutation.error as Error)?.message ?? "Failed to apply changes"
+                files={prFilesList}
+                isLoading={Boolean(latestPrUrl) && prFilesQuery.isLoading}
+                errorMessage={
+                  prFilesQuery.isError
+                    ? (prFilesQuery.error as Error)?.message ?? "Could not load PR files"
                     : null
                 }
-                onApplyToPr={() => applyMutation.mutate(chatProposedChanges)}
+                prUrl={prUrlForChangesPanel}
               />
             )}
           </div>

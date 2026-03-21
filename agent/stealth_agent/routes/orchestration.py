@@ -21,6 +21,7 @@ from stealth_agent.schemas import (
 from stealth_agent.models import AgentJob
 from stealth_agent.services import apply_changes as apply_changes_service
 from stealth_agent.services import jobs as jobs_service
+from stealth_agent.services import pr_files as pr_files_service
 
 router = APIRouter(prefix="/api/v1", tags=["orchestration"])
 
@@ -178,3 +179,23 @@ async def get_pr_status(
             "state": pr_state or "unknown",
         }
     )
+
+
+@router.get("/feature-requests/{feature_request_id}/pr-files", response_model=ApiResponse)
+async def get_pr_files(
+    feature_request_id: str,
+    org_id: str = Depends(get_current_org),
+    db: AsyncSession = Depends(get_db),
+):
+    """Files changed in the PR (vs base), with line stats from GitHub."""
+    try:
+        data = await pr_files_service.list_pr_files_from_github(
+            db, feature_request_id, org_id
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ApiResponse(data=data)

@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   CodeIndexStatus,
   Conversation,
+  PrFilesPayload,
   ProposedChange,
 } from "@/types/agent";
 
@@ -144,6 +145,12 @@ export function getPrStatus(featureRequestId: string) {
   return agentApi
     .get(`feature-requests/${featureRequestId}/pr-status`)
     .json<ApiResponse<{ exists: boolean; url: string | null; state: string }>>();
+}
+
+export function getPrFiles(featureRequestId: string) {
+  return agentApi
+    .get(`feature-requests/${featureRequestId}/pr-files`)
+    .json<ApiResponse<PrFilesPayload>>();
 }
 
 export function triggerIndex(connectorId: string) {

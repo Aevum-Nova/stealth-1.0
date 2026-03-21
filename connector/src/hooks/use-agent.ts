@@ -59,6 +59,16 @@ export function usePrStatus(featureRequestId?: string) {
   });
 }
 
+export function usePrFiles(featureRequestId?: string, hasPr?: boolean) {
+  return useQuery({
+    queryKey: ["pr-files", featureRequestId],
+    queryFn: () => agentApi.getPrFiles(featureRequestId as string),
+    enabled: Boolean(featureRequestId) && Boolean(hasPr),
+    staleTime: 15_000,
+    refetchInterval: hasPr ? 60_000 : false,
+  });
+}
+
 export function useAgentJob(jobId?: string) {
   return useQuery({
     queryKey: ["agent-job", jobId],
@@ -89,6 +99,9 @@ export function useApplyChangesToPr(featureRequestId: string) {
           queryKey: ["pr-status", featureRequestId],
         }),
         queryClient.invalidateQueries({
+          queryKey: ["pr-files", featureRequestId],
+        }),
+        queryClient.invalidateQueries({
           queryKey: ["agent-chat", featureRequestId],
         }),
       ]);
@@ -102,9 +115,14 @@ export function useTriggerOrchestration(featureRequestId: string) {
   return useMutation({
     mutationFn: () => agentApi.triggerOrchestration(featureRequestId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["agent-jobs", featureRequestId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["agent-jobs", featureRequestId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["pr-files", featureRequestId],
+        }),
+      ]);
     },
   });
 }

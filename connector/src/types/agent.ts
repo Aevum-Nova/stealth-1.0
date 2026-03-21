@@ -52,6 +52,20 @@ export interface OrchestrationResult {
   pull_request_merged?: boolean | null;
 }
 
+/** One file as returned by GitHub for a PR (consolidated diff vs base). */
+export interface PrFile {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  patch: string | null;
+}
+
+export interface PrFilesPayload {
+  pull_request_url: string | null;
+  files: PrFile[];
+}
+
 export type CodeIndexStatusType = "not_started" | "pending" | "indexing" | "ready" | "failed";
 
 export interface CodeIndexStatus {
