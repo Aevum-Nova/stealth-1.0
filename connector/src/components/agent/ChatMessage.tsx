@@ -298,14 +298,70 @@ function HighlightedCodeBlock({
   );
 }
 
+function SearchReplaceDiff({
+  patches,
+}: {
+  patches: { search: string; replace: string }[];
+}) {
+  return (
+    <div className="overflow-auto rounded-b-lg border border-t-0 border-[#e5e5e5] bg-white">
+      {patches.map((patch, pi) => (
+        <div key={pi} className={pi > 0 ? "border-t border-[#e5e5e5]" : ""}>
+          {patch.search.split("\n").map((line, i) => (
+            <div
+              key={`s-${pi}-${i}`}
+              className="flex text-[11px] leading-[18px] bg-[#fff0f0]"
+            >
+              <span className="w-5 shrink-0 select-none text-center font-mono text-red-400">
+                −
+              </span>
+              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono text-red-700">
+                <code>{line}</code>
+              </pre>
+            </div>
+          ))}
+          {patch.replace.split("\n").map((line, i) => (
+            <div
+              key={`r-${pi}-${i}`}
+              className="flex text-[11px] leading-[18px] bg-[#f0fff0]"
+            >
+              <span className="w-5 shrink-0 select-none text-center font-mono text-green-500">
+                +
+              </span>
+              <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-2 font-mono text-green-700">
+                <code>{line}</code>
+              </pre>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FileChangeCard({ change }: { change: ProposedChange }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const lineCount = estimateLines(change.content);
+
+  const hasDiffs = change.search_replace && change.search_replace.length > 0;
+  const lineCount = hasDiffs
+    ? change.search_replace!.reduce(
+        (sum, sr) => sum + sr.replace.split("\n").length,
+        0,
+      )
+    : estimateLines(change.content);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await navigator.clipboard.writeText(change.content);
+    const text = hasDiffs
+      ? change
+          .search_replace!.map(
+            (sr) =>
+              `<<<<<<< SEARCH\n${sr.search}\n=======\n${sr.replace}\n>>>>>>> REPLACE`,
+          )
+          .join("\n\n")
+      : change.content;
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -326,7 +382,9 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
           {change.file_path}
         </code>
         <span className="shrink-0 text-[11px] tabular-nums text-[var(--ink-muted)]">
-          +{lineCount}
+          {hasDiffs
+            ? `${change.search_replace!.length} change${change.search_replace!.length > 1 ? "s" : ""}`
+            : `+${lineCount}`}
         </span>
       </button>
 
@@ -351,7 +409,11 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
               <Copy className="size-3" />
             )}
           </button>
-          <HighlightedCodeBlock code={change.content} />
+          {hasDiffs ? (
+            <SearchReplaceDiff patches={change.search_replace!} />
+          ) : (
+            <HighlightedCodeBlock code={change.content} />
+          )}
         </div>
       )}
     </div>

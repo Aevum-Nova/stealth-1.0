@@ -1,7 +1,13 @@
+export interface SearchReplace {
+  search: string;
+  replace: string;
+}
+
 export interface ProposedChange {
   file_path: string;
   content: string;
   reason: string;
+  search_replace?: SearchReplace[] | null;
 }
 
 export interface ChatMessage {

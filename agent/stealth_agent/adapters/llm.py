@@ -93,6 +93,59 @@ class ClaudeLLMProvider:
         )
         return response
 
+    async def stream_with_tools(
+        self,
+        system: str,
+        messages: list[dict],
+        tools: list[dict],
+        max_tokens: int = 16384,
+    ) -> AsyncIterator[dict]:
+        """Stream LLM response with tool definitions.
+
+        Yields dicts:
+          {"type": "text_delta", "text": "..."} — incremental text
+          {"type": "tool_use",   "id": "...", "name": "...", "input": {...}} — tool call
+          {"type": "message_done", "stop_reason": "...", "response": <Message>} — end
+        """
+        started_at = time.perf_counter()
+        async with self._client.messages.stream(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=self._cacheable_system(system),
+            messages=messages,
+            tools=tools,
+        ) as stream:
+            async for event in stream:
+                if event.type == "content_block_delta":
+                    delta = event.delta
+                    if getattr(delta, "type", "") == "text_delta":
+                        yield {"type": "text_delta", "text": delta.text}
+
+            response = await stream.get_final_message()
+
+        self._log_response(
+            response,
+            mode="stream_tool_use",
+            max_tokens=max_tokens,
+            duration_ms=(time.perf_counter() - started_at) * 1000,
+        )
+
+        # Yield any tool_use blocks from the final message
+        for block in response.content:
+            if getattr(block, "type", "") == "tool_use":
+                yield {
+                    "type": "tool_use",
+                    "id": block.id,
+                    "name": block.name,
+                    "input": block.input,
+                }
+
+        yield {
+            "type": "message_done",
+            "stop_reason": response.stop_reason,
+            "response": response,
+        }
+
     @staticmethod
     def _cacheable_system(system: str) -> list[dict]:
         return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]

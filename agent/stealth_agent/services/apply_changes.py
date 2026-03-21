@@ -11,9 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from stealth_agent.adapters.github import GITHUB_API_BASE, GitHubGitProvider
+from stealth_agent.adapters.github_repo import GitHubRepoFetcher
 from stealth_agent.database import async_session
 from stealth_agent.domain.models import CodeChange
 from stealth_agent.models import AgentJob, ConnectorRow, FeatureRequestRow
+from stealth_agent.services.change_parser import apply_search_replace
 
 log = structlog.get_logger()
 
@@ -113,14 +115,22 @@ async def apply_changes_to_pr(
                 "Could not determine PR branch. Re-run Generate PR to create a new job with branch info."
             )
 
-        # Convert proposed changes to CodeChange
+        # Resolve search/replace diffs into full file content
+        fetcher = GitHubRepoFetcher(token=gh_token, owner=owner, repo=repo_name)
+        try:
+            resolved_changes = await _resolve_search_replace(
+                proposed_changes, fetcher, branch_name
+            )
+        finally:
+            await fetcher.close()
+
         changes: list[CodeChange] = [
             CodeChange(
                 file_path=c["file_path"],
                 content=c["content"],
                 reason=c.get("reason", ""),
             )
-            for c in proposed_changes
+            for c in resolved_changes
         ]
 
         git_provider = GitHubGitProvider(token=gh_token, owner=owner, repo=repo_name)
@@ -154,3 +164,45 @@ async def apply_changes_to_pr(
         )
 
         return {"commit_sha": commit_sha, "pull_request_url": pr_url}
+
+
+async def _resolve_search_replace(
+    proposed_changes: list[dict],
+    fetcher: GitHubRepoFetcher,
+    branch: str,
+) -> list[dict]:
+    """Resolve search/replace patches into full file content.
+
+    For changes with `search_replace`, fetches the current file from GitHub,
+    applies the patches, and returns the full content. Changes that already
+    have `content` are passed through unchanged.
+    """
+    resolved = []
+    for change in proposed_changes:
+        sr = change.get("search_replace")
+        if sr and isinstance(sr, list):
+            original = await fetcher.fetch_file(change["file_path"], ref=branch)
+            if original is None:
+                raise ValueError(
+                    f"Cannot apply search/replace: file not found on branch "
+                    f"'{branch}': {change['file_path']}"
+                )
+            try:
+                new_content = apply_search_replace(original, sr)
+            except ValueError as exc:
+                log.warning(
+                    "search_replace_failed",
+                    file=change["file_path"],
+                    error=str(exc),
+                )
+                raise
+            resolved.append({
+                "file_path": change["file_path"],
+                "content": new_content,
+                "reason": change.get("reason", ""),
+            })
+        elif change.get("content"):
+            resolved.append(change)
+        else:
+            log.warning("change_missing_content", file_path=change.get("file_path"))
+    return resolved

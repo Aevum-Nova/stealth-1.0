@@ -9,10 +9,9 @@ import re
 def extract_proposed_changes(text: str, *, intent: str = "question") -> list[dict] | None:
     """Extract proposed code changes from an assistant message.
 
-    Looks for a JSON array of objects with file_path, content, reason keys.
-    Falls back to "# Proposed Changes for path" + code block pattern.
-    When intent is "change", uses a broader fallback that detects any file path + code block.
-    Returns None if no changes are found.
+    Supports two formats in the JSON:
+      - Full-file: {"file_path", "content", "reason"}
+      - Search/replace: {"file_path", "search_replace": [{"search", "replace"}], "reason"}
     """
     # Primary: ```json ... ``` blocks containing an array
     json_blocks = re.findall(r"```json\s*\n(.*?)```", text, re.DOTALL)
@@ -42,8 +41,6 @@ def extract_proposed_changes(text: str, *, intent: str = "question") -> list[dic
                 {"file_path": file_path, "content": content, "reason": ""},
             ]
 
-    # Intent-aware fallback: when user requested a change,
-    # extract any file path reference followed by a code block
     if intent == "change":
         changes = _extract_from_file_path_code_blocks(text)
         if changes:
@@ -53,8 +50,6 @@ def extract_proposed_changes(text: str, *, intent: str = "question") -> list[dic
 
 
 def _extract_from_file_path_code_blocks(text: str) -> list[dict] | None:
-    """When the LLM didn't follow JSON format but the user asked for a change,
-    look for lines referencing a file path followed by a fenced code block."""
     FILE_EXT = r"(?:jsx?|tsx?|css|scss|less|html|py|rb|go|rs|java|kt|json|ya?ml|toml|sh|sql|svelte|vue|php|c|cpp|h|hpp|cs|swift|md)"
     pattern = re.compile(
         r"(?:^|\n)[#*\s]*(?:(?:Updated?|Modified|Changed|Here(?:'s| is))(?: the)?[:\s]+)?"
@@ -99,11 +94,53 @@ def _try_parse_changes(text: str) -> list[dict] | None:
     for item in data:
         if not isinstance(item, dict):
             continue
-        if "file_path" in item and "content" in item:
-            changes.append({
-                "file_path": str(item["file_path"]),
-                "content": str(item["content"]),
-                "reason": str(item.get("reason", "")),
-            })
+        if "file_path" not in item:
+            continue
+
+        change: dict = {
+            "file_path": str(item["file_path"]),
+            "reason": str(item.get("reason", "")),
+        }
+
+        if "search_replace" in item and isinstance(item["search_replace"], list):
+            sr_list = []
+            for sr in item["search_replace"]:
+                if isinstance(sr, dict) and "search" in sr and "replace" in sr:
+                    sr_list.append({
+                        "search": str(sr["search"]),
+                        "replace": str(sr["replace"]),
+                    })
+            if sr_list:
+                change["search_replace"] = sr_list
+                change["content"] = ""
+                changes.append(change)
+        elif "content" in item:
+            change["content"] = str(item["content"])
+            changes.append(change)
 
     return changes if changes else None
+
+
+def apply_search_replace(original: str, patches: list[dict]) -> str:
+    """Apply a list of search/replace patches to the original file content.
+
+    Each patch: {"search": "exact text", "replace": "replacement text"}
+    Returns the modified file content.
+    Raises ValueError if a search block is not found in the file.
+    """
+    result = original
+    for patch in patches:
+        search = patch["search"]
+        replace = patch["replace"]
+        if search not in result:
+            # Try with normalized line endings
+            normalized_search = search.replace("\r\n", "\n")
+            normalized_result = result.replace("\r\n", "\n")
+            if normalized_search not in normalized_result:
+                raise ValueError(
+                    f"Search block not found in file:\n{search[:200]}..."
+                )
+            result = normalized_result.replace(normalized_search, replace, 1)
+        else:
+            result = result.replace(search, replace, 1)
+    return result

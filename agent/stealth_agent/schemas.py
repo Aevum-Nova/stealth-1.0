@@ -26,10 +26,16 @@ class ChatMessageIn(BaseModel):
     message: str
 
 
+class SearchReplace(BaseModel):
+    search: str
+    replace: str
+
+
 class ProposedChange(BaseModel):
     file_path: str
-    content: str
-    reason: str
+    content: str = ""
+    reason: str = ""
+    search_replace: list[SearchReplace] | None = None
 
 
 class ChatMessageOut(BaseModel):

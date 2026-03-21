@@ -20,7 +20,21 @@ function extractFromJsonBlock(text: string): ProposedChange[] | null {
     const changes: ProposedChange[] = [];
 
     for (const item of arr) {
-      if (item && typeof item === "object" && "file_path" in item && "content" in item) {
+      if (!item || typeof item !== "object" || !("file_path" in item)) continue;
+
+      if ("search_replace" in item && Array.isArray(item.search_replace)) {
+        changes.push({
+          file_path: String(item.file_path),
+          content: "",
+          reason: String(item.reason ?? ""),
+          search_replace: item.search_replace.map(
+            (sr: { search: string; replace: string }) => ({
+              search: String(sr.search),
+              replace: String(sr.replace),
+            }),
+          ),
+        });
+      } else if ("content" in item) {
         changes.push({
           file_path: String(item.file_path),
           content: String(item.content),

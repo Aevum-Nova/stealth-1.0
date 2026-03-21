@@ -12,7 +12,7 @@ from stealth_agent.adapters.llm import LLMProvider, create_llm_provider
 from stealth_agent.config import settings
 from stealth_agent.database import get_db
 from stealth_agent.middleware.auth import get_current_org
-from stealth_agent.schemas import ApiResponse, ChatMessageIn, ChatMessageOut, ConversationOut, ProposedChange
+from stealth_agent.schemas import ApiResponse, ChatMessageIn, ChatMessageOut, ConversationOut, ProposedChange, SearchReplace
 from stealth_agent.services import chat as chat_service
 
 router = APIRouter(prefix="/api/v1/feature-requests", tags=["chat"])
@@ -30,14 +30,23 @@ def _get_llm() -> LLMProvider:
 def _map_proposed_changes(raw: list[dict] | None) -> list[ProposedChange] | None:
     if not raw:
         return None
-    return [
-        ProposedChange(
+    result = []
+    for c in raw:
+        sr_raw = c.get("search_replace")
+        sr = None
+        if sr_raw and isinstance(sr_raw, list):
+            sr = [
+                SearchReplace(search=s.get("search", ""), replace=s.get("replace", ""))
+                for s in sr_raw
+                if isinstance(s, dict)
+            ]
+        result.append(ProposedChange(
             file_path=c.get("file_path", ""),
             content=c.get("content", ""),
             reason=c.get("reason", ""),
-        )
-        for c in raw
-    ]
+            search_replace=sr,
+        ))
+    return result
 
 
 def _message_out(m) -> ChatMessageOut:
