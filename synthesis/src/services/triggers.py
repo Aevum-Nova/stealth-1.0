@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -50,12 +49,6 @@ logger = structlog.get_logger(__name__)
 SUPPORTED_TRIGGER_TYPES = set(TRIGGER_ADAPTERS)
 DEFAULT_BUFFER_CONFIG = {"time_threshold_minutes": 60, "count_threshold": 10, "min_buffer_minutes": 5}
 DEFAULT_MATCH_CONFIG = {"confidence_threshold": 0.7}
-STOPWORDS = {
-    "a", "an", "and", "any", "are", "as", "at", "be", "bug", "bugs", "by", "for", "from",
-    "get", "has", "have", "in", "into", "is", "it", "me", "mode", "new", "of", "on", "or",
-    "our", "reports", "request", "requests", "should", "that", "the", "their", "them", "there",
-    "these", "this", "to", "via", "want", "when", "with",
-}
 CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
 
 
@@ -191,7 +184,6 @@ class TriggerService:
     ) -> TriggerRead:
         connector = await self._get_connector(db, org_id, connector_id)
         adapter = self._require_adapter(connector.type)
-        parsed = self.parse_description(natural_language_description)
         clean_scope = self._sanitize_scope(scope, adapter.build_scope_fields(connector))
         trigger = Trigger(
             organization_id=UUID(org_id),
@@ -199,7 +191,6 @@ class TriggerService:
             created_by_user_id=UUID(user_id) if user_id else None,
             plugin_type=connector.type,
             natural_language_description=natural_language_description.strip(),
-            parsed_filter_criteria=parsed,
             scope=clean_scope,
             scope_summary=adapter.summarize_scope(clean_scope, connector),
             status=self._normalize_status(status),
@@ -257,7 +248,6 @@ class TriggerService:
 
         if natural_language_description is not None:
             trigger.natural_language_description = natural_language_description.strip()
-            trigger.parsed_filter_criteria = self.parse_description(trigger.natural_language_description)
         if scope is not None:
             trigger.scope = self._sanitize_scope(scope, adapter.build_scope_fields(connector))
         if buffer_config is not None:
@@ -360,9 +350,6 @@ class TriggerService:
                         event_channel=normalized.source_context.get("channel_id"),
                     )
                     continue
-                if not self.coarse_match(trigger, normalized):
-                    logger.info("webhook.coarse_match_failed", plugin_type=plugin_type, trigger_id=str(trigger.id))
-                    continue
                 score = await self.semantic_match(trigger, normalized)
                 threshold = float((trigger.match_config or {}).get("confidence_threshold", DEFAULT_MATCH_CONFIG["confidence_threshold"]))
                 if score < threshold:
@@ -428,31 +415,6 @@ class TriggerService:
             except TimeoutError:
                 continue
 
-    def parse_description(self, description: str) -> dict:
-        tokens = re.findall(r"[a-zA-Z0-9_#@-]{3,}", description.lower())
-        keywords = []
-        seen: set[str] = set()
-        for token in tokens:
-            token = token.strip("#@")
-            if token in STOPWORDS or token.isdigit() or token in seen:
-                continue
-            seen.add(token)
-            keywords.append(token)
-        return {"keyword_hints": keywords[:10]}
-
-    def coarse_match(self, trigger: Trigger, event: NormalizedTriggerEvent) -> bool:
-        parsed = trigger.parsed_filter_criteria or {}
-        keywords = [str(value).lower() for value in parsed.get("keyword_hints", []) if str(value).strip()]
-        if not keywords:
-            return True
-        haystack = " ".join(
-            [
-                event.content_text.lower(),
-                " ".join(str(value).lower() for value in event.source_context.values() if value),
-            ]
-        )
-        return any(keyword in haystack for keyword in keywords)
-
     async def semantic_match(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
         base_score = self._heuristic_match_score(trigger, event)
         prompt = (
@@ -473,14 +435,7 @@ class TriggerService:
         return base_score
 
     def _heuristic_match_score(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
-        parsed = trigger.parsed_filter_criteria or {}
-        keywords = [str(value).lower() for value in parsed.get("keyword_hints", []) if str(value).strip()]
-        if not keywords:
-            return 0.8 if len(event.content_text) >= 20 else 0.55
-        haystack = event.content_text.lower()
-        overlap = sum(1 for keyword in keywords if keyword in haystack)
-        ratio = overlap / max(len(keywords), 1)
-        return max(0.25, min(0.95, 0.45 + ratio * 0.5))
+        return 0.8 if len(event.content_text) >= 20 else 0.55
 
     async def _persist_matched_event(
         self,
