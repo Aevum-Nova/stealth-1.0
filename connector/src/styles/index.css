@@ -177,26 +177,31 @@ button:not(:disabled):hover {
 .chat-message-content .chat-h1 {
   display: block;
   font-size: 16px;
-  margin-top: 6px;
-  margin-bottom: 2px;
+  line-height: 1.35;
+  margin-top: 0.25rem;
+  margin-bottom: 0.65rem;
+  letter-spacing: -0.01em;
 }
 .chat-message-content .chat-h2 {
   display: block;
   font-size: 14px;
-  margin-top: 3px;
-  margin-bottom: 1px;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 .chat-message-content .chat-h3 {
   display: block;
   font-size: 13px;
-  margin-top: 2px;
-  margin-bottom: 0;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+  margin-bottom: 0.4rem;
 }
 .chat-message-content .chat-h4 {
   display: block;
   font-size: 13px;
-  margin-top: 2px;
-  margin-bottom: 0;
+  line-height: 1.4;
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
 }
 .chat-message-content .chat-h1:first-child,
 .chat-message-content .chat-h2:first-child,
@@ -309,6 +314,13 @@ button:not(:disabled):hover {
 .chat-message-content .chat-break {
   display: block;
   height: 1px;
+}
+
+/* Single paragraph gap (replaces stacked newlines in markdown) */
+.chat-message-content .chat-para-gap {
+  display: block;
+  height: 0;
+  margin: 0.85em 0 0;
 }
 
 /* ── React Flow theme overrides ── */

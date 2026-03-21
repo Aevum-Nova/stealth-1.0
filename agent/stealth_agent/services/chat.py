@@ -933,4 +933,6 @@ def _strip_change_blocks(text: str, proposed_changes: list[dict] | None) -> str:
         flags=re.IGNORECASE,
     ).strip()
     result = re.sub(r"\n*\d+ proposed changes?\s*$", "", result, flags=re.IGNORECASE).strip()
+    # Collapse large blank runs left after stripping JSON (saves tokens in DB + UI gap)
+    result = re.sub(r"(?:\n[\t ]*){3,}", "\n\n", result).strip()
     return result

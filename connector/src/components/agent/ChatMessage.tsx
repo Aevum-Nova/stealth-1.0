@@ -16,6 +16,30 @@ import type {
 
 /* ── Stripping helpers (for proposed-changes JSON / markdown) ── */
 
+/** Collapse huge blank runs (common after stripping JSON) to a single paragraph gap.
+ * Skips ```fenced``` regions so code formatting is preserved. */
+function compactChatWhitespace(text: string): string {
+  const fenceRe = /```[\w]*\n[\s\S]*?```/g;
+  let result = "";
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = fenceRe.exec(text)) !== null) {
+    const before = text.slice(last, m.index);
+    result += before
+      .replace(/(?:\r?\n[\t ]*){3,}/g, "\n\n")
+      .replace(/^\s+/, "")
+      .replace(/\s+$/, "");
+    result += m[0];
+    last = m.index + m[0].length;
+  }
+  result += text
+    .slice(last)
+    .replace(/(?:\r?\n[\t ]*){3,}/g, "\n\n")
+    .replace(/^\s+/, "")
+    .replace(/\s+$/, "");
+  return result;
+}
+
 function stripProposedChangesMarkdown(text: string): string {
   return text
     .replace(
@@ -29,7 +53,7 @@ function stripJsonBlocks(text: string): string {
   let cleaned = text.replace(/```json\s*\n\[[\s\S]*?\]\s*\n```/g, "").trim();
   cleaned = stripProposedChangesMarkdown(cleaned);
   cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "").trim();
-  return cleaned;
+  return compactChatWhitespace(cleaned);
 }
 
 function stripStreamingJsonBlock(text: string): string {
@@ -43,7 +67,7 @@ function stripStreamingJsonBlock(text: string): string {
     }
   }
   cleaned = cleaned.replace(/\n*\d+ proposed changes?\s*$/i, "");
-  return cleaned.trim();
+  return compactChatWhitespace(cleaned);
 }
 
 /* ── Segment parser ── */
@@ -112,9 +136,10 @@ function renderMarkdownText(text: string): string {
   html = html.replace(/^- (.+)$/gm, '<span class="chat-li">$1</span>');
   html = html.replace(/^\d+\.\s+(.+)$/gm, '<span class="chat-li">$1</span>');
 
+  // One controlled gap between paragraphs (avoid stacking many blank lines)
   html = html.replace(
-    /\n\n/g,
-    '<br class="chat-break"/><br class="chat-break"/>',
+    /\n\n+/g,
+    '<span class="chat-para-gap" aria-hidden="true"></span>',
   );
   html = html.replace(/\n/g, "<br/>");
 
@@ -151,7 +176,7 @@ function CodeBlockPanel({
   };
 
   return (
-    <div className="my-2 overflow-hidden rounded-lg border border-[#e5e5e5] bg-[#fafafa]">
+    <div className="my-3 overflow-hidden rounded-lg border border-[#e5e5e5] bg-[#fafafa]">
       <div className="flex items-center gap-1 px-3 py-1.5 text-[11px]">
         <button
           className="flex flex-1 items-center gap-1.5 text-left"
@@ -223,9 +248,14 @@ function MessageContent({
   content: string;
   isStreaming: boolean;
 }) {
+  const normalizedContent = useMemo(
+    () => compactChatWhitespace(content),
+    [content],
+  );
+
   const segments = useMemo(
-    () => parseSegments(content, isStreaming),
-    [content, isStreaming],
+    () => parseSegments(normalizedContent, isStreaming),
+    [normalizedContent, isStreaming],
   );
 
   const lastIdx = segments.length - 1;
@@ -236,7 +266,7 @@ function MessageContent({
     isStreaming && (!lastSegment || lastSegment.type === "text");
 
   return (
-    <div className="chat-message-content text-[14px] leading-snug text-[var(--ink)]">
+    <div className="chat-message-content text-[14px] leading-relaxed text-[var(--ink)]">
       {segments.map((seg, i) => {
         if (seg.type === "code") {
           return (
@@ -389,8 +419,8 @@ function FileChangeCard({ change }: { change: ProposedChange }) {
       </button>
 
       {change.reason && (
-        <div className="border-t border-[#e5e5e5] bg-white px-3.5 py-2">
-          <p className="text-[12px] leading-snug text-[var(--ink-muted)]">
+        <div className="border-t border-[#e5e5e5] bg-[#fafafa]/80 px-3.5 py-2.5">
+          <p className="text-[12px] leading-relaxed text-[var(--ink-muted)]">
             {change.reason}
           </p>
         </div>
@@ -462,16 +492,16 @@ const ChatMessage = memo(function ChatMessage({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-col gap-5">
       {displayContent !== undefined && displayContent !== null && (
         <MessageContent content={displayContent} isStreaming={isStreaming} />
       )}
 
       {hasChanges && (
-        <div className="space-y-2.5">
-          <div className="space-y-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-3">
-            <p className="flex items-center gap-2 text-[12px] text-[var(--ink-muted)]">
-              <FileCode className="size-3.5" />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-[#e5e5e5] bg-white px-4 py-4 shadow-sm">
+            <p className="flex items-center gap-2 text-[12px] font-medium text-[var(--ink-soft)]">
+              <FileCode className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
               {changes.length} proposed{" "}
               {changes.length === 1 ? "file" : "files"}
             </p>
@@ -484,7 +514,8 @@ const ChatMessage = memo(function ChatMessage({
           </div>
           {canApplyToPr && onApplyToPr && (
             <button
-              className="flex items-center gap-1.5 rounded-lg bg-[var(--ink)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+              type="button"
+              className="flex w-fit items-center gap-1.5 rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[12px] font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
               disabled={isApplyingToPr}
               onClick={() => onApplyToPr(changes!)}
             >
