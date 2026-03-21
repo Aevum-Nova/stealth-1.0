@@ -7,6 +7,8 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import structlog
+
 from src.database import get_db
 from src.middleware.auth import get_current_org, get_current_user
 from src.models.connector import Connector
@@ -172,8 +174,16 @@ async def receive_webhook(
     if validation_token:
         return PlainTextResponse(content=validation_token)
 
+    webhook_logger = structlog.get_logger("webhook")
     payload = await request.json()
+    webhook_logger.info(
+        "webhook.received",
+        plugin_type=plugin_type,
+        payload_type=payload.get("type"),
+        event_type=payload.get("event", {}).get("type") if isinstance(payload.get("event"), dict) else None,
+    )
     if plugin_type == "slack" and payload.get("type") == "url_verification":
+        webhook_logger.info("webhook.url_verification", plugin_type=plugin_type)
         return {"challenge": payload.get("challenge")}
 
     try:

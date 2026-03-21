@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -44,7 +43,9 @@ from src.triggers.adapters.base import (
     ScopeFieldDefinition,
 )
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 SUPPORTED_TRIGGER_TYPES = set(TRIGGER_ADAPTERS)
 DEFAULT_BUFFER_CONFIG = {"time_threshold_minutes": 60, "count_threshold": 10, "min_buffer_minutes": 5}
@@ -325,7 +326,7 @@ class TriggerService:
         adapter = self._require_adapter(plugin_type)
         normalized_events = adapter.normalize_webhook_payload(payload, headers)
         if not normalized_events:
-            logger.info("webhook/%s: no events after normalization", plugin_type)
+            logger.info("webhook.empty_normalization", plugin_type=plugin_type)
             return {"received": 0, "matched": 0}
 
         trigger_rows = await db.execute(
@@ -340,42 +341,42 @@ class TriggerService:
         candidates = list(trigger_rows.all())
         if not candidates:
             logger.info(
-                "webhook/%s: no active trigger candidates (received %d events)",
-                plugin_type,
-                len(normalized_events),
+                "webhook.no_active_triggers",
+                plugin_type=plugin_type,
+                received=len(normalized_events),
             )
             return {"received": len(normalized_events), "matched": 0}
 
-        logger.info("webhook/%s: %d events, %d trigger candidates", plugin_type, len(normalized_events), len(candidates))
+        logger.info("webhook.processing", plugin_type=plugin_type, events=len(normalized_events), candidates=len(candidates))
         matched = 0
         for normalized in normalized_events:
             for trigger, connector in candidates:
                 if not adapter.scope_matches(trigger.scope or {}, normalized):
                     logger.info(
-                        "webhook/%s: scope mismatch trigger=%s scope=%s event_channel=%s",
-                        plugin_type,
-                        trigger.id,
-                        trigger.scope,
-                        normalized.source_context.get("channel_id"),
+                        "webhook.scope_mismatch",
+                        plugin_type=plugin_type,
+                        trigger_id=str(trigger.id),
+                        trigger_scope=trigger.scope,
+                        event_channel=normalized.source_context.get("channel_id"),
                     )
                     continue
                 if not self.coarse_match(trigger, normalized):
-                    logger.info("webhook/%s: coarse match failed trigger=%s", plugin_type, trigger.id)
+                    logger.info("webhook.coarse_match_failed", plugin_type=plugin_type, trigger_id=str(trigger.id))
                     continue
                 score = await self.semantic_match(trigger, normalized)
                 threshold = float((trigger.match_config or {}).get("confidence_threshold", DEFAULT_MATCH_CONFIG["confidence_threshold"]))
                 if score < threshold:
                     logger.info(
-                        "webhook/%s: semantic score %.2f < threshold %.2f trigger=%s",
-                        plugin_type,
-                        score,
-                        threshold,
-                        trigger.id,
+                        "webhook.below_threshold",
+                        plugin_type=plugin_type,
+                        score=round(score, 2),
+                        threshold=threshold,
+                        trigger_id=str(trigger.id),
                     )
                     continue
                 created = await self._persist_matched_event(db, trigger, connector, normalized, score)
                 matched += int(created)
-        logger.info("webhook/%s: received=%d matched=%d", plugin_type, len(normalized_events), matched)
+        logger.info("webhook.result", plugin_type=plugin_type, received=len(normalized_events), matched=matched)
         return {"received": len(normalized_events), "matched": matched}
 
     async def run_due_buffers_once(self, org_id: str | None = None, trigger_id: UUID | None = None) -> int:
@@ -570,7 +571,7 @@ class TriggerService:
             if channel_id and ts:
                 await slack.acknowledge_message(channel_id, ts)
         except Exception:
-            logger.debug("webhook/slack: acknowledge failed", exc_info=True)
+            logger.debug("webhook.acknowledge_failed", plugin_type="slack", exc_info=True)
 
     async def _process_signal_and_reconcile(self, org_id: str, trigger_id: UUID, signal_id: UUID, raw_bytes: bytes) -> None:
         async with async_session() as db:
