@@ -382,7 +382,7 @@ export default function TriggersPage() {
               <span className="text-[13px] font-medium text-[var(--ink)]">What should this trigger capture?</span>
               <textarea
                 value={form.natural_language_description}
-                onChange={(event) => setForm((current) => ({ ...current, natural_language_description: event.currentTarget.value }))}
+                onChange={(event) => { const value = event.currentTarget.value; setForm((current) => ({ ...current, natural_language_description: value })); }}
                 placeholder="e.g. bug reports from customers, negative feedback on checkout, requests for dark mode"
                 rows={2}
                 className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]"

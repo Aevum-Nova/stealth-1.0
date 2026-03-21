@@ -61,7 +61,7 @@ export default function SlackChannelPicker({
     setError(null);
     try {
       await joinSlackChannels(connectorId, ids);
-      onSave(ids);
+      onSave?.(ids);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join channels");
