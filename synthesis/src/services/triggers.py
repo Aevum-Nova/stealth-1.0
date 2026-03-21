@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -10,7 +11,9 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.connectors.base import ConnectorConfig
 from src.connectors.catalog import CONNECTOR_CATALOG
+from src.connectors.slack import SlackConnector
 from src.database import async_session
 from src.jobs.manager import ConflictError, job_manager
 from src.models.connector import Connector
@@ -40,6 +43,8 @@ from src.triggers.adapters.base import (
     NormalizedTriggerEvent,
     ScopeFieldDefinition,
 )
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_TRIGGER_TYPES = set(TRIGGER_ADAPTERS)
 DEFAULT_BUFFER_CONFIG = {"time_threshold_minutes": 60, "count_threshold": 10, "min_buffer_minutes": 5}
@@ -320,6 +325,7 @@ class TriggerService:
         adapter = self._require_adapter(plugin_type)
         normalized_events = adapter.normalize_webhook_payload(payload, headers)
         if not normalized_events:
+            logger.info("webhook/%s: no events after normalization", plugin_type)
             return {"received": 0, "matched": 0}
 
         trigger_rows = await db.execute(
@@ -333,21 +339,43 @@ class TriggerService:
         )
         candidates = list(trigger_rows.all())
         if not candidates:
+            logger.info(
+                "webhook/%s: no active trigger candidates (received %d events)",
+                plugin_type,
+                len(normalized_events),
+            )
             return {"received": len(normalized_events), "matched": 0}
 
+        logger.info("webhook/%s: %d events, %d trigger candidates", plugin_type, len(normalized_events), len(candidates))
         matched = 0
         for normalized in normalized_events:
             for trigger, connector in candidates:
                 if not adapter.scope_matches(trigger.scope or {}, normalized):
+                    logger.info(
+                        "webhook/%s: scope mismatch trigger=%s scope=%s event_channel=%s",
+                        plugin_type,
+                        trigger.id,
+                        trigger.scope,
+                        normalized.source_context.get("channel_id"),
+                    )
                     continue
                 if not self.coarse_match(trigger, normalized):
+                    logger.info("webhook/%s: coarse match failed trigger=%s", plugin_type, trigger.id)
                     continue
                 score = await self.semantic_match(trigger, normalized)
                 threshold = float((trigger.match_config or {}).get("confidence_threshold", DEFAULT_MATCH_CONFIG["confidence_threshold"]))
                 if score < threshold:
+                    logger.info(
+                        "webhook/%s: semantic score %.2f < threshold %.2f trigger=%s",
+                        plugin_type,
+                        score,
+                        threshold,
+                        trigger.id,
+                    )
                     continue
                 created = await self._persist_matched_event(db, trigger, connector, normalized, score)
                 matched += int(created)
+        logger.info("webhook/%s: received=%d matched=%d", plugin_type, len(normalized_events), matched)
         return {"received": len(normalized_events), "matched": matched}
 
     async def run_due_buffers_once(self, org_id: str | None = None, trigger_id: UUID | None = None) -> int:
@@ -521,7 +549,28 @@ class TriggerService:
         await db.commit()
 
         asyncio.create_task(self._process_signal_and_reconcile(str(trigger.organization_id), trigger.id, signal.id, raw_text.encode("utf-8", errors="ignore")))
+        asyncio.create_task(self._acknowledge_in_source(connector, event))
         return True
+
+    async def _acknowledge_in_source(self, connector: Connector, event: NormalizedTriggerEvent) -> None:
+        """Best-effort acknowledgement in the source platform."""
+        if connector.type != "slack":
+            return
+        try:
+            slack = SlackConnector(ConnectorConfig(
+                id=str(connector.id),
+                organization_id=str(connector.organization_id),
+                type=connector.type,
+                credentials=connector.credentials or {},
+                config=connector.config or {},
+            ))
+            channel_id = event.source_context.get("channel_id", "")
+            raw_event = event.raw_payload.get("event") or event.raw_payload
+            ts = raw_event.get("ts", "")
+            if channel_id and ts:
+                await slack.acknowledge_message(channel_id, ts)
+        except Exception:
+            logger.debug("webhook/slack: acknowledge failed", exc_info=True)
 
     async def _process_signal_and_reconcile(self, org_id: str, trigger_id: UUID, signal_id: UUID, raw_bytes: bytes) -> None:
         async with async_session() as db:
