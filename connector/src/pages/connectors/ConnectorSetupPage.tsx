@@ -245,7 +245,7 @@ export default function ConnectorSetupPage() {
                 <SlackChannelPicker
                   connectorId={connectorId}
                   saving={loading}
-                  onSave={(channelIds) => void saveConfig({ channel_ids: channelIds, include_threads: true, include_images: true, min_message_length: 10 })}
+                  onSave={(channelIds, channelNames) => void saveConfig({ channel_ids: channelIds, channel_names: channelNames, include_threads: true, include_images: true, min_message_length: 10 })}
                 />
               </>
             ) : (

@@ -173,9 +173,9 @@ export default function ConnectorDetailPage() {
               connectorId={connector.id}
               initialChannelIds={(connector.config?.channel_ids as string[]) ?? []}
               saving={updateConnector.isPending}
-              onSave={(channelIds) => {
+              onSave={(channelIds, channelNames) => {
                 updateConnector.mutate(
-                  { id: connector.id, payload: { config: { ...connector.config, channel_ids: channelIds } } },
+                  { id: connector.id, payload: { config: { ...connector.config, channel_ids: channelIds, channel_names: channelNames } } },
                   {
                     onSuccess: () => pushToast("Channels updated", "success"),
                     onError: () => pushToast("Failed to update channels", "error")

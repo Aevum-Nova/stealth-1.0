@@ -8,7 +8,7 @@ interface SlackChannelPickerProps {
   connectorId: string;
   initialChannelIds?: string[];
   /** Called on save (full mode with join + save button). */
-  onSave?: (channelIds: string[]) => void;
+  onSave?: (channelIds: string[], channelNames: Record<string, string>) => void;
   saving?: boolean;
   /** Called on every toggle (inline/controlled mode — no save button). */
   onChange?: (channelIds: string[]) => void;
@@ -61,7 +61,11 @@ export default function SlackChannelPicker({
     setError(null);
     try {
       await joinSlackChannels(connectorId, ids);
-      onSave?.(ids);
+      const nameMap: Record<string, string> = {};
+      for (const ch of channels) {
+        if (selected.has(ch.id)) nameMap[ch.id] = ch.name;
+      }
+      onSave?.(ids, nameMap);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join channels");

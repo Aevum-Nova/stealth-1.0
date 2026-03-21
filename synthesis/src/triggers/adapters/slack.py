@@ -18,8 +18,16 @@ class SlackTriggerAdapter(BaseTriggerAdapter):
     install_hint = "Invite the Slack bot to each channel you want a trigger to monitor."
 
     def build_scope_fields(self, connector: Connector) -> list[ScopeFieldDefinition]:
-        channels = [str(value) for value in (connector.config or {}).get("channel_ids", []) if str(value).strip()]
-        options = [ScopeOptionDefinition(label=f"#{channel}", value=channel) for channel in channels]
+        config = connector.config or {}
+        channels = [str(value) for value in config.get("channel_ids", []) if str(value).strip()]
+        channel_names: dict[str, str] = config.get("channel_names") or {}
+        options = [
+            ScopeOptionDefinition(
+                label=f"#{channel_names.get(ch, ch)}",
+                value=ch,
+            )
+            for ch in channels
+        ]
         return [
             ScopeFieldDefinition(
                 key="channel_id",

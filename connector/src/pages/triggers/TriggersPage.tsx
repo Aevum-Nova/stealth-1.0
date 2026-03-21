@@ -6,6 +6,7 @@ import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
+import { useSlackChannels } from "@/hooks/use-connectors";
 import { useTrigger, useTriggerConfig, useTriggerMutations, useTriggers } from "@/hooks/use-triggers";
 import { formatDate, formatNumber, timeAgo } from "@/lib/utils";
 import type {
@@ -32,6 +33,30 @@ function statusTone(status: string) {
   if (status === "paused") return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
   if (status === "error") return "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
   return "bg-[var(--accent-soft)] text-[var(--ink-muted)] ring-1 ring-[var(--line)]";
+}
+
+function statusDot(status: string) {
+  if (status === "active") return "bg-emerald-500";
+  if (status === "paused") return "bg-amber-500";
+  if (status === "error") return "bg-rose-500";
+  return "bg-gray-400";
+}
+
+/** Shared styles for trigger detail panel actions (edit / pause / delete). */
+const triggerDetailActionBtn =
+  "inline-flex min-h-8 min-w-[4.25rem] items-center justify-center rounded-lg border px-3 text-[11px] font-semibold tracking-[0.01em] transition-[background-color,border-color,color] duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:pointer-events-none disabled:opacity-45";
+
+function buildScopeLabel(scope: Record<string, unknown>, channelNames: Map<string, string> | undefined): string | null {
+  const allIds: string[] = [];
+  for (const val of Object.values(scope)) {
+    if (Array.isArray(val)) allIds.push(...val.map(String));
+    else if (typeof val === "string" && val) allIds.push(val);
+  }
+  if (allIds.length === 0) return null;
+  return allIds.map((id) => {
+    const name = channelNames?.get(id);
+    return name ? `#${name}` : id;
+  }).join(", ");
 }
 
 function makeEmptyPayload(connector?: TriggerConnectorOption): TriggerPayload {
@@ -180,6 +205,16 @@ export default function TriggersPage() {
 
   const connectors = configQuery.data?.data ?? [];
   const triggers = triggersQuery.data?.data ?? [];
+
+  const slackConnector = connectors.find((c) => c.plugin_type === "slack");
+  const slackChannelsQuery = useSlackChannels(slackConnector?.connector_id);
+  const channelNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ch of slackChannelsQuery.data?.data ?? []) {
+      map.set(ch.id, ch.name);
+    }
+    return map;
+  }, [slackChannelsQuery.data]);
 
   const [selectedTriggerId, setSelectedTriggerId] = useState<string | null>(null);
   const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
@@ -347,8 +382,8 @@ export default function TriggersPage() {
         ) : null}
       </div>
 
-      {/* Create / Edit form */}
-      {showForm ? (
+      {/* Create form (new triggers only — edit forms render in-place below) */}
+      {showForm && !editingTriggerId ? (
         <div className="panel p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -525,6 +560,67 @@ export default function TriggersPage() {
         <div className="space-y-3">
           {triggers.map((trigger) => {
             const isSelected = selectedTriggerId === trigger.id;
+            const isEditing = editingTriggerId === trigger.id && showForm;
+            const scopeLabel = buildScopeLabel(trigger.scope, channelNames);
+            if (isEditing) {
+              return (
+                <div key={trigger.id} className="panel p-5">
+                  <div>
+                    <div>
+                      <h3 className="text-[15px] font-semibold text-[var(--ink)]">Edit Trigger</h3>
+                      <p className="mt-0.5 text-[12px] text-[var(--ink-muted)]">
+                        Pick a source, describe what to capture, and configure scope.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 space-y-4">
+                    <div className="max-w-sm space-y-1.5">
+                      <span className="text-[13px] font-medium text-[var(--ink)]">Source</span>
+                      <SourcePicker connectors={connectors} value={form.connector_id} disabled onChange={() => {}} />
+                    </div>
+                    <label className="block space-y-1.5">
+                      <span className="text-[13px] font-medium text-[var(--ink)]">What should this trigger capture?</span>
+                      <textarea value={form.natural_language_description} onChange={(e) => { const v = e.currentTarget.value; setForm((cur) => ({ ...cur, natural_language_description: v })); }} placeholder="e.g. bug reports from customers" rows={2} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-[13px] text-[var(--ink)] placeholder:text-[var(--ink-muted)]" />
+                    </label>
+                    {selectedConnector?.scope_fields.length ? (
+                      <div className="space-y-3">
+                        {selectedConnector.scope_fields.map((field) =>
+                          selectedConnector.plugin_type === "slack" && field.key.includes("channel") ? (
+                            <div key={field.key} className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-medium text-[var(--ink)]">{field.label}</span>
+                                <span className="text-[12px] text-[var(--ink-muted)]">choose where to pull from</span>
+                              </div>
+                              <SlackChannelPicker connectorId={form.connector_id} initialChannelIds={Array.isArray(form.scope[field.key]) ? (form.scope[field.key] as string[]) : []} onChange={(ids) => handleScopeChange(field.key, ids)} />
+                            </div>
+                          ) : (
+                            <ScopeField key={field.key} field={field} value={form.scope[field.key]} onChange={(next) => handleScopeChange(field.key, next)} />
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                    <div className="border-t border-[var(--line)] pt-3">
+                      <button className="text-[13px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]" onClick={() => setShowAdvanced((c) => !c)}>
+                        {showAdvanced ? "Hide advanced settings" : "Advanced settings"}
+                      </button>
+                      {showAdvanced ? (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="space-y-1"><span className="text-[12px] font-medium text-[var(--ink-soft)]">Time threshold (min)</span><input type="number" min={1} value={form.buffer_config.time_threshold_minutes} onChange={(e) => setForm((cur) => ({ ...cur, buffer_config: { ...cur.buffer_config, time_threshold_minutes: Number(e.currentTarget.value || 60) } }))} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]" /></label>
+                          <label className="space-y-1"><span className="text-[12px] font-medium text-[var(--ink-soft)]">Count threshold</span><input type="number" min={1} value={form.buffer_config.count_threshold} onChange={(e) => setForm((cur) => ({ ...cur, buffer_config: { ...cur.buffer_config, count_threshold: Number(e.currentTarget.value || 10) } }))} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]" /></label>
+                          <label className="space-y-1"><span className="text-[12px] font-medium text-[var(--ink-soft)]">Min buffer (min)</span><input type="number" min={0} value={form.buffer_config.min_buffer_minutes} onChange={(e) => setForm((cur) => ({ ...cur, buffer_config: { ...cur.buffer_config, min_buffer_minutes: Number(e.currentTarget.value || 0) } }))} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]" /></label>
+                          <label className="space-y-1"><span className="text-[12px] font-medium text-[var(--ink-soft)]">Match confidence</span><input type="number" min={0.1} max={0.99} step={0.05} value={form.match_config.confidence_threshold} onChange={(e) => setForm((cur) => ({ ...cur, match_config: { ...cur.match_config, confidence_threshold: Number(e.currentTarget.value || 0.7) } }))} className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]" /></label>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-5 flex items-center gap-3 border-t border-[var(--line)] pt-4">
+                    <button className="rounded-lg bg-[var(--ink)] px-5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50" disabled={updateTrigger.isPending} onClick={submit}>{updateTrigger.isPending ? "Saving..." : "Save Changes"}</button>
+                    <button className="rounded-lg px-4 py-2 text-[13px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]" onClick={closeForm}>Cancel</button>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div key={trigger.id}>
                 <button
@@ -533,36 +629,28 @@ export default function TriggersPage() {
                   className={`panel w-full text-left ${isSelected ? "" : "card-hover"}`}
                   style={isSelected ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomColor: "transparent" } : undefined}
                 >
-                  <div className="p-4">
-                    <div className="flex items-start gap-3">
-                      <ConnectorLogo icon={trigger.connector.icon} alt={trigger.connector.display_name} className="mt-0.5 size-8 shrink-0 object-contain" />
+                  <div className="p-5">
+                    <div className="flex items-start gap-3.5">
+                      <ConnectorLogo icon={trigger.connector.icon} alt={trigger.connector.display_name} className="mt-0.5 size-9 shrink-0 object-contain" />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-medium text-[var(--ink-soft)]">{trigger.connector.display_name}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone(trigger.status)}`}>
-                            {trigger.status}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[14px] font-medium leading-snug text-[var(--ink)]">
+                        <p className="text-[15px] font-medium leading-snug text-[var(--ink)]">
                           {trigger.natural_language_description}
                         </p>
-                        {trigger.scope_summary ? (
-                          <p className="mt-1 text-[12px] text-[var(--ink-muted)]">{trigger.scope_summary}</p>
+                        {scopeLabel ? (
+                          <p className="mt-1.5 text-[13px] text-[var(--ink-muted)]">{scopeLabel}</p>
                         ) : null}
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-[13px] font-medium text-[var(--ink)]">
-                          {formatNumber(trigger.stats.matched_events_last_24h)}
-                        </p>
-                        <p className="text-[11px] text-[var(--ink-muted)]">matched 24h</p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className={`size-2 rounded-full ${statusDot(trigger.status)}`} />
+                        <span className="text-[12px] capitalize text-[var(--ink-muted)]">{trigger.status}</span>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-4 text-[12px] text-[var(--ink-muted)]">
-                      <span>{formatNumber(trigger.stats.feature_request_count)} feature requests</span>
-                      <span>{formatNumber(trigger.stats.open_buffer_events)} buffered</span>
-                      <span className="ml-auto">
-                        {trigger.last_event_at ? `Last event ${timeAgo(trigger.last_event_at)}` : "No events yet"}
+                    <div className="mt-4 flex items-center gap-2 border-t border-[var(--line)] pt-3 text-[13px] text-[var(--ink-muted)]">
+                      <span>{formatNumber(trigger.stats.matched_events_last_24h)} signals captured today</span>
+                      <span>·</span>
+                      <span>
+                        {trigger.last_event_at ? `Last activity ${timeAgo(trigger.last_event_at)}` : "No activity yet"}
                       </span>
                     </div>
                   </div>
@@ -578,16 +666,18 @@ export default function TriggersPage() {
                     ) : (
                       <>
                         {/* Actions bar */}
-                        <div className="flex items-center gap-2 border-b border-[var(--line)] pb-4">
+                        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] pb-4">
                           <button
-                            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)]"
+                            type="button"
+                            className={`${triggerDetailActionBtn} border-slate-700 bg-slate-900 text-white hover:border-slate-600 hover:bg-slate-800 focus:ring-slate-300`}
                             onClick={(e) => { e.stopPropagation(); startEdit(selectedDetail.trigger); }}
                           >
                             Edit
                           </button>
                           {selectedDetail.trigger.status === "active" ? (
                             <button
-                              className="rounded-lg border border-amber-200 px-3 py-1.5 text-[13px] font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-50"
+                              type="button"
+                              className={`${triggerDetailActionBtn} border-cyan-700 bg-cyan-700 text-white hover:border-cyan-600 hover:bg-cyan-600 focus:ring-cyan-200`}
                               disabled={pauseTrigger.isPending}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -601,7 +691,8 @@ export default function TriggersPage() {
                             </button>
                           ) : (
                             <button
-                              className="rounded-lg border border-emerald-200 px-3 py-1.5 text-[13px] font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:opacity-50"
+                              type="button"
+                              className={`${triggerDetailActionBtn} border-emerald-700 bg-emerald-700 text-white hover:border-emerald-600 hover:bg-emerald-600 focus:ring-emerald-200`}
                               disabled={resumeTrigger.isPending}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -615,7 +706,8 @@ export default function TriggersPage() {
                             </button>
                           )}
                           <button
-                            className="rounded-lg border border-rose-200 px-3 py-1.5 text-[13px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+                            type="button"
+                            className={`${triggerDetailActionBtn} border-rose-700 bg-rose-700 text-white hover:border-rose-600 hover:bg-rose-600 focus:ring-rose-200`}
                             disabled={deleteTrigger.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
