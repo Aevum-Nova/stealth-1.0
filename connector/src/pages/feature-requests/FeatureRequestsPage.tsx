@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SlidersHorizontal, ChevronDown, Play, RotateCw } from "lucide-react";
+import { SlidersHorizontal, ChevronDown, Play, RotateCw, Trash2 } from "lucide-react";
 
 import FeatureRequestTable from "@/components/feature-requests/FeatureRequestTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useToast } from "@/components/shared/Toast";
 import { useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
 import { useRunSynthesis } from "@/hooks/use-synthesis";
 import type { FeatureRequestFilters } from "@/types/feature-request";
@@ -113,12 +114,16 @@ export default function FeatureRequestsPage() {
   const filters = useMemo(() => fromSearchParams(searchParams), [searchParams]);
 
   const query = useFeatureRequests(filters);
+  const { pushToast } = useToast();
   const actions = useFeatureRequestActions();
   const runMutation = useRunSynthesis({
     onSuccess: () => navigate("/synthesis")
   });
   const [openConfirm, setOpenConfirm] = useState(false);
+  const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeightPx, setToolbarHeightPx] = useState(TOOLBAR_FALLBACK_PX);
 
@@ -153,6 +158,15 @@ export default function FeatureRequestsPage() {
     setSearchParams(next);
   }
 
+  const rows = query.data?.data ?? [];
+  const total = (query.data as any)?.total ?? rows.length;
+  const selectedCount = selectedIds.length;
+
+  useEffect(() => {
+    const visibleIds = new Set(rows.map((row) => row.id));
+    setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
+  }, [rows]);
+
   if (query.isPending && !query.data) {
     return (
       <div className="flex h-full min-h-0 w-full items-center justify-center bg-[var(--surface)]">
@@ -169,8 +183,30 @@ export default function FeatureRequestsPage() {
     );
   }
 
-  const rows = query.data?.data ?? [];
-  const total = (query.data as any)?.total ?? rows.length;
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => (
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    ));
+  }
+
+  function toggleAllSelected() {
+    const visibleIds = rows.map((row) => row.id);
+    setSelectedIds((current) => (
+      visibleIds.every((id) => current.includes(id)) ? [] : visibleIds
+    ));
+  }
+
+  function startSelectionMode() {
+    setSelectionMode(true);
+  }
+
+  function cancelSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds([]);
+    setOpenDeleteConfirm(false);
+  }
 
   return (
     <div className="relative h-full min-h-0 w-full min-w-0 flex-1 bg-[var(--surface)]">
@@ -192,10 +228,13 @@ export default function FeatureRequestsPage() {
               fullBleed
               stickyHeaderOffsetPx={toolbarHeightPx}
               items={rows}
-              onDelete={(id) => actions.delete.mutate(id)}
               sort={filters.sort}
               order={filters.order}
               onSort={handleSort}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelected={toggleSelected}
+              onToggleAllSelected={toggleAllSelected}
             />
           )}
         </div>
@@ -260,68 +299,125 @@ export default function FeatureRequestsPage() {
 
           {showFilters && (
             <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)]/60 pt-2">
-              <FilterDropdown
-                value={filters.status ?? ""}
-                options={[
-                  { value: "", label: "All statuses" },
-                  { value: "draft", label: "Draft" },
-                  { value: "reviewed", label: "Reviewed" },
-                  { value: "approved", label: "Approved" },
-                  { value: "merged", label: "Merged" },
-                  { value: "sent_to_agent", label: "Sent to Agent" },
-                ]}
-                onChange={(v) => setFilter("status", v)}
-              />
-              <FilterDropdown
-                value={filters.type ?? ""}
-                options={[
-                  { value: "", label: "All types" },
-                  { value: "feature", label: "Feature" },
-                  { value: "bug_fix", label: "Bug Fix" },
-                  { value: "improvement", label: "Improvement" },
-                  { value: "integration", label: "Integration" },
-                  { value: "ux_change", label: "UX Change" },
-                ]}
-                onChange={(v) => setFilter("type", v)}
-              />
-              <FilterDropdown
-                value={filters.priority ?? ""}
-                options={[
-                  { value: "", label: "All priorities" },
-                  { value: "critical", label: "Critical" },
-                  { value: "high", label: "High" },
-                  { value: "medium", label: "Medium" },
-                  { value: "low", label: "Low" },
-                ]}
-                onChange={(v) => setFilter("priority", v)}
-              />
-              <input
-                className="w-[5.5rem] rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--ink-soft)] placeholder:text-[var(--ink-muted)] hover:border-[var(--line-muted)]"
-                type="number"
-                value={filters.min_score ?? ""}
-                onChange={(e) => setFilter("min_score", e.target.value)}
-                placeholder="Min score"
-              />
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  className="text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
-                  onClick={() => {
-                    const next = new URLSearchParams(searchParams);
-                    next.delete("status");
-                    next.delete("type");
-                    next.delete("priority");
-                    next.delete("min_score");
-                    setSearchParams(next);
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <FilterDropdown
+                  value={filters.status ?? ""}
+                  options={[
+                    { value: "", label: "All statuses" },
+                    { value: "draft", label: "Draft" },
+                    { value: "reviewed", label: "Reviewed" },
+                    { value: "approved", label: "Approved" },
+                    { value: "merged", label: "Merged" },
+                    { value: "sent_to_agent", label: "Sent to Agent" },
+                  ]}
+                  onChange={(v) => setFilter("status", v)}
+                />
+                <FilterDropdown
+                  value={filters.type ?? ""}
+                  options={[
+                    { value: "", label: "All types" },
+                    { value: "feature", label: "Feature" },
+                    { value: "bug_fix", label: "Bug Fix" },
+                    { value: "improvement", label: "Improvement" },
+                    { value: "integration", label: "Integration" },
+                    { value: "ux_change", label: "UX Change" },
+                  ]}
+                  onChange={(v) => setFilter("type", v)}
+                />
+                <FilterDropdown
+                  value={filters.priority ?? ""}
+                  options={[
+                    { value: "", label: "All priorities" },
+                    { value: "critical", label: "Critical" },
+                    { value: "high", label: "High" },
+                    { value: "medium", label: "Medium" },
+                    { value: "low", label: "Low" },
+                  ]}
+                  onChange={(v) => setFilter("priority", v)}
+                />
+                <input
+                  className="w-[5.5rem] rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--ink-soft)] placeholder:text-[var(--ink-muted)] hover:border-[var(--line-muted)]"
+                  type="number"
+                  value={filters.min_score ?? ""}
+                  onChange={(e) => setFilter("min_score", e.target.value)}
+                  placeholder="Min score"
+                />
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete("status");
+                      next.delete("type");
+                      next.delete("priority");
+                      next.delete("min_score");
+                      setSearchParams(next);
+                    }}
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                {selectionMode ? (
+                  <div className="inline-flex items-center gap-2">
+                    <span className="rounded-md border border-[#d9d9e0] bg-[#f3f3f6] px-2.5 py-1 text-[11px] font-medium text-[#5e606c]">
+                      {selectedCount} selected
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-md px-2.5 py-1 text-[11px] font-medium text-[#5e606c] transition-colors hover:bg-[#f3f3f6] hover:text-[#1f2430]"
+                      onClick={cancelSelectionMode}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-[#18181b] bg-[#111113] px-3.5 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-[#1b1b1f] disabled:cursor-not-allowed disabled:border-[#ddddE3] disabled:bg-[#efeff2] disabled:text-[#9a9ca5]"
+                      disabled={selectedCount === 0 || actions.deleteMany.isPending}
+                      onClick={() => setOpenDeleteConfirm(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-[#f87171]" />
+                      Delete selected
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-[#d9d9e0] bg-white px-2.5 text-[#5e606c] transition-colors hover:border-[#c9cad3] hover:bg-[#f8f8fa] hover:text-[#1f2430]"
+                    onClick={startSelectionMode}
+                    title="Delete feature requests"
+                    aria-label="Delete feature requests"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={openDeleteConfirm}
+        title="Delete selected feature requests?"
+        description={`This will permanently delete ${selectedCount} feature request${selectedCount === 1 ? "" : "s"}. This action cannot be undone.`}
+        confirmLabel={actions.deleteMany.isPending ? "Deleting..." : "Delete"}
+        onCancel={() => setOpenDeleteConfirm(false)}
+        onConfirm={() => {
+          actions.deleteMany.mutate(selectedIds, {
+            onSuccess: () => {
+              pushToast("Feature requests deleted", "success");
+              cancelSelectionMode();
+            },
+            onError: () => {
+              pushToast("Failed to delete feature requests", "error");
+              setOpenDeleteConfirm(false);
+            },
+          });
+        }}
+      />
 
       <ConfirmDialog
         open={openConfirm}

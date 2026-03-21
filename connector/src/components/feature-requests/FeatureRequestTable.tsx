@@ -5,10 +5,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ArrowRight,
   TrendingUp,
   TrendingDown,
   Minus,
-  Trash2,
 } from "lucide-react";
 
 import { getPrStatus } from "@/api/agent";
@@ -73,6 +73,13 @@ const INDEX_COL: Column = {
   align: "center",
 };
 
+const SELECT_COL: Column = {
+  key: "_select",
+  label: "",
+  width: "44px",
+  align: "center",
+};
+
 /** Grid lines on every cell (spreadsheet-style) */
 const CELL_GRID =
   "box-border min-w-0 w-full border-b border-r border-[var(--line)] last:border-r-0";
@@ -96,7 +103,6 @@ function prStatusCellLabel(
 
 interface FeatureRequestTableProps {
   items: FeatureRequest[];
-  onDelete: (id: string) => void;
   sort?: string;
   order?: "asc" | "desc";
   onSort?: (field: string) => void;
@@ -104,16 +110,23 @@ interface FeatureRequestTableProps {
   fullBleed?: boolean;
   /** Sticky header `top` offset — match overlay toolbar height (px) */
   stickyHeaderOffsetPx?: number;
+  selectionMode?: boolean;
+  selectedIds?: string[];
+  onToggleSelected?: (id: string) => void;
+  onToggleAllSelected?: () => void;
 }
 
 export default function FeatureRequestTable({
   items,
-  onDelete,
   sort,
   order,
   onSort,
   fullBleed = false,
   stickyHeaderOffsetPx = 0,
+  selectionMode = false,
+  selectedIds = [],
+  onToggleSelected,
+  onToggleAllSelected,
 }: FeatureRequestTableProps) {
   const navigate = useNavigate();
 
@@ -126,8 +139,8 @@ export default function FeatureRequestTable({
   });
 
   const columns = useMemo(
-    () => (fullBleed ? [INDEX_COL, ...DATA_COLUMNS] : DATA_COLUMNS),
-    [fullBleed]
+    () => (fullBleed ? [selectionMode ? SELECT_COL : INDEX_COL, ...DATA_COLUMNS] : selectionMode ? [SELECT_COL, ...DATA_COLUMNS] : DATA_COLUMNS),
+    [fullBleed, selectionMode]
   );
 
   const gridTemplate = useMemo(
@@ -153,6 +166,7 @@ export default function FeatureRequestTable({
   const headerGridClass = `grid items-stretch border-t border-[var(--line)] bg-[var(--surface-subtle)] ${
     fullBleed ? "sticky z-30 shadow-[0_1px_0_var(--line-soft)]" : ""
   }`;
+  const allVisibleSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
 
   return (
     <div className={sheetShell}>
@@ -166,6 +180,27 @@ export default function FeatureRequestTable({
       >
         {columns.map((col) => {
           const isSort = col.sortable && onSort;
+          if (col.key === SELECT_COL.key) {
+            return (
+              <div
+                key={col.key}
+                className={`flex cursor-pointer items-center justify-center px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--ink-muted)] select-none ${CELL_GRID}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleAllSelected?.();
+                }}
+              >
+                <input
+                  type="checkbox"
+                  className="size-3.5 rounded border-[var(--line)] accent-[var(--action-primary)]"
+                  checked={allVisibleSelected}
+                  onChange={() => onToggleAllSelected?.()}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Select all feature requests"
+                />
+              </div>
+            );
+          }
           return (
             <div
               key={col.key}
@@ -199,31 +234,47 @@ export default function FeatureRequestTable({
             style={{ gridTemplateColumns: gridTemplate }}
             onClick={() => navigate(`/feature-requests/${fr.id}`)}
           >
-            {fullBleed && (
+            {(fullBleed || selectionMode) && (
               <div
-                className={`flex items-center px-2 py-2 tabular-nums text-[12px] text-[var(--ink-muted)] ${CELL_GRID}`}
+                className={`flex items-center justify-center px-2 py-2 tabular-nums text-[12px] text-[var(--ink-muted)] ${CELL_GRID} ${selectionMode ? "cursor-pointer hover:bg-[var(--surface-subtle)]" : ""}`}
+                onClick={selectionMode ? (event) => {
+                  event.stopPropagation();
+                  onToggleSelected?.(fr.id);
+                } : undefined}
               >
-                {rowIndex + 1}
+                {selectionMode ? (
+                  <input
+                    type="checkbox"
+                    className="size-3.5 rounded border-[var(--line)] accent-[var(--action-primary)]"
+                    checked={selectedIds.includes(fr.id)}
+                    onChange={() => onToggleSelected?.(fr.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label={`Select ${fr.title}`}
+                  />
+                ) : (
+                  rowIndex + 1
+                )}
               </div>
             )}
 
-            {/* Title (+ delete — no separate actions column) */}
+            {/* Title (+ go-to detail action) */}
             <div
-              className={`flex min-w-0 items-center gap-2 px-3 py-2 pr-3 ${CELL_GRID} ${cellAlign()}`}
+              className={`group/title flex min-w-0 items-center gap-2 px-3 py-2 pr-3 ${CELL_GRID} ${cellAlign()}`}
             >
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-[var(--ink)] transition-colors group-hover:text-[var(--accent-hover)]">
                 {fr.title}
               </span>
               <button
                 type="button"
-                className="shrink-0 rounded-md p-1 text-[var(--ink-muted)] opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                className="shrink-0 rounded-md p-1 text-[var(--ink-muted)] opacity-0 transition-all group-hover/title:bg-[var(--surface-subtle)] group-hover/title:text-[var(--ink)] group-hover/title:opacity-100 hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(fr.id);
+                  navigate(`/feature-requests/${fr.id}`);
                 }}
-                title="Delete"
+                title="Go to feature request"
+                aria-label="Go to feature request"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
 

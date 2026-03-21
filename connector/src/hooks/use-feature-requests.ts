@@ -93,6 +93,19 @@ export function useFeatureRequestActions() {
       onSuccess: async () => {
         await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
       }
+    }),
+    deleteMany: useMutation({
+      mutationFn: async (ids: string[]) => {
+        const results = await Promise.allSettled(ids.map((id) => featureRequestsApi.deleteFeatureRequest(id)));
+        const failures = results.filter((result) => result.status === "rejected");
+        if (failures.length) {
+          throw new Error(`Failed to delete ${failures.length} feature request(s).`);
+        }
+        return results;
+      },
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
+      }
     })
   };
 }
