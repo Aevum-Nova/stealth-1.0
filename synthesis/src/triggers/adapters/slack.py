@@ -42,6 +42,12 @@ class SlackTriggerAdapter(BaseTriggerAdapter):
 
     def normalize_webhook_payload(self, payload: dict, headers: dict[str, str]) -> list[NormalizedTriggerEvent]:
         envelope = payload.get("event") if isinstance(payload.get("event"), dict) else payload
+
+        # Only process plain human messages — skip bots, apps, edits, deletes,
+        # joins, reactions, etc. to prevent infinite feedback loops.
+        if envelope.get("bot_id") or envelope.get("app_id") or envelope.get("subtype"):
+            return []
+
         event_type = str(envelope.get("type") or payload.get("type") or "message")
         external_id = str(envelope.get("client_msg_id") or envelope.get("event_ts") or envelope.get("ts") or "")
         if not external_id:
