@@ -8,7 +8,6 @@ import {
   updateConnector
 } from "@/api/connectors";
 import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
-import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
 import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import OAuthButton from "@/components/connectors/OAuthButton";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -26,11 +25,9 @@ export default function ConnectorSetupPage() {
   const [apiKey, setApiKey] = useState("");
   const [byocCredentials, setByocCredentials] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [savedRepo, setSavedRepo] = useState<string | null>(null);
 
   const [catalog, setCatalog] = useState<any[] | null>(null);
 
-  const isGitHub = type === "github";
   const isSlack = type === "slack";
 
   useEffect(() => {
@@ -166,25 +163,6 @@ export default function ConnectorSetupPage() {
     }
   };
 
-  const handleGitHubRepoSelect = async (repo: string, branch: string) => {
-    if (!connectorId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await updateConnector(connectorId, {
-        name: `GitHub - ${repo}`,
-        config: { repository: repo, default_branch: branch },
-        enabled: true,
-      });
-      setSavedRepo(repo);
-      setStep(3);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save repository selection");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -246,7 +224,7 @@ export default function ConnectorSetupPage() {
                 </button>
               </div>
             )}
-            {connectorId && !isGitHub ? (
+            {connectorId ? (
               <button
                 className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
                 disabled={(item.auth_method === "oauth2" || item.auth_method === "oauth2_byoc") && !authorized}
@@ -261,16 +239,7 @@ export default function ConnectorSetupPage() {
         {/* Step 2: Configure */}
         {step === 2 ? (
           <div className="mt-3 space-y-4">
-            {isGitHub && connectorId ? (
-              <>
-                <h3 className="text-[15px] font-medium">Select Repository</h3>
-                <GitHubRepoPicker
-                  connectorId={connectorId}
-                  saving={loading}
-                  onSelect={(repo, branch) => void handleGitHubRepoSelect(repo, branch)}
-                />
-              </>
-            ) : isSlack && connectorId ? (
+            {isSlack && connectorId ? (
               <>
                 <h3 className="text-[15px] font-medium">Select Channels</h3>
                 <SlackChannelPicker
@@ -293,9 +262,7 @@ export default function ConnectorSetupPage() {
           <div className="mt-3 space-y-3">
             <h3 className="text-[15px] font-medium">Ready</h3>
             <p className="text-[13px] text-[var(--ink-soft)]">
-              {isGitHub
-                ? `Connected to ${savedRepo ?? "repository"}. The agent will create PRs in this repo.`
-                : "Connector is configured. Open it to review bot scope and start creating triggers."}
+              Connector is configured. Open it to review bot scope and start creating triggers.
             </p>
             <button
               className="rounded-lg bg-[var(--ink)] px-3.5 py-2 text-[13px] font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"

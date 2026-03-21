@@ -1,7 +1,7 @@
 import type { SignalFilters } from "@/types/signal";
 import { formatSourceLabel } from "@/lib/utils";
 
-const SOURCES = ["slack", "google_forms", "zendesk", "servicenow", "figma", "granola", "intercom", "direct_upload", "api"];
+const SOURCES = ["slack", "direct_upload", "api"];
 const STATUSES = ["pending", "processing", "completed", "failed"];
 const SENTIMENTS = ["positive", "negative", "neutral", "mixed"];
 const URGENCIES = ["low", "medium", "high", "critical"];

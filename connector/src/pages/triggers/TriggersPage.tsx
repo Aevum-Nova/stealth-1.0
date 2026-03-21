@@ -309,7 +309,7 @@ export default function TriggersPage() {
         </div>
         <EmptyState
           title="No connectors available"
-          description="Connect a data source like Slack, Teams, or Zendesk before creating triggers."
+          description="Connect a data source like Slack before creating triggers."
           action={
             <Link
               to="/connectors"

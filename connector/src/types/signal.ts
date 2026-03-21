@@ -1,11 +1,5 @@
 export type SignalSource =
   | "slack"
-  | "google_forms"
-  | "zendesk"
-  | "servicenow"
-  | "figma"
-  | "granola"
-  | "intercom"
   | "direct_upload"
   | "api";
 

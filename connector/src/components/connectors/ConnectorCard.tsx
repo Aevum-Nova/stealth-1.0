@@ -18,23 +18,23 @@ export default function ConnectorCard({ connector, icon, syncing, onSync, onOpen
   const isConnected = connector.enabled && hasCredentials;
 
   return (
-    <article className="panel card-hover p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+    <article className="panel card-hover p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
           <ConnectorLogo
             icon={icon}
             alt={connector.type.replaceAll("_", " ")}
-            className="size-8 shrink-0 object-contain"
+            className="size-10 shrink-0 object-contain"
           />
           <div>
-            <h4 className="text-[15px] font-medium capitalize tracking-tight">{connector.type.replaceAll("_", " ")}</h4>
-            <p className="text-[13px] text-[var(--ink-soft)]">
+            <h4 className="text-[17px] font-medium capitalize tracking-tight">{connector.type.replaceAll("_", " ")}</h4>
+            <p className="text-[14px] text-[var(--ink-soft)]">
               {isConnected ? "Connected" : hasCredentials ? "Disabled" : "Not connected"}
               {connector.config?.repository ? ` \u00b7 ${String(connector.config.repository)}` : ""}
             </p>
           </div>
         </div>
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+        <span className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
           isConnected
             ? "bg-emerald-50 text-emerald-700"
             : hasCredentials
@@ -46,28 +46,28 @@ export default function ConnectorCard({ connector, icon, syncing, onSync, onOpen
       </div>
 
       {!hideSync ? (
-        <p className="mt-2 text-[12px] text-[var(--ink-muted)]">Last sync {timeAgo(connector.last_sync_at)}</p>
+        <p className="mt-3 text-[13px] text-[var(--ink-muted)]">Last sync {timeAgo(connector.last_sync_at)}</p>
       ) : null}
-      {connector.last_sync_error ? <p className="mt-1 text-[12px] text-red-500">{connector.last_sync_error}</p> : null}
+      {connector.last_sync_error ? <p className="mt-1 text-[13px] text-red-500">{connector.last_sync_error}</p> : null}
 
-      <div className="mt-3.5 flex flex-wrap gap-1.5">
+      <div className="mt-4 flex flex-wrap gap-2">
         {!hideSync ? (
           <button
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
             disabled={syncing}
             onClick={() => onSync(connector.id)}
           >
-            <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`size-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing..." : "Sync Now"}
           </button>
         ) : null}
         <button
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-3 py-1.5 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)]"
+          className="inline-flex items-center gap-2 rounded-lg border border-[var(--line)] px-4 py-2 text-[14px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)]"
           onClick={() => onOpen(connector.id)}
         >
-          <Settings2 className="size-3.5" />
+          <Settings2 className="size-4" />
           Configure
-          <ArrowRight className="size-3.5" />
+          <ArrowRight className="size-4" />
         </button>
       </div>
     </article>

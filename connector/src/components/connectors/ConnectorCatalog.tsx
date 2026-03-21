@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, ArrowRight, RefreshCw } from "lucide-react";
 
 import type { Connector, ConnectorCatalogItem } from "@/types/connector";
 import ConnectorLogo from "@/components/connectors/ConnectorLogo";
@@ -10,10 +11,14 @@ interface ConnectorCatalogProps {
   category: "input" | "output";
   title: string;
   onAdd: (type: string) => void;
+  onConfigure: (id: string) => void;
+  onSync: (id: string) => void;
+  syncingId?: string;
 }
 
-export default function ConnectorCatalog({ catalog, existing, category, title, onAdd }: ConnectorCatalogProps) {
-  const existingTypes = new Set(existing.map((item) => item.type));
+export default function ConnectorCatalog({ catalog, existing, category, title, onAdd, onConfigure, onSync, syncingId }: ConnectorCatalogProps) {
+  const existingByType = new Map(existing.map((item) => [item.type, item]));
+  const existingTypes = new Set(existingByType.keys());
   const filtered = catalog.filter((item) => (item.category ?? "input") === category);
   const [loadingType, setLoadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,57 +42,78 @@ export default function ConnectorCatalog({ catalog, existing, category, title, o
   };
 
   return (
-    <section className="panel p-4">
-      <h3 className="mb-3 text-[15px] font-medium">{title}</h3>
-      {error ? <p className="mb-3 text-[13px] text-red-700">{error}</p> : null}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <section className="space-y-3">
+      <h3 className="mb-1 text-[17px] font-medium">{title}</h3>
+      {error ? <p className="text-[14px] text-red-700">{error}</p> : null}
+      <div className="inline-grid grid-cols-1 gap-3 md:grid-cols-[28rem_28rem]">
         {filtered.map((item) => {
           const alreadyAdded = existingTypes.has(item.type);
+          const connector = existingByType.get(item.type);
           const unavailable = item.available === false;
           const disabled = (unavailable && !alreadyAdded) || loadingType === item.type;
+          const isSyncing = connector ? syncingId === connector.id : false;
           return (
-            <article key={item.type} className="rounded-lg border border-[var(--line)] bg-white p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
+            <article key={item.type} className="rounded-lg border border-[var(--line)] bg-white p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
                   <ConnectorLogo
                     icon={item.icon}
                     alt={item.display_name}
-                    className="size-8 shrink-0 object-contain"
+                    className="size-10 shrink-0 object-contain"
                   />
                   <div>
-                    <h4 className="capitalize">{item.display_name}</h4>
-                    <p className="mt-1 text-[11px] text-[var(--ink-soft)]">{item.description}</p>
+                    <h4 className="text-[16px] font-medium capitalize">{item.display_name}</h4>
+                    <p className="mt-1 text-[13px] text-[var(--ink-soft)]">{item.description}</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--ink-soft)]">
-                  {item.auth_method}
-                </span>
               </div>
-              {unavailable ? (
-                <p className="mt-2 text-[11px] text-amber-800">
+              {unavailable && !alreadyAdded ? (
+                <p className="mt-3 text-[13px] text-amber-800">
                   Server setup required
                   {item.missing_env_vars?.length ? ` (${item.missing_env_vars.join(", ")})` : ""}
                 </p>
               ) : null}
-              <button
-                disabled={disabled}
-                className={`mt-3 w-full rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors ${
-                  disabled
-                    ? "cursor-not-allowed bg-[var(--accent-soft)] text-[var(--ink-muted)]"
-                    : alreadyAdded
-                      ? "bg-emerald-50 text-emerald-700"
+              {alreadyAdded && connector ? (
+                <div className="mt-4 flex items-center justify-between border-t border-[var(--line)] pt-3">
+                  <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-700">
+                    <Check className="size-4" />
+                    Connected
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)] disabled:opacity-50"
+                      disabled={isSyncing}
+                      onClick={() => onSync(connector.id)}
+                    >
+                      <RefreshCw className={`size-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                      {isSyncing ? "Syncing..." : "Sync"}
+                    </button>
+                    <button
+                      className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
+                      onClick={() => onConfigure(connector.id)}
+                    >
+                      Configure
+                      <ArrowRight className="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  disabled={disabled}
+                  className={`mt-4 w-full rounded-lg px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                    disabled
+                      ? "cursor-not-allowed bg-[var(--accent-soft)] text-[var(--ink-muted)]"
                       : "bg-[var(--ink)] text-white hover:bg-[var(--accent-hover)]"
-                }`}
-                onClick={() => void handleAdd(item)}
-              >
-                {loadingType === item.type
-                  ? "Redirecting..."
-                  : alreadyAdded
-                    ? "Added (Configure)"
+                  }`}
+                  onClick={() => void handleAdd(item)}
+                >
+                  {loadingType === item.type
+                    ? "Redirecting..."
                     : unavailable
                       ? "Server Setup Required"
                       : "Add"}
-              </button>
+                </button>
+              )}
             </article>
           );
         })}

@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import ConnectorConfigForm from "@/components/connectors/ConnectorConfigForm";
 import ConnectorLogo from "@/components/connectors/ConnectorLogo";
-import GitHubRepoPicker from "@/components/connectors/GitHubRepoPicker";
 import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
@@ -22,7 +21,6 @@ export default function ConnectorDetailPage() {
   const { updateConnector, syncConnector, deleteConnector } = useConnectorMutations();
   const triggersQuery = useTriggers();
 
-  const [changingRepo, setChangingRepo] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   if (connectorQuery.isLoading || catalogQuery.isLoading) {
@@ -35,7 +33,6 @@ export default function ConnectorDetailPage() {
 
   const connector = connectorQuery.data.data;
   const catalogItem = catalogQuery.data?.data.find((item) => item.type === connector.type);
-  const isGitHub = connector.type === "github";
 
   const handleDisconnect = () => {
     deleteConnector.mutate(connector.id, {
@@ -46,134 +43,6 @@ export default function ConnectorDetailPage() {
       onError: () => pushToast("Failed to disconnect connector", "error")
     });
   };
-
-  if (isGitHub) {
-    return (
-      <div className="space-y-5">
-        <Link to="/connectors" className="inline-flex items-center gap-1 text-[13px] text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          Back to Connectors
-        </Link>
-
-        {/* Header */}
-        <div className="panel p-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3.5">
-              {catalogItem ? (
-                <ConnectorLogo icon={catalogItem.icon} alt={catalogItem.display_name} className="h-11 w-11" />
-              ) : null}
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-semibold tracking-tight">GitHub</h2>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                    connector.enabled
-                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                      : "bg-[var(--accent-soft)] text-[var(--ink-muted)] ring-1 ring-[var(--line)]"
-                  }`}>
-                    {connector.enabled ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[13px] text-[var(--ink-soft)]">{connector.name}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Connected repo */}
-        {!changingRepo && connector.config?.repository ? (
-          <div className="panel p-5">
-            <h3 className="text-[14px] font-semibold text-[var(--ink)]">Connected Repository</h3>
-            <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3.5 py-2.5">
-              <svg className="h-5 w-5 shrink-0 text-[var(--ink-soft)]" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9z" />
-              </svg>
-              <a
-                href={`https://github.com/${connector.config.repository}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[13px] font-medium text-[var(--accent)] hover:underline"
-              >
-                {String(connector.config.repository)}
-              </a>
-              <span className="text-[12px] text-[var(--ink-muted)]">
-                branch: <span className="font-medium text-[var(--ink-soft)]">{String(connector.config.default_branch ?? "main")}</span>
-              </span>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              <button
-                className="rounded-lg border border-[var(--line)] px-3.5 py-2 text-[13px] font-medium text-[var(--ink)] hover:bg-[var(--accent-soft)] transition-colors"
-                onClick={() => setChangingRepo(true)}
-              >
-                Change Repository
-              </button>
-              <button
-                className="rounded-lg border border-rose-200 px-3.5 py-2 text-[13px] font-medium text-rose-600 hover:bg-rose-50 transition-colors"
-                onClick={() => setConfirmDisconnect(true)}
-              >
-                Disconnect
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Repo picker (inline) */}
-        {changingRepo || !connector.config?.repository ? (
-          <div className="panel p-5">
-            <h3 className="mb-3 text-[14px] font-semibold text-[var(--ink)]">Select Repository</h3>
-            <GitHubRepoPicker
-              connectorId={connector.id}
-              initialRepo={connector.config?.repository as string | undefined}
-              initialBranch={connector.config?.default_branch as string | undefined}
-              saving={updateConnector.isPending}
-              onSelect={(repo, branch) => {
-                updateConnector.mutate(
-                  {
-                    id: connector.id,
-                    payload: {
-                      name: `GitHub - ${repo}`,
-                      config: { repository: repo, default_branch: branch }
-                    }
-                  },
-                  {
-                    onSuccess: () => {
-                      pushToast("Repository updated", "success");
-                      setChangingRepo(false);
-                    },
-                    onError: () => pushToast("Failed to update repository", "error")
-                  }
-                );
-              }}
-              onCancel={connector.config?.repository ? () => setChangingRepo(false) : undefined}
-            />
-            {!connector.config?.repository ? (
-              <div className="mt-4 border-t border-[var(--line)] pt-4">
-                <button
-                  className="rounded-lg border border-rose-200 px-3.5 py-2 text-[13px] font-medium text-rose-600 hover:bg-rose-50 transition-colors"
-                  onClick={() => setConfirmDisconnect(true)}
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {connector.last_sync_error ? (
-          <p className="text-[13px] text-red-500">{connector.last_sync_error}</p>
-        ) : null}
-
-        <ConfirmDialog
-          open={confirmDisconnect}
-          title="Disconnect GitHub?"
-          description="This will remove the connector and its configuration. This action cannot be undone."
-          confirmLabel="Disconnect"
-          onConfirm={handleDisconnect}
-          onCancel={() => setConfirmDisconnect(false)}
-        />
-      </div>
-    );
-  }
 
   // ─── Data Source Layout ───────────────────────────────────────────
   return (

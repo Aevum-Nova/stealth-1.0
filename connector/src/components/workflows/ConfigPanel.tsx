@@ -126,13 +126,6 @@ function Textarea({
 
 const CONNECTORS = [
   { value: "slack", label: "Slack" },
-  { value: "github", label: "GitHub" },
-  { value: "intercom", label: "Intercom" },
-  { value: "zendesk", label: "Zendesk" },
-  { value: "figma", label: "Figma" },
-  { value: "teams", label: "Teams" },
-  { value: "servicenow", label: "ServiceNow" },
-  { value: "google_forms", label: "Google Forms" },
 ];
 
 function ConnectorPicker({
