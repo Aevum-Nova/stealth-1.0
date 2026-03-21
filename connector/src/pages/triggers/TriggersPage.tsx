@@ -1,12 +1,14 @@
+import { useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import * as connectorsApi from "@/api/connectors";
 import ConnectorLogo from "@/components/connectors/ConnectorLogo";
 import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
-import { useSlackChannels } from "@/hooks/use-connectors";
+import { useConnectors } from "@/hooks/use-connectors";
 import { useTrigger, useTriggerConfig, useTriggerMutations, useTriggers } from "@/hooks/use-triggers";
 import { formatDate, formatNumber, timeAgo } from "@/lib/utils";
 import type {
@@ -46,17 +48,24 @@ function statusDot(status: string) {
 const triggerDetailActionBtn =
   "inline-flex min-h-8 min-w-[4.25rem] items-center justify-center rounded-lg border px-3 text-[11px] font-semibold tracking-[0.01em] transition-[background-color,border-color,color] duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:pointer-events-none disabled:opacity-45";
 
-function buildScopeLabel(scope: Record<string, unknown>, channelNames: Map<string, string> | undefined): string | null {
-  const allIds: string[] = [];
-  for (const val of Object.values(scope)) {
-    if (Array.isArray(val)) allIds.push(...val.map(String));
-    else if (typeof val === "string" && val) allIds.push(val);
+function collectScopeValues(scope: Record<string, unknown>): string[] {
+  const values: string[] = [];
+  for (const value of Object.values(scope)) {
+    if (Array.isArray(value)) {
+      values.push(...value.map(String));
+    } else if (typeof value === "string" && value) {
+      values.push(value);
+    }
   }
-  if (allIds.length === 0) return null;
-  return allIds.map((id) => {
-    const name = channelNames?.get(id);
-    return name ? `#${name}` : id;
-  }).join(", ");
+  return values;
+}
+
+function buildSlackScopeLabel(scope: Record<string, unknown>, channelNames?: Map<string, string>): string | null {
+  const ids = collectScopeValues(scope);
+  if (!ids.length || !channelNames) return null;
+  const names = ids.map((id) => channelNames.get(id)).filter((name): name is string => Boolean(name));
+  if (names.length !== ids.length) return null;
+  return names.map((name) => `#${name}`).join(", ");
 }
 
 function makeEmptyPayload(connector?: TriggerConnectorOption): TriggerPayload {
@@ -199,22 +208,78 @@ function ScopeField({
 
 export default function TriggersPage() {
   const configQuery = useTriggerConfig();
+  const connectorsQuery = useConnectors();
   const triggersQuery = useTriggers();
   const { pushToast } = useToast();
   const { createTrigger, updateTrigger, deleteTrigger, pauseTrigger, resumeTrigger } = useTriggerMutations();
 
   const connectors = configQuery.data?.data ?? [];
   const triggers = triggersQuery.data?.data ?? [];
+  const savedConnectors = connectorsQuery.data?.data ?? [];
 
-  const slackConnector = connectors.find((c) => c.plugin_type === "slack");
-  const slackChannelsQuery = useSlackChannels(slackConnector?.connector_id);
-  const channelNames = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const ch of slackChannelsQuery.data?.data ?? []) {
-      map.set(ch.id, ch.name);
+  const slackTriggerConnectorIds = useMemo(
+    () => Array.from(new Set(triggers.filter((trigger) => trigger.plugin_type === "slack").map((trigger) => trigger.connector.id))),
+    [triggers],
+  );
+
+  const slackChannelQueries = useQueries({
+    queries: slackTriggerConnectorIds.map((connectorId) => ({
+      queryKey: ["connector", connectorId, "slack-channels"],
+      queryFn: () => connectorsApi.getSlackChannels(connectorId),
+      enabled: Boolean(connectorId),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  const slackChannelNamesByConnector = useMemo(() => {
+    const namesByConnector = new Map<string, Map<string, string>>();
+
+    for (const connector of savedConnectors) {
+      if (connector.type !== "slack") continue;
+      const names = new Map<string, string>();
+      const configuredNames = connector.config?.channel_names;
+      if (configuredNames && typeof configuredNames === "object") {
+        for (const [id, name] of Object.entries(configuredNames as Record<string, unknown>)) {
+          if (typeof name === "string" && name.trim()) {
+            names.set(id, name);
+          }
+        }
+      }
+      namesByConnector.set(connector.id, names);
     }
-    return map;
-  }, [slackChannelsQuery.data]);
+
+    slackChannelQueries.forEach((query, index) => {
+      const connectorId = slackTriggerConnectorIds[index];
+      if (!connectorId) return;
+      const names = namesByConnector.get(connectorId) ?? new Map<string, string>();
+      for (const channel of query.data?.data ?? []) {
+        names.set(channel.id, channel.name);
+      }
+      namesByConnector.set(connectorId, names);
+    });
+
+    return namesByConnector;
+  }, [savedConnectors, slackChannelQueries, slackTriggerConnectorIds]);
+
+  const waitingForSlackChannelNames = useMemo(() => {
+    if (connectorsQuery.isLoading) {
+      return triggers.some((trigger) => trigger.plugin_type === "slack" && collectScopeValues(trigger.scope).length > 0);
+    }
+
+    return triggers.some((trigger) => {
+      if (trigger.plugin_type !== "slack") return false;
+      const scopeIds = collectScopeValues(trigger.scope);
+      if (!scopeIds.length) return false;
+
+      const channelNames = slackChannelNamesByConnector.get(trigger.connector.id);
+      const hasAllNames = scopeIds.every((id) => channelNames?.has(id));
+      if (hasAllNames) return false;
+
+      const queryIndex = slackTriggerConnectorIds.indexOf(trigger.connector.id);
+      const query = queryIndex >= 0 ? slackChannelQueries[queryIndex] : undefined;
+      return !query || query.isPending;
+    });
+  }, [connectorsQuery.isLoading, slackChannelNamesByConnector, slackChannelQueries, slackTriggerConnectorIds, triggers]);
 
   const [selectedTriggerId, setSelectedTriggerId] = useState<string | null>(null);
   const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
@@ -327,6 +392,10 @@ export default function TriggersPage() {
 
   if (configQuery.isLoading || triggersQuery.isLoading) {
     return <LoadingSpinner label="Loading triggers" />;
+  }
+
+  if (waitingForSlackChannelNames) {
+    return <LoadingSpinner label="Loading channel names" />;
   }
 
   if (configQuery.isError || triggersQuery.isError) {
@@ -561,7 +630,9 @@ export default function TriggersPage() {
           {triggers.map((trigger) => {
             const isSelected = selectedTriggerId === trigger.id;
             const isEditing = editingTriggerId === trigger.id && showForm;
-            const scopeLabel = buildScopeLabel(trigger.scope, channelNames);
+            const scopeLabel = trigger.plugin_type === "slack"
+              ? buildSlackScopeLabel(trigger.scope, slackChannelNamesByConnector.get(trigger.connector.id))
+              : trigger.scope_summary;
             if (isEditing) {
               return (
                 <div key={trigger.id} className="panel p-5">
