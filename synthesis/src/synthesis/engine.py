@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.config import settings
 from src.models.feature_request import FeatureRequest, FeatureRequestSignal, SynthesisRun
 from src.models.signal import Signal
+from src.services.embeddings import embedding_service
 from src.services.event_bus import get_event_bus
 from src.synthesis.clustering import cluster_signals
+from src.synthesis.cross_run_deduplicator import cross_run_deduplicator
 from src.synthesis.deduplicator import deduplicator
 from src.synthesis.engine_types import SignalDigest
 from src.synthesis.feature_extractor import DraftFeatureRequest, feature_extractor
@@ -173,14 +175,20 @@ class SynthesisEngine:
             await self._set_status(db, run, "synthesizing")
             drafts = await feature_extractor.extract(clusters, context=effective_context)
 
-            await self._publish_progress(organization_id, run.id, "deduplicating", 60)
+            await self._publish_progress(organization_id, run.id, "deduplicating", 55)
             await self._set_status(db, run, "deduplicating")
             drafts = await deduplicator.deduplicate(drafts)
 
+            await self._publish_progress(organization_id, run.id, "cross_run_dedup", 65)
+            remaining_drafts, merged_fr_ids = await cross_run_deduplicator.deduplicate(
+                db, organization_id, drafts, signals
+            )
+
             await self._publish_progress(organization_id, run.id, "prioritizing", 80)
             fr_ids = await self._persist_feature_requests(
-                db, organization_id, run, signals, drafts, mode
+                db, organization_id, run, signals, remaining_drafts, mode
             )
+            fr_ids.extend(merged_fr_ids)
 
             run.status = "completed"
             run.completed_at = datetime.now(UTC)
@@ -303,6 +311,13 @@ class SynthesisEngine:
                         }
                     )
 
+                # Use precomputed embedding from cross-run dedup, or generate one
+                fr_embedding = draft.embedding
+                if not fr_embedding:
+                    fr_embedding = await embedding_service.embed(
+                        f"{title}. {draft.problem_statement}"
+                    )
+
                 fr = FeatureRequest(
                     organization_id=UUID(organization_id),
                     title=title,
@@ -323,6 +338,7 @@ class SynthesisEngine:
                     synthesis_model=run.model,
                     synthesis_confidence=round(draft.confidence * 100),
                     synthesis_summary=draft.synthesis_summary,
+                    embedding=fr_embedding,
                 )
                 db.add(fr)
                 await db.flush()

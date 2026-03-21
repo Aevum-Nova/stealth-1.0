@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
 
     SYNTHESIS_CLUSTER_THRESHOLD: float = 0.75
+    SYNTHESIS_FR_DEDUP_THRESHOLD: float = 0.82
     SYNTHESIS_MAX_SIGNALS: int = 2000
     SYNTHESIS_AUTO_TRIGGER_MIN: int = 5
     SYNTHESIS_CLUSTER_CONCURRENCY: int = 4

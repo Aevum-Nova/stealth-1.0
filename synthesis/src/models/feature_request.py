@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
@@ -72,6 +73,7 @@ class FeatureRequest(Base):
     synthesis_confidence = Column(Integer, nullable=True)
     synthesis_summary = Column(Text, nullable=True)
     merged_into_id = Column(UUID(as_uuid=True), ForeignKey("feature_requests.id"), nullable=True)
+    embedding = Column(Vector(1536), nullable=True)
 
     human_edited = Column(Boolean, nullable=False, default=False)
     human_edited_fields = Column(JSONB, default=list)

@@ -23,6 +23,7 @@ from src.config import settings
 from src.database import get_db
 from src.middleware.auth import get_current_org
 from src.models.connector import Connector
+from src.models.trigger import IngestedEvent
 from src.schemas.common import ApiResponse
 from src.schemas.connector import ConnectorCreate, ConnectorRead, ConnectorUpdate, OAuthCompleteRequest
 from src.services.event_bus import get_event_bus
@@ -376,6 +377,16 @@ async def sync_connector(
             fetched = len(items)
             for item in items:
                 try:
+                    # Skip messages already ingested by triggers
+                    already_ingested = await db.execute(
+                        select(IngestedEvent.id).where(
+                            IngestedEvent.plugin_type == connector.type,
+                            IngestedEvent.external_id == item.external_id,
+                        ).limit(1)
+                    )
+                    if already_ingested.scalar_one_or_none() is not None:
+                        continue
+
                     raw_bytes = item.content if isinstance(item.content, bytes) else item.content.encode("utf-8")
                     signal = await signal_builder.create_pending_signal(
                         db,

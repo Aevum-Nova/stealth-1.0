@@ -98,6 +98,7 @@ class DraftFeatureRequest:
     representative_quotes: dict[str, str] = field(default_factory=dict)
     confidence: float = 0.5
     synthesis_summary: str | None = None
+    embedding: list[float] | None = None
 
 
 class FeatureExtractor:
