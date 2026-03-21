@@ -207,8 +207,8 @@ export default function TriggersPage() {
       setSelectedTriggerId(null);
       return;
     }
-    if (!selectedTriggerId || !triggers.some((item) => item.id === selectedTriggerId)) {
-      setSelectedTriggerId(triggers[0].id);
+    if (selectedTriggerId && !triggers.some((item) => item.id === selectedTriggerId)) {
+      setSelectedTriggerId(null);
     }
   }, [selectedTriggerId, triggers]);
 
@@ -530,7 +530,8 @@ export default function TriggersPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTriggerId(isSelected ? null : trigger.id)}
-                  className={`panel w-full text-left transition-all ${isSelected ? "ring-1 ring-[var(--ink)]" : "card-hover"}`}
+                  className={`panel w-full text-left ${isSelected ? "" : "card-hover"}`}
+                  style={isSelected ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomColor: "transparent" } : undefined}
                 >
                   <div className="p-4">
                     <div className="flex items-start gap-3">
@@ -569,7 +570,7 @@ export default function TriggersPage() {
 
                 {/* Expanded detail */}
                 {isSelected ? (
-                  <div className="panel mt-1 p-5">
+                  <div className="panel p-5" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
                     {selectedDetailQuery.isLoading ? (
                       <LoadingSpinner label="Loading activity" />
                     ) : selectedDetailQuery.isError || !selectedDetail ? (
