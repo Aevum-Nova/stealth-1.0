@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ChevronDown,
   ChevronRight,
@@ -25,23 +25,15 @@ import {
   useTriggerOrchestration,
 } from "@/hooks/use-agent";
 import { useConnectors } from "@/hooks/use-connectors";
-import {
-  useFeatureRequest,
-  useFeatureRequestActions,
-  useFeatureRequests,
-} from "@/hooks/use-feature-requests";
+import { useFeatureRequest, useFeatureRequests } from "@/hooks/use-feature-requests";
 import type { AgentJob, PrFile } from "@/types/agent";
 import type {
   FeatureRequest,
   SupportingEvidence,
 } from "@/types/feature-request";
 
-type CenterTab = "thread" | "chat";
+type CenterTab = "thread" | "chat" | "signals";
 
-const LEFT_COLLAPSED_THRESHOLD = 96;
-const LEFT_DEFAULT_WIDTH = 260;
-
-const STORAGE_LEFT = "product-context-left-panel-width";
 const STORAGE_RIGHT = "product-context-right-panel-width";
 
 function loadStoredWidth(key: string, fallback: number): number {
@@ -411,109 +403,60 @@ function IndexingStatus({ connectorId }: { connectorId: string }) {
   return null;
 }
 
-/* ── Left sidebar: feature request row ──────────────────────── */
+/* ── Signals tab (supporting evidence for current request) ─── */
 
-function FeatureRequestGroup({
-  item,
-  isActive,
-  isExpanded,
-  onToggle,
-  onNavigate,
-  onSignalClick,
-}: {
-  item: FeatureRequest;
-  isActive: boolean;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onNavigate: () => void;
-  onSignalClick: (id: string) => void;
-}) {
-  const evidence = item.supporting_evidence ?? [];
-  const signalCount = item.impact_metrics?.signal_count ?? 0;
-
-  return (
-    <div>
-      <button
-        type="button"
-        className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-          isActive
-            ? "bg-[var(--surface-active)] text-[var(--ink)]"
-            : "text-[var(--ink-soft)] hover:bg-[var(--surface-subtle)]"
-        }`}
-        onClick={() => (isActive ? onToggle() : onNavigate())}
-      >
-        <Radio
-          className={`size-[15px] shrink-0 ${
-            isActive ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
-          }`}
-        />
-
-        <span
-          className={`min-w-0 flex-1 truncate text-[13px] leading-snug ${
-            isActive ? "font-semibold" : "font-medium"
-          }`}
-        >
-          {item.title}
-        </span>
-
-        {signalCount > 0 && !isExpanded && (
-          <span className="shrink-0 text-[11px] tabular-nums text-[var(--ink-muted)]">
-            {signalCount}
-          </span>
-        )}
-
-        {isExpanded ? (
-          <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
-        ) : (
-          <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
-        )}
-      </button>
-
-      {isExpanded && evidence.length > 0 && (
-        <div className="pb-1">
-          {evidence.map((ev, i) => (
-            <SignalRow
-              key={ev.signal_id}
-              evidence={ev}
-              index={i}
-              onSignalClick={onSignalClick}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Left sidebar: signal row ───────────────────────────────── */
-
-function SignalRow({
+function SignalsTabContent({
   evidence,
-  index,
   onSignalClick,
 }: {
-  evidence: SupportingEvidence;
-  index: number;
+  evidence: SupportingEvidence[];
   onSignalClick: (id: string) => void;
 }) {
+  if (evidence.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <p className="max-w-sm text-[13px] leading-relaxed text-[var(--ink-muted)]">
+          No linked signals for this request. Switch to another feature request from the list
+          when you need to review related feedback.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={() => onSignalClick(evidence.signal_id)}
-      className="flex w-full items-center gap-2 py-1.5 pl-8 pr-4 text-left transition-colors hover:bg-[var(--surface-subtle)]"
-    >
-      <span className="size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-50" />
-      <span className="truncate text-[12px] leading-snug text-[var(--ink-soft)]">
-        Signal {index + 1}
-      </span>
-    </button>
+    <div className="divide-y divide-[var(--line-soft)]">
+      {evidence.map((ev, i) => (
+        <button
+          key={ev.signal_id}
+          type="button"
+          onClick={() => onSignalClick(ev.signal_id)}
+          className="flex w-full items-start gap-3 px-6 py-4 text-left transition-colors hover:bg-[var(--surface-subtle)]"
+        >
+          <Radio className="mt-0.5 size-[15px] shrink-0 text-[var(--ink-muted)]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-[var(--ink)]">
+              {ev.signal_summary?.trim() || `Signal ${i + 1}`}
+            </p>
+            {ev.representative_quote ? (
+              <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[var(--ink-muted)]">
+                &ldquo;{ev.representative_quote}&rdquo;
+              </p>
+            ) : null}
+            <p className="mt-1.5 text-[11px] text-[var(--ink-muted)]">
+              {ev.source}
+              {ev.customer_company ? ` · ${ev.customer_company}` : ""}
+            </p>
+          </div>
+          <ChevronRight className="mt-0.5 size-4 shrink-0 text-[var(--ink-muted)]" />
+        </button>
+      ))}
+    </div>
   );
 }
 
 /* ── Main page ──────────────────────────────────────────────── */
 
 export default function ProductContextPage() {
-  const navigate = useNavigate();
   const { id = "" } = useParams();
   const featureRequestQuery = useFeatureRequest(id);
   const featureRequestsQuery = useFeatureRequests({
@@ -521,7 +464,6 @@ export default function ProductContextPage() {
     sort: "updated_at",
     order: "desc",
   });
-  const actions = useFeatureRequestActions();
   const jobsQuery = useAgentJobs(id);
   const triggerMutation = useTriggerOrchestration(id);
   const { pushToast } = useToast();
@@ -542,34 +484,16 @@ export default function ProductContextPage() {
     [allFeatureRequests, id],
   );
   const frDetail = featureRequestQuery.data?.data ?? null;
-  /** Prefer API detail when loaded; fall back to list row so sidebar switches don't flash a full-page loader. */
+  /** Prefer API detail when loaded; fall back to list row to avoid a full-page loader on direct links. */
   const fr = frDetail ?? frFromList;
 
   const [tab, setTab] = useState<CenterTab>("thread");
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [signalModalId, setSignalModalId] = useState<string | null>(null);
   const closeSignalModal = useCallback(() => setSignalModalId(null), []);
 
-  const [leftPanelWidth, setLeftPanelWidth] = useState(() =>
-    loadStoredWidth(STORAGE_LEFT, 260),
-  );
   const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     loadStoredWidth(STORAGE_RIGHT, 280),
   );
-
-  const handleLeftResize = useCallback((deltaX: number) => {
-    setLeftPanelWidth((w) => {
-      const next = Math.max(60, Math.round(w + deltaX));
-      localStorage.setItem(STORAGE_LEFT, String(next));
-      return next;
-    });
-  }, []);
-
-  const expandLeftPanel = useCallback(() => {
-    const w = LEFT_DEFAULT_WIDTH;
-    setLeftPanelWidth(w);
-    localStorage.setItem(STORAGE_LEFT, String(w));
-  }, []);
 
   const handleRightResize = useCallback((deltaX: number) => {
     setRightPanelWidth((w) => {
@@ -631,14 +555,7 @@ export default function ProductContextPage() {
       ? new Date(latestSignalMention) > new Date(latestCompletedJob.created_at)
       : false);
 
-  const toggleExpand = (itemId: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  };
+  const supportingEvidence = fr.supporting_evidence ?? [];
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--canvas)]">
@@ -726,48 +643,13 @@ export default function ProductContextPage() {
         </div>
       </header>
 
-      {/* ── Three columns ── */}
+      {/* ── Center + right (changes) ── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Left */}
-        <aside
-          className="relative hidden shrink-0 flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface)] xl:flex"
-          style={{ width: leftPanelWidth }}
-        >
-          {leftPanelWidth <= LEFT_COLLAPSED_THRESHOLD ? (
-            <button
-              type="button"
-              onClick={expandLeftPanel}
-              className="flex flex-1 items-center justify-center bg-transparent transition-colors hover:bg-[var(--surface-subtle)]"
-              title="Expand Feature Requests"
-              aria-label="Expand Feature Requests panel"
-            >
-              <ChevronRight className="size-4 shrink-0 text-[var(--ink-muted)]" />
-            </button>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              {allFeatureRequests.map((item) => (
-                <FeatureRequestGroup
-                  key={item.id}
-                  item={item}
-                  isActive={item.id === fr.id}
-                  isExpanded={expandedIds.has(item.id)}
-                  onToggle={() => toggleExpand(item.id)}
-                  onNavigate={() => {
-                    navigate(`/feature-requests/${item.id}`);
-                    setExpandedIds((prev) => new Set(prev).add(item.id));
-                  }}
-                  onSignalClick={setSignalModalId}
-                />
-              ))}
-            </div>
-          )}
-          <PanelResizer side="left" onResize={handleLeftResize} />
-        </aside>
-
         {/* Center */}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--surface)]">
-          <div className="flex shrink-0 gap-0.5 border-b border-[var(--line-soft)] px-5">
+          <div className="flex shrink-0 flex-wrap gap-x-0.5 border-b border-[var(--line-soft)] px-5">
             <button
+              type="button"
               className={`-mb-px border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
                 tab === "thread"
                   ? "border-[var(--ink)] text-[var(--ink)]"
@@ -778,6 +660,7 @@ export default function ProductContextPage() {
               Agent Thread
             </button>
             <button
+              type="button"
               className={`-mb-px border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
                 tab === "chat"
                   ? "border-[var(--ink)] text-[var(--ink)]"
@@ -786,6 +669,22 @@ export default function ProductContextPage() {
               onClick={() => setTab("chat")}
             >
               Chat
+            </button>
+            <button
+              type="button"
+              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-4 py-3 text-[13px] font-medium transition-colors ${
+                tab === "signals"
+                  ? "border-[var(--ink)] text-[var(--ink)]"
+                  : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink-soft)]"
+              }`}
+              onClick={() => setTab("signals")}
+            >
+              Signals
+              {supportingEvidence.length > 0 ? (
+                <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[var(--ink-muted)]">
+                  {supportingEvidence.length}
+                </span>
+              ) : null}
             </button>
           </div>
 
@@ -798,10 +697,15 @@ export default function ProductContextPage() {
               ) : (
                 <AgentThread jobs={jobs} featureRequest={fr} />
               )
-            ) : (
+            ) : tab === "chat" ? (
               <div className="h-full">
                 <ChatPanel featureRequestId={fr.id} latestPrUrl={latestPrUrl} />
               </div>
+            ) : (
+              <SignalsTabContent
+                evidence={supportingEvidence}
+                onSignalClick={setSignalModalId}
+              />
             )}
           </div>
         </main>
