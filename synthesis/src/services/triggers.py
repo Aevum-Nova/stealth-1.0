@@ -340,6 +340,7 @@ class TriggerService:
         logger.info("webhook.processing", plugin_type=plugin_type, events=len(normalized_events), candidates=len(candidates))
         matched = 0
         for normalized in normalized_events:
+            acknowledged = False
             for trigger, connector in candidates:
                 if not adapter.scope_matches(trigger.scope or {}, normalized):
                     logger.info(
@@ -363,6 +364,9 @@ class TriggerService:
                     continue
                 created = await self._persist_matched_event(db, trigger, connector, normalized, score)
                 matched += int(created)
+                if created and not acknowledged:
+                    asyncio.create_task(self._acknowledge_in_source(connector, normalized))
+                    acknowledged = True
         logger.info("webhook.result", plugin_type=plugin_type, received=len(normalized_events), matched=matched)
         return {"received": len(normalized_events), "matched": matched}
 
@@ -505,7 +509,6 @@ class TriggerService:
         await db.commit()
 
         asyncio.create_task(self._process_signal_and_reconcile(str(trigger.organization_id), trigger.id, signal.id, raw_text.encode("utf-8", errors="ignore")))
-        asyncio.create_task(self._acknowledge_in_source(connector, event))
         return True
 
     async def _acknowledge_in_source(self, connector: Connector, event: NormalizedTriggerEvent) -> None:
