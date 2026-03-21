@@ -121,7 +121,7 @@ export default function FeatureRequestDetailPage() {
             Send to Agent
           </button>
           <Link
-            to={`/feature-requests/${featureRequest.id}/context`}
+            to={`/feature-requests/${featureRequest.id}`}
             className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[13px] font-medium hover:bg-[var(--accent-soft)] transition-colors"
           >
             Product Context

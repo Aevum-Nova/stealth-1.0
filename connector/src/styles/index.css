@@ -89,13 +89,19 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   min-height: 100%;
 }
 
 body {
   margin: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   color: var(--ink);
   background: var(--canvas);
   min-height: 100vh;
@@ -113,14 +119,24 @@ body {
   }
 }
 
-h1, h2, h3, h4 {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+h1,
+h2,
+h3,
+h4 {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.02em;
 }
 
-button, input, textarea, select {
+button,
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
 }
@@ -151,7 +167,9 @@ button:not(:disabled):hover {
 }
 
 .card-hover {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .card-hover:hover {
@@ -159,14 +177,19 @@ button:not(:disabled):hover {
   box-shadow: 0 2px 8px var(--shadow-soft);
 }
 
-
 ::selection {
   background: var(--selection);
 }
 
 @keyframes cursor-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Chat message markdown styles */
@@ -273,32 +296,82 @@ button:not(:disabled):hover {
 }
 
 /* ── Syntax highlighting tokens (light) ── */
-.syn-keyword { color: #8b5cf6; }
-.syn-type { color: #0d9488; }
-.syn-string { color: #b45309; }
-.syn-comment { color: #9ca3af; font-style: italic; }
-.syn-number { color: #0369a1; }
-.syn-function { color: #2563eb; }
-.syn-decorator { color: #d97706; }
-.syn-operator { color: #64748b; }
-.syn-punctuation { color: #78716c; }
-.syn-tag { color: #2563eb; }
-.syn-attr { color: #0d9488; }
-.syn-property { color: #1d4ed8; }
+.syn-keyword {
+  color: #8b5cf6;
+}
+.syn-type {
+  color: #0d9488;
+}
+.syn-string {
+  color: #b45309;
+}
+.syn-comment {
+  color: #9ca3af;
+  font-style: italic;
+}
+.syn-number {
+  color: #0369a1;
+}
+.syn-function {
+  color: #2563eb;
+}
+.syn-decorator {
+  color: #d97706;
+}
+.syn-operator {
+  color: #64748b;
+}
+.syn-punctuation {
+  color: #78716c;
+}
+.syn-tag {
+  color: #2563eb;
+}
+.syn-attr {
+  color: #0d9488;
+}
+.syn-property {
+  color: #1d4ed8;
+}
 
 /* ── Syntax highlighting tokens (dark) ── */
-:root[data-theme="dark"] .syn-keyword { color: #c084fc; }
-:root[data-theme="dark"] .syn-type { color: #5eead4; }
-:root[data-theme="dark"] .syn-string { color: #fbbf24; }
-:root[data-theme="dark"] .syn-comment { color: #6b7280; font-style: italic; }
-:root[data-theme="dark"] .syn-number { color: #7dd3fc; }
-:root[data-theme="dark"] .syn-function { color: #60a5fa; }
-:root[data-theme="dark"] .syn-decorator { color: #fcd34d; }
-:root[data-theme="dark"] .syn-operator { color: #94a3b8; }
-:root[data-theme="dark"] .syn-punctuation { color: #a8a29e; }
-:root[data-theme="dark"] .syn-tag { color: #60a5fa; }
-:root[data-theme="dark"] .syn-attr { color: #5eead4; }
-:root[data-theme="dark"] .syn-property { color: #93c5fd; }
+:root[data-theme="dark"] .syn-keyword {
+  color: #c084fc;
+}
+:root[data-theme="dark"] .syn-type {
+  color: #5eead4;
+}
+:root[data-theme="dark"] .syn-string {
+  color: #fbbf24;
+}
+:root[data-theme="dark"] .syn-comment {
+  color: #6b7280;
+  font-style: italic;
+}
+:root[data-theme="dark"] .syn-number {
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .syn-function {
+  color: #60a5fa;
+}
+:root[data-theme="dark"] .syn-decorator {
+  color: #fcd34d;
+}
+:root[data-theme="dark"] .syn-operator {
+  color: #94a3b8;
+}
+:root[data-theme="dark"] .syn-punctuation {
+  color: #a8a29e;
+}
+:root[data-theme="dark"] .syn-tag {
+  color: #60a5fa;
+}
+:root[data-theme="dark"] .syn-attr {
+  color: #5eead4;
+}
+:root[data-theme="dark"] .syn-property {
+  color: #93c5fd;
+}
 .chat-message-content .chat-li {
   display: block;
   padding-left: 14px;
@@ -360,7 +433,9 @@ button:not(:disabled):hover {
   box-shadow: none !important;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
   border-color: var(--focus-border);
   box-shadow: 0 0 0 3px var(--focus-ring);
@@ -397,7 +472,8 @@ input:focus, textarea:focus, select:focus {
 :root[data-theme="dark"] .chat-scroll-area:hover::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
 }
-:root[data-theme="dark"] .chat-scroll-area:hover::-webkit-scrollbar-thumb:hover {
+:root[data-theme="dark"]
+  .chat-scroll-area:hover::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
@@ -407,7 +483,9 @@ input:focus, textarea:focus, select:focus {
   box-shadow: none;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   color: var(--ink);
 }
 
@@ -474,10 +552,16 @@ input, textarea, select {
   border-color: var(--line-soft) !important;
 }
 
-:root[data-theme="dark"] .divide-\[\#f5f5f5\] > :not([hidden]) ~ :not([hidden]) {
+:root[data-theme="dark"]
+  .divide-\[\#f5f5f5\]
+  > :not([hidden])
+  ~ :not([hidden]) {
   border-color: var(--line-soft) !important;
 }
 
-:root[data-theme="dark"] .divide-\[\#f0f0f1\] > :not([hidden]) ~ :not([hidden]) {
+:root[data-theme="dark"]
+  .divide-\[\#f0f0f1\]
+  > :not([hidden])
+  ~ :not([hidden]) {
   border-color: var(--line-soft) !important;
 }

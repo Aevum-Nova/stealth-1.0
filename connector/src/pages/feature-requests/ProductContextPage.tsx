@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronRight, Database, GitPullRequest, ExternalLink, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Database,
+  GitPullRequest,
+  ExternalLink,
+  Loader2,
+  Radio,
+} from "lucide-react";
 
 import ChatPanel from "@/components/agent/ChatPanel";
 import PanelResizer from "@/components/layout/PanelResizer";
@@ -17,9 +25,16 @@ import {
   useTriggerOrchestration,
 } from "@/hooks/use-agent";
 import { useConnectors } from "@/hooks/use-connectors";
-import { useFeatureRequest, useFeatureRequestActions, useFeatureRequests } from "@/hooks/use-feature-requests";
+import {
+  useFeatureRequest,
+  useFeatureRequestActions,
+  useFeatureRequests,
+} from "@/hooks/use-feature-requests";
 import type { AgentJob, PrFile } from "@/types/agent";
-import type { FeatureRequest, SupportingEvidence } from "@/types/feature-request";
+import type {
+  FeatureRequest,
+  SupportingEvidence,
+} from "@/types/feature-request";
 
 type CenterTab = "thread" | "chat";
 
@@ -47,8 +62,12 @@ const STATUS_DOT: Record<string, string> = {
 
 function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
   const [isOpen, setIsOpen] = useState(true);
-  const summaryQuery = useFeatureRequestSummary(featureRequest.id, featureRequest.synthesis_summary);
-  const summary = featureRequest.synthesis_summary || summaryQuery.data?.data?.summary;
+  const summaryQuery = useFeatureRequestSummary(
+    featureRequest.id,
+    featureRequest.synthesis_summary,
+  );
+  const summary =
+    featureRequest.synthesis_summary || summaryQuery.data?.data?.summary;
   const isLoading = !featureRequest.synthesis_summary && summaryQuery.isLoading;
 
   return (
@@ -57,18 +76,32 @@ function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
         className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
         onClick={() => setIsOpen((v) => !v)}
       >
-        {isOpen
-          ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
-          : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
+        {isOpen ? (
+          <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+        ) : (
+          <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+        )}
         <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
-        <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ink)]">Summary</span>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ink)]">
+          Summary
+        </span>
       </button>
       {isOpen && (
         <div className="px-6 pb-5 pt-0">
-          {isLoading && <p className="text-[14px] leading-snug text-[var(--ink-muted)]">Generating summary...</p>}
-          {summary && <p className="text-[14px] leading-snug text-[var(--ink)]">{summary}</p>}
+          {isLoading && (
+            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
+              Generating summary...
+            </p>
+          )}
+          {summary && (
+            <p className="text-[14px] leading-snug text-[var(--ink)]">
+              {summary}
+            </p>
+          )}
           {!isLoading && !summary && summaryQuery.isError && (
-            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">Could not generate summary.</p>
+            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
+              Could not generate summary.
+            </p>
           )}
         </div>
       )}
@@ -76,7 +109,13 @@ function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
   );
 }
 
-function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureRequest: FeatureRequest }) {
+function AgentThread({
+  jobs,
+  featureRequest,
+}: {
+  jobs: AgentJob[];
+  featureRequest: FeatureRequest;
+}) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   if (jobs.length === 0) {
@@ -84,7 +123,9 @@ function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureReques
       <div className="py-2">
         <SummaryBanner featureRequest={featureRequest} />
         <div className="flex items-center justify-center p-8">
-          <p className="text-[13px] text-[var(--ink-muted)]">No runs yet. Click Generate PR to start.</p>
+          <p className="text-[13px] text-[var(--ink-muted)]">
+            No runs yet. Click Generate PR to start.
+          </p>
         </div>
       </div>
     );
@@ -98,31 +139,46 @@ function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureReques
         const taskCount = job.result?.tasks.length ?? 0;
 
         return (
-          <div key={job.id} className="border-b border-[var(--line-soft)] last:border-b-0">
+          <div
+            key={job.id}
+            className="border-b border-[var(--line-soft)] last:border-b-0"
+          >
             <button
               className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
-              onClick={() => setCollapsed((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
+              onClick={() =>
+                setCollapsed((prev) => ({ ...prev, [job.id]: !prev[job.id] }))
+              }
             >
-              {isOpen
-                ? <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
-                : <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />}
-              <span className={`size-2 shrink-0 rounded-full ${STATUS_DOT[job.status] ?? "bg-zinc-400"}`} />
+              {isOpen ? (
+                <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+              ) : (
+                <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+              )}
+              <span
+                className={`size-2 shrink-0 rounded-full ${STATUS_DOT[job.status] ?? "bg-zinc-400"}`}
+              />
               <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--ink)]">
                 {job.result?.feature_name ?? `Run #${jobs.length - idx}`}
               </span>
               {taskCount > 0 && (
-                <span className="shrink-0 text-[12px] text-[var(--ink-muted)]">{taskCount} tasks</span>
+                <span className="shrink-0 text-[12px] text-[var(--ink-muted)]">
+                  {taskCount} tasks
+                </span>
               )}
             </button>
 
             {isOpen && (
               <div className="px-6 pb-5 pt-0">
                 {job.error && (
-                  <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-600">{job.error}</p>
+                  <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-600">
+                    {job.error}
+                  </p>
                 )}
                 {job.result && (
                   <div className="space-y-2">
-                    <p className="text-[14px] leading-snug text-[var(--ink)]">{job.result.spec_summary}</p>
+                    <p className="text-[14px] leading-snug text-[var(--ink)]">
+                      {job.result.spec_summary}
+                    </p>
 
                     {job.result.tasks.length > 0 && (
                       <div className="space-y-1.5">
@@ -131,7 +187,10 @@ function AgentThread({ jobs, featureRequest }: { jobs: AgentJob[]; featureReques
                         </p>
                         <div className="space-y-1">
                           {job.result.tasks.map((task, i) => (
-                            <div key={`${job.id}-t-${i}`} className="flex items-start gap-2.5 text-[14px] leading-snug text-[var(--ink-soft)]">
+                            <div
+                              key={`${job.id}-t-${i}`}
+                              className="flex items-start gap-2.5 text-[14px] leading-snug text-[var(--ink-soft)]"
+                            >
                               <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-60" />
                               {task}
                             </div>
@@ -234,7 +293,9 @@ function AllChanges({
   if (files.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center px-4 text-center">
-        <p className="text-[12px] text-[var(--ink-muted)]">No file changes on this PR yet.</p>
+        <p className="text-[12px] text-[var(--ink-muted)]">
+          No file changes on this PR yet.
+        </p>
       </div>
     );
   }
@@ -250,15 +311,17 @@ function AllChanges({
           <span className="flex size-5 items-center justify-center rounded-md bg-[var(--ink)] text-[10px] font-semibold tabular-nums text-white">
             {files.length}
           </span>
-          <span className="text-[12px] font-medium text-[var(--ink-soft)]">Files changed</span>
+          <span className="text-[12px] font-medium text-[var(--ink-soft)]">
+            Files changed
+          </span>
           <span className="ml-auto font-mono text-[11px] tabular-nums">
-            <span className="text-emerald-600">+{totalAdd}</span>
-            {" "}/{" "}
+            <span className="text-emerald-600">+{totalAdd}</span> /{" "}
             <span className="text-red-600">-{totalDel}</span>
           </span>
         </div>
         <p className="text-[11px] leading-snug text-[var(--ink-muted)]">
-          Totals reflect the full PR vs base branch (all commits), including chat-applied updates.
+          Totals reflect the full PR vs base branch (all commits), including
+          chat-applied updates.
         </p>
       </div>
 
@@ -268,7 +331,9 @@ function AllChanges({
             <button
               type="button"
               className={`flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-subtle)] ${
-                i < files.length - 1 && expandedIdx !== i ? "border-b border-[var(--line-soft)]" : ""
+                i < files.length - 1 && expandedIdx !== i
+                  ? "border-b border-[var(--line-soft)]"
+                  : ""
               } ${expandedIdx === i ? "bg-[var(--surface-subtle)]" : ""}`}
               onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
             >
@@ -277,10 +342,16 @@ function AllChanges({
               ) : (
                 <ChevronRight className="size-3 shrink-0 text-[var(--ink-muted)]" />
               )}
-              <code className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink-soft)]">{file.filename}</code>
-              <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">+{file.additions}</span>
+              <code className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink-soft)]">
+                {file.filename}
+              </code>
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-emerald-600">
+                +{file.additions}
+              </span>
               {file.deletions > 0 && (
-                <span className="shrink-0 font-mono text-[10px] tabular-nums text-red-600">-{file.deletions}</span>
+                <span className="shrink-0 font-mono text-[10px] tabular-nums text-red-600">
+                  -{file.deletions}
+                </span>
               )}
             </button>
 
@@ -316,7 +387,8 @@ function IndexingStatus({ connectorId }: { connectorId: string }) {
   const statusQuery = useCodeIndexStatus(connectorId);
   const data = statusQuery.data?.data;
 
-  if (!data || data.status === "not_started" || data.status === "pending") return null;
+  if (!data || data.status === "not_started" || data.status === "pending")
+    return null;
 
   if (data.status === "ready") {
     return (
@@ -339,7 +411,7 @@ function IndexingStatus({ connectorId }: { connectorId: string }) {
   return null;
 }
 
-/* ── Left sidebar: feature request group ────────────────────── */
+/* ── Left sidebar: feature request row ──────────────────────── */
 
 function FeatureRequestGroup({
   item,
@@ -360,37 +432,53 @@ function FeatureRequestGroup({
   const signalCount = item.impact_metrics?.signal_count ?? 0;
 
   return (
-    <div className={isActive ? "bg-[var(--surface-subtle)]" : ""}>
+    <div>
       <button
-        className={`group relative flex w-full items-center gap-1.5 border-b border-[var(--line-soft)] py-3 pl-4 pr-3 text-left transition-colors ${
-          isActive ? "" : "hover:bg-[var(--surface-subtle)]"
+        type="button"
+        className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+          isActive
+            ? "bg-[var(--surface-active)] text-[var(--ink)]"
+            : "text-[var(--ink-soft)] hover:bg-[var(--surface-subtle)]"
         }`}
         onClick={() => (isActive ? onToggle() : onNavigate())}
       >
-        {isActive && <div className="absolute inset-y-0 left-0 w-[2px] bg-[var(--ink)]" />}
+        <Radio
+          className={`size-[15px] shrink-0 ${
+            isActive ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
+          }`}
+        />
 
-        <span className={`min-w-0 flex-1 truncate text-[13px] leading-tight ${isActive ? "font-semibold text-[var(--ink)]" : "font-medium text-[var(--ink-soft)]"}`}>
+        <span
+          className={`min-w-0 flex-1 truncate text-[13px] leading-snug ${
+            isActive ? "font-semibold" : "font-medium"
+          }`}
+        >
           {item.title}
         </span>
 
         {signalCount > 0 && !isExpanded && (
-          <span className="mr-1.5 shrink-0 text-[10px] tabular-nums text-[var(--ink-muted)]">{signalCount}</span>
+          <span className="shrink-0 text-[11px] tabular-nums text-[var(--ink-muted)]">
+            {signalCount}
+          </span>
         )}
 
-        {isExpanded
-          ? <ChevronDown className="size-[14px] shrink-0 text-[var(--ink-muted)]" />
-          : <ChevronRight className="size-[14px] shrink-0 text-[var(--ink-muted)]" />}
+        {isExpanded ? (
+          <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+        ) : (
+          <ChevronRight className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
+        )}
       </button>
 
-      {isExpanded && (
-        <div className="border-b border-[var(--line-soft)]">
-          {evidence.length === 0 ? (
-            <p className="px-4 py-3 text-[11px] text-[var(--ink-muted)]">No signals linked yet.</p>
-          ) : (
-            evidence.map((ev, i) => (
-              <SignalRow key={ev.signal_id} evidence={ev} index={i} isLast={i === evidence.length - 1} onSignalClick={onSignalClick} />
-            ))
-          )}
+      {isExpanded && evidence.length > 0 && (
+        <div className="pb-1">
+          {evidence.map((ev, i) => (
+            <SignalRow
+              key={ev.signal_id}
+              evidence={ev}
+              index={i}
+              onSignalClick={onSignalClick}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -399,26 +487,25 @@ function FeatureRequestGroup({
 
 /* ── Left sidebar: signal row ───────────────────────────────── */
 
-function SignalRow({ evidence, index, isLast, onSignalClick }: { evidence: SupportingEvidence; index: number; isLast: boolean; onSignalClick: (id: string) => void }) {
+function SignalRow({
+  evidence,
+  index,
+  onSignalClick,
+}: {
+  evidence: SupportingEvidence;
+  index: number;
+  onSignalClick: (id: string) => void;
+}) {
   return (
     <button
       type="button"
       onClick={() => onSignalClick(evidence.signal_id)}
-      className="group relative flex w-full items-start gap-2 py-[7px] pl-[22px] pr-3 text-left transition-colors hover:bg-[var(--surface-active)]"
+      className="flex w-full items-center gap-2 py-1.5 pl-8 pr-4 text-left transition-colors hover:bg-[var(--surface-subtle)]"
     >
-      <div className={`absolute left-[11px] top-0 w-px bg-[var(--line-tree)] ${isLast ? "h-[14px]" : "h-full"}`} />
-      <div className="absolute left-[9px] top-[12px] size-[5px] rounded-full border border-[var(--line-muted)] bg-[var(--surface-contrast)] group-hover:border-[var(--ink-muted)]" />
-
-      <div className="min-w-0 flex-1 pl-0.5">
-        <p className="truncate text-[12px] leading-snug text-[var(--ink-soft)] group-hover:text-[var(--ink)]">
-          {evidence.signal_summary || evidence.representative_quote}
-        </p>
-        <p className="mt-[2px] truncate text-[10px] leading-tight text-[var(--ink-muted)]">
-          {evidence.source}
-          {evidence.customer_company ? ` · ${evidence.customer_company}` : ""}
-          {evidence.author_name ? ` · ${evidence.author_name}` : ""}
-        </p>
-      </div>
+      <span className="size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-50" />
+      <span className="truncate text-[12px] leading-snug text-[var(--ink-soft)]">
+        Signal {index + 1}
+      </span>
     </button>
   );
 }
@@ -429,7 +516,11 @@ export default function ProductContextPage() {
   const navigate = useNavigate();
   const { id = "" } = useParams();
   const featureRequestQuery = useFeatureRequest(id);
-  const featureRequestsQuery = useFeatureRequests({ limit: 100, sort: "updated_at", order: "desc" });
+  const featureRequestsQuery = useFeatureRequests({
+    limit: 100,
+    sort: "updated_at",
+    order: "desc",
+  });
   const actions = useFeatureRequestActions();
   const jobsQuery = useAgentJobs(id);
   const triggerMutation = useTriggerOrchestration(id);
@@ -445,7 +536,15 @@ export default function ProductContextPage() {
     return connectors.find((c) => c.type === "github" && c.enabled);
   }, [connectorsQuery.data]);
 
-  const fr = featureRequestQuery.data?.data ?? null;
+  const allFeatureRequests = featureRequestsQuery.data?.data ?? [];
+  const frFromList = useMemo(
+    () => allFeatureRequests.find((item) => item.id === id) ?? null,
+    [allFeatureRequests, id],
+  );
+  const frDetail = featureRequestQuery.data?.data ?? null;
+  /** Prefer API detail when loaded; fall back to list row so sidebar switches don't flash a full-page loader. */
+  const fr = frDetail ?? frFromList;
+
   const [tab, setTab] = useState<CenterTab>("thread");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [signalModalId, setSignalModalId] = useState<string | null>(null);
@@ -480,21 +579,35 @@ export default function ProductContextPage() {
     });
   }, []);
 
-  useEffect(() => {
-    if (fr?.id) setExpandedIds(new Set([fr.id]));
-  }, [fr?.id]);
+  const waitingForFeatureRequest =
+    Boolean(id) &&
+    !fr &&
+    (featureRequestsQuery.isPending || featureRequestQuery.isPending);
 
-  if (featureRequestQuery.isLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner label="Loading feature request" /></div>;
-  }
-  if (featureRequestQuery.isError || !fr) {
-    return <EmptyState title="Feature request not found" description="This item may have been removed." />;
+  if (waitingForFeatureRequest) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <LoadingSpinner label="Loading feature request" />
+      </div>
+    );
   }
 
-  const allFeatureRequests = featureRequestsQuery.data?.data ?? [];
+  if (!id || !fr) {
+    return (
+      <EmptyState
+        title="Feature request not found"
+        description="This item may have been removed."
+      />
+    );
+  }
+
   const jobs = jobsQuery.data?.data ?? [];
-  const hasActiveJob = jobs.some((j) => j.status === "pending" || j.status === "running");
-  const latestCompletedJob = jobs.find((j) => j.status === "completed" && j.result);
+  const hasActiveJob = jobs.some(
+    (j) => j.status === "pending" || j.status === "running",
+  );
+  const latestCompletedJob = jobs.find(
+    (j) => j.status === "completed" && j.result,
+  );
   const latestPrJob = jobs.find((job) => job.result?.pull_request_url);
   const latestPrUrl = latestPrJob?.result?.pull_request_url ?? null;
   const prState = latestPrJob?.result?.pull_request_state ?? "unknown";
@@ -503,15 +616,18 @@ export default function ProductContextPage() {
     closed: "border-rose-200 bg-rose-50 text-rose-700",
     merged: "border-purple-200 bg-purple-50 text-purple-700",
   };
-  const prStateClass = prStateClasses[prState] ?? "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]";
+  const prStateClass =
+    prStateClasses[prState] ??
+    "border-[var(--line)] bg-[var(--surface)] text-[var(--ink)]";
 
   const prPayload = prFilesQuery.data?.data;
   const prFilesList = prPayload?.files ?? [];
   const prUrlForChangesPanel = prPayload?.pull_request_url ?? latestPrUrl;
 
   const latestSignalMention = fr.impact_metrics?.latest_mention ?? null;
-  const hasNewSignalsSinceLastRun = !latestCompletedJob
-    || (latestSignalMention
+  const hasNewSignalsSinceLastRun =
+    !latestCompletedJob ||
+    (latestSignalMention
       ? new Date(latestSignalMention) > new Date(latestCompletedJob.created_at)
       : false);
 
@@ -536,11 +652,15 @@ export default function ProductContextPage() {
             Feature Requests
           </Link>
           <span className="shrink-0 text-[var(--ink-muted)]">/</span>
-          <span className="truncate text-[14px] font-medium text-[var(--ink)]">{fr.title}</span>
+          <span className="truncate text-[14px] font-medium text-[var(--ink)]">
+            {fr.title}
+          </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {githubConnector && <IndexingStatus connectorId={githubConnector.id} />}
+          {githubConnector && (
+            <IndexingStatus connectorId={githubConnector.id} />
+          )}
 
           <span className="rounded-md bg-[var(--surface-subtle)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--ink-muted)]">
             {fr.status}
@@ -567,23 +687,39 @@ export default function ProductContextPage() {
             disabled={hasActiveJob || triggerMutation.isPending}
             onClick={() => {
               if (!hasNewSignalsSinceLastRun) {
-                pushToast("No new signals since the last PR run. Add or update signals to generate a new PR.", "info");
+                pushToast(
+                  "No new signals since the last PR run. Add or update signals to generate a new PR.",
+                  "info",
+                );
                 return;
               }
               triggerMutation.mutate(undefined, {
-                onSuccess: () => pushToast("PR generation started. This may take a minute.", "success"),
-                onError: () => pushToast("Failed to start PR generation.", "error"),
+                onSuccess: () =>
+                  pushToast(
+                    "PR generation started. This may take a minute.",
+                    "success",
+                  ),
+                onError: () =>
+                  pushToast("Failed to start PR generation.", "error"),
               });
             }}
           >
-            {triggerMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            {triggerMutation.isPending ? "Starting..." : hasActiveJob ? "Generating..." : "Generate PR"}
+            {triggerMutation.isPending && (
+              <Loader2 className="size-3.5 animate-spin" />
+            )}
+            {triggerMutation.isPending
+              ? "Starting..."
+              : hasActiveJob
+                ? "Generating..."
+                : "Generate PR"}
           </button>
 
           <div className="mx-1 h-4 w-px bg-[var(--line-soft)]" />
 
           {latestPrUrl && (
-            <span className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${prStateClass}`}>
+            <span
+              className={`rounded-md border px-2.5 py-1.5 text-[11px] font-medium ${prStateClass}`}
+            >
               {prState.charAt(0).toUpperCase() + prState.slice(1)}
             </span>
           )}
@@ -592,7 +728,6 @@ export default function ProductContextPage() {
 
       {/* ── Three columns ── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-
         {/* Left */}
         <aside
           className="relative hidden shrink-0 flex-col overflow-hidden border-r border-[var(--line-soft)] bg-[var(--surface)] xl:flex"
@@ -618,8 +753,8 @@ export default function ProductContextPage() {
                   isExpanded={expandedIds.has(item.id)}
                   onToggle={() => toggleExpand(item.id)}
                   onNavigate={() => {
-                    navigate(`/feature-requests/${item.id}/context`);
-                    setExpandedIds(new Set([item.id]));
+                    navigate(`/feature-requests/${item.id}`);
+                    setExpandedIds((prev) => new Set(prev).add(item.id));
                   }}
                   onSignalClick={setSignalModalId}
                 />
@@ -656,11 +791,17 @@ export default function ProductContextPage() {
 
           <div className="flex-1 overflow-y-auto bg-white">
             {tab === "thread" ? (
-              jobsQuery.isLoading
-                ? <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading runs..." /></div>
-                : <AgentThread jobs={jobs} featureRequest={fr} />
+              jobsQuery.isLoading ? (
+                <div className="flex h-40 items-center justify-center">
+                  <LoadingSpinner label="Loading runs..." />
+                </div>
+              ) : (
+                <AgentThread jobs={jobs} featureRequest={fr} />
+              )
             ) : (
-              <div className="h-full"><ChatPanel featureRequestId={fr.id} latestPrUrl={latestPrUrl} /></div>
+              <div className="h-full">
+                <ChatPanel featureRequestId={fr.id} latestPrUrl={latestPrUrl} />
+              </div>
             )}
           </div>
         </main>
@@ -672,18 +813,23 @@ export default function ProductContextPage() {
         >
           <PanelResizer side="right" onResize={handleRightResize} />
           <div className="flex shrink-0 items-center border-b border-[var(--line-soft)] px-4 py-3">
-            <span className="text-[13px] font-medium text-[var(--ink)]">Changes</span>
+            <span className="text-[13px] font-medium text-[var(--ink)]">
+              Changes
+            </span>
           </div>
           <div className="flex-1 overflow-y-auto">
             {jobsQuery.isLoading ? (
-              <div className="flex h-40 items-center justify-center"><LoadingSpinner label="Loading..." /></div>
+              <div className="flex h-40 items-center justify-center">
+                <LoadingSpinner label="Loading..." />
+              </div>
             ) : (
               <AllChanges
                 files={prFilesList}
                 isLoading={Boolean(latestPrUrl) && prFilesQuery.isLoading}
                 errorMessage={
                   prFilesQuery.isError
-                    ? (prFilesQuery.error as Error)?.message ?? "Could not load PR files"
+                    ? ((prFilesQuery.error as Error)?.message ??
+                      "Could not load PR files")
                     : null
                 }
                 prUrl={prUrlForChangesPanel}
@@ -693,7 +839,9 @@ export default function ProductContextPage() {
         </aside>
       </div>
 
-      {signalModalId && <SignalModal signalId={signalModalId} onClose={closeSignalModal} />}
+      {signalModalId && (
+        <SignalModal signalId={signalModalId} onClose={closeSignalModal} />
+      )}
     </div>
   );
 }
