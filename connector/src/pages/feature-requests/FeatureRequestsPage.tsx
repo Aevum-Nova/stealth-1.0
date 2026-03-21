@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, ChevronDown, Play, RotateCw } from "lucide-react";
 
@@ -26,7 +26,7 @@ function fromSearchParams(params: URLSearchParams): FeatureRequestFilters {
   };
 }
 
-function FilterPill({
+function FilterDropdown({
   value,
   options,
   onChange,
@@ -35,26 +35,74 @@ function FilterPill({
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const isActive = value !== "";
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   return (
-    <div className="relative">
-      <select
-        className={`cursor-pointer appearance-none rounded-lg border py-1.5 pl-2.5 pr-7 text-[12px] font-medium transition-colors ${
+    <div ref={ref} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`inline-flex min-w-[8.5rem] items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-[12px] font-medium outline-none transition-colors focus:outline-none focus-visible:border-[var(--focus-border)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
           isActive
-            ? "border-[var(--action-primary)] bg-[var(--action-primary)]/5 text-[var(--action-primary)]"
+            ? "border-[var(--action-primary)] bg-[var(--action-primary)] text-white"
             : "border-[var(--line)] bg-[var(--surface)] text-[var(--ink-soft)] hover:border-[var(--line-muted)]"
         }`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onClick={() => setOpen((current) => !current)}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-[var(--ink-muted)]" />
+        <span className="truncate">{selected.label}</span>
+        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${isActive ? "text-white/80" : "text-[var(--ink-muted)]"} ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 min-w-full overflow-hidden rounded-md border border-[var(--line)] bg-white shadow-lg">
+          {options.map((option) => {
+            const selectedOption = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`flex w-full items-center px-2.5 py-2 text-left text-[12px] transition-colors ${
+                  selectedOption
+                    ? "bg-[var(--accent-soft)] font-medium text-[var(--ink)]"
+                    : "text-[var(--ink-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--ink)]"
+                }`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  triggerRef.current?.blur();
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -212,7 +260,7 @@ export default function FeatureRequestsPage() {
 
           {showFilters && (
             <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)]/60 pt-2">
-              <FilterPill
+              <FilterDropdown
                 value={filters.status ?? ""}
                 options={[
                   { value: "", label: "All statuses" },
@@ -224,7 +272,7 @@ export default function FeatureRequestsPage() {
                 ]}
                 onChange={(v) => setFilter("status", v)}
               />
-              <FilterPill
+              <FilterDropdown
                 value={filters.type ?? ""}
                 options={[
                   { value: "", label: "All types" },
@@ -236,7 +284,7 @@ export default function FeatureRequestsPage() {
                 ]}
                 onChange={(v) => setFilter("type", v)}
               />
-              <FilterPill
+              <FilterDropdown
                 value={filters.priority ?? ""}
                 options={[
                   { value: "", label: "All priorities" },
@@ -257,7 +305,7 @@ export default function FeatureRequestsPage() {
               {hasActiveFilters && (
                 <button
                   type="button"
-                  className="text-[11px] font-medium text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
+                  className="text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
                   onClick={() => {
                     const next = new URLSearchParams(searchParams);
                     next.delete("status");
