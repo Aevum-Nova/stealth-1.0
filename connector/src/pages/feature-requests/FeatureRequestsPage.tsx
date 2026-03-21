@@ -105,7 +105,7 @@ export default function FeatureRequestsPage() {
     setSearchParams(next);
   }
 
-  if (query.isLoading) {
+  if (query.isPending && !query.data) {
     return (
       <div className="flex h-full min-h-0 w-full items-center justify-center bg-[var(--surface)]">
         <LoadingSpinner label="Loading feature requests" />
@@ -113,7 +113,7 @@ export default function FeatureRequestsPage() {
     );
   }
 
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return (
       <div className="flex h-full min-h-0 w-full items-center justify-center bg-[var(--surface)] p-6">
         <EmptyState title="Feature requests unavailable" description="Could not load feature requests." />
@@ -167,6 +167,11 @@ export default function FeatureRequestsPage() {
               <span className="shrink-0 rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-[var(--ink-muted)]">
                 {total}
               </span>
+              {query.isFetching ? (
+                <span className="shrink-0 text-[11px] font-medium text-[var(--ink-muted)]">
+                  Updating…
+                </span>
+              ) : null}
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">

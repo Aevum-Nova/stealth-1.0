@@ -6,7 +6,8 @@ import type { FeatureRequestFilters, FeatureRequestPatch } from "@/types/feature
 export function useFeatureRequests(filters: FeatureRequestFilters = {}) {
   return useQuery({
     queryKey: ["feature-requests", filters],
-    queryFn: () => featureRequestsApi.listFeatureRequests(filters)
+    queryFn: () => featureRequestsApi.listFeatureRequests(filters),
+    placeholderData: (previousData) => previousData,
   });
 }
 
