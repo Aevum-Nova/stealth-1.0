@@ -86,25 +86,32 @@ function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
           Summary
         </span>
       </button>
-      {isOpen && (
-        <div className="px-6 pb-5 pt-0">
-          {isLoading && (
-            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
-              Generating summary...
-            </p>
-          )}
-          {summary && (
-            <p className="text-[14px] leading-snug text-[var(--ink)]">
-              {summary}
-            </p>
-          )}
-          {!isLoading && !summary && summaryQuery.isError && (
-            <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
-              Could not generate summary.
-            </p>
-          )}
+      <div
+        aria-hidden={!isOpen}
+        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-6 pb-5 pt-0">
+            {isLoading && (
+              <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
+                Generating summary...
+              </p>
+            )}
+            {summary && (
+              <p className="text-[14px] leading-snug text-[var(--ink)]">
+                {summary}
+              </p>
+            )}
+            {!isLoading && !summary && summaryQuery.isError && (
+              <p className="text-[14px] leading-snug text-[var(--ink-muted)]">
+                Could not generate summary.
+              </p>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -172,44 +179,51 @@ function AgentThread({
               )}
             </button>
 
-            {isOpen && (
-              <div className="px-6 pb-5 pt-0">
-                {job.error && (
-                  <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-600">
-                    {job.error}
-                  </p>
-                )}
-                {job.result && (
-                  <div className="space-y-2">
-                    <p className="text-[14px] leading-snug text-[var(--ink)]">
-                      {job.result.spec_summary}
+            <div
+              aria-hidden={!isOpen}
+              className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <div className="px-6 pb-5 pt-0">
+                  {job.error && (
+                    <p className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-600">
+                      {job.error}
                     </p>
+                  )}
+                  {job.result && (
+                    <div className="space-y-2">
+                      <p className="text-[14px] leading-snug text-[var(--ink)]">
+                        {job.result.spec_summary}
+                      </p>
 
-                    {job.result.tasks.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-[12px] text-[var(--ink-muted)]">
-                          Planned tasks
-                        </p>
-                        <div className="space-y-1">
-                          {job.result.tasks.map((task, i) => (
-                            <div
-                              key={`${job.id}-t-${i}`}
-                              className="flex items-start gap-2.5 text-[14px] leading-snug text-[var(--ink-soft)]"
-                            >
-                              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-60" />
-                              {task}
-                            </div>
-                          ))}
+                      {job.result.tasks.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[12px] text-[var(--ink-muted)]">
+                            Planned tasks
+                          </p>
+                          <div className="space-y-1">
+                            {job.result.tasks.map((task, i) => (
+                              <div
+                                key={`${job.id}-t-${i}`}
+                                className="flex items-start gap-2.5 text-[14px] leading-snug text-[var(--ink-soft)]"
+                              >
+                                <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--ink-muted)] opacity-60" />
+                                {task}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <time className="mt-3 block text-[11px] text-[var(--ink-muted)]">
-                  {new Date(job.created_at).toLocaleString()}
-                </time>
+                      )}
+                    </div>
+                  )}
+                  <time className="mt-3 block text-[11px] text-[var(--ink-muted)]">
+                    {new Date(job.created_at).toLocaleString()}
+                  </time>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         );
       })}
