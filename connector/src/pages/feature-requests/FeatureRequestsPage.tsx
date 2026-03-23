@@ -1,7 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, ChevronDown, Play, RotateCw, Trash2 } from "lucide-react";
 
+import FeatureRequestFeed, {
+  type FeatureRequestFeedSort,
+} from "@/components/feature-requests/FeatureRequestFeed";
 import FeatureRequestTable from "@/components/feature-requests/FeatureRequestTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import EmptyState from "@/components/shared/EmptyState";
@@ -13,6 +16,8 @@ import type { FeatureRequestFilters } from "@/types/feature-request";
 
 /** Default toolbar height before measure (filters collapsed) */
 const TOOLBAR_FALLBACK_PX = 72;
+
+type FeatureRequestsView = "feed" | "sheets";
 
 function fromSearchParams(params: URLSearchParams): FeatureRequestFilters {
   return {
@@ -108,10 +113,54 @@ function FilterDropdown({
   );
 }
 
+function ToolbarIconButton({
+  label,
+  onClick,
+  disabled = false,
+  variant = "secondary",
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "secondary" | "primary";
+  children: ReactNode;
+}) {
+  const className =
+    variant === "primary"
+      ? "bg-[var(--action-primary)] text-white hover:bg-[var(--action-primary-hover)]"
+      : "border border-[var(--line)] text-[var(--ink-soft)] hover:border-[var(--line-muted)]";
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+      >
+        {children}
+      </button>
+      <div className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-max max-w-[16rem] rounded-lg bg-[var(--ink)] px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-75 group-hover:opacity-100 group-focus-within:opacity-100">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export default function FeatureRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const filters = useMemo(() => fromSearchParams(searchParams), [searchParams]);
+  const view = searchParams.get("view") === "sheets" ? "sheets" : "feed";
+  const feedSortParam = searchParams.get("feed_sort");
+  const feedSort: FeatureRequestFeedSort =
+    feedSortParam === "priority" ||
+    feedSortParam === "signal" ||
+    feedSortParam === "recent"
+      ? feedSortParam
+      : "recent";
 
   const query = useFeatureRequests(filters);
   const { pushToast } = useToast();
@@ -138,12 +187,29 @@ export default function FeatureRequestsPage() {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [showFilters, query.isLoading, query.isError]);
+  }, [showFilters, query.isLoading, query.isError, view, selectionMode, selectedIds.length]);
 
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
+    setSearchParams(next);
+  }
+
+  function setView(nextView: FeatureRequestsView) {
+    const next = new URLSearchParams(searchParams);
+    next.set("view", nextView);
+    setSearchParams(next);
+    if (nextView !== "sheets") {
+      setSelectionMode(false);
+      setSelectedIds([]);
+      setOpenDeleteConfirm(false);
+    }
+  }
+
+  function setFeedSort(value: FeatureRequestFeedSort) {
+    const next = new URLSearchParams(searchParams);
+    next.set("feed_sort", value);
     setSearchParams(next);
   }
 
@@ -223,6 +289,14 @@ export default function FeatureRequestsPage() {
             <div className="flex min-h-[50vh] items-center justify-center px-6">
               <EmptyState title="No feature requests" description="Run synthesis or adjust filters." />
             </div>
+          ) : view === "feed" ? (
+            <FeatureRequestFeed
+              items={rows}
+              total={total}
+              sort={feedSort}
+              onSortChange={setFeedSort}
+              onOpenSheets={() => setView("sheets")}
+            />
           ) : (
             <FeatureRequestTable
               fullBleed
@@ -259,45 +333,72 @@ export default function FeatureRequestsPage() {
                   Updating…
                 </span>
               ) : null}
+              <div className="inline-flex items-center rounded-lg border border-[var(--line)] bg-[var(--surface-subtle)] p-1">
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                    view === "feed"
+                      ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                      : "text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                  }`}
+                  onClick={() => setView("feed")}
+                >
+                  Feed
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                    view === "sheets"
+                      ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
+                      : "text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                  }`}
+                  onClick={() => setView("sheets")}
+                >
+                  Sheets
+                </button>
+              </div>
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-              <button
-                type="button"
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
-                  hasActiveFilters
-                    ? "border-[var(--action-primary)] text-[var(--action-primary)]"
-                    : "border-[var(--line)] text-[var(--ink-soft)] hover:border-[var(--line-muted)]"
-                }`}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <SlidersHorizontal className="h-3 w-3" />
-                Filter
-              </button>
+              {view === "sheets" ? (
+                <button
+                  type="button"
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
+                    hasActiveFilters
+                      ? "border-[var(--action-primary)] text-[var(--action-primary)]"
+                      : "border-[var(--line)] text-[var(--ink-soft)] hover:border-[var(--line-muted)]"
+                  }`}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  Filter
+                </button>
+              ) : null}
 
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--line-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+              <ToolbarIconButton
+                label="Re-Synthesize"
                 onClick={() => setOpenConfirm(true)}
                 disabled={runMutation.isPending}
               >
-                <RotateCw className="h-3 w-3" />
-                Re-Synthesize
-              </button>
+                <RotateCw className="h-3.5 w-3.5" />
+              </ToolbarIconButton>
 
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--action-primary)] px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+              <ToolbarIconButton
+                label={runMutation.isPending ? "Running Synthesis" : "Run Synthesis"}
                 onClick={() => runMutation.mutate({ mode: "incremental" })}
                 disabled={runMutation.isPending}
+                variant="primary"
               >
-                <Play className="h-3 w-3" />
-                Run Synthesis
-              </button>
+                {runMutation.isPending ? (
+                  <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+              </ToolbarIconButton>
             </div>
           </div>
 
-          {showFilters && (
+          {view === "sheets" && showFilters && (
             <div className="flex flex-wrap items-center gap-2 border-t border-[var(--line)]/60 pt-2">
               <div className="flex flex-wrap items-center gap-2">
                 <FilterDropdown
@@ -359,41 +460,43 @@ export default function FeatureRequestsPage() {
                   </button>
                 )}
               </div>
-              <div className="ml-auto flex items-center gap-2">
-                {selectionMode ? (
-                  <div className="inline-flex items-center gap-2">
-                    <span className="rounded-md border border-[#d9d9e0] bg-[#f3f3f6] px-2.5 py-1 text-[11px] font-medium text-[#5e606c]">
-                      {selectedCount} selected
-                    </span>
+              {view === "sheets" ? (
+                <div className="ml-auto flex items-center gap-2">
+                  {selectionMode ? (
+                    <div className="inline-flex items-center gap-2">
+                      <span className="rounded-md border border-[#d9d9e0] bg-[#f3f3f6] px-2.5 py-1 text-[11px] font-medium text-[#5e606c]">
+                        {selectedCount} selected
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded-md px-2.5 py-1 text-[11px] font-medium text-[#5e606c] transition-colors hover:bg-[#f3f3f6] hover:text-[#1f2430]"
+                        onClick={cancelSelectionMode}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-[#18181b] bg-[#111113] px-3.5 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-[#1b1b1f] disabled:cursor-not-allowed disabled:border-[#ddddE3] disabled:bg-[#efeff2] disabled:text-[#9a9ca5]"
+                        disabled={selectedCount === 0 || actions.deleteMany.isPending}
+                        onClick={() => setOpenDeleteConfirm(true)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-[#f87171]" />
+                        Delete selected
+                      </button>
+                    </div>
+                  ) : (
                     <button
                       type="button"
-                      className="rounded-md px-2.5 py-1 text-[11px] font-medium text-[#5e606c] transition-colors hover:bg-[#f3f3f6] hover:text-[#1f2430]"
-                      onClick={cancelSelectionMode}
+                      className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-[#d9d9e0] bg-white px-2.5 text-[#5e606c] transition-colors hover:border-[#c9cad3] hover:bg-[#f8f8fa] hover:text-[#1f2430]"
+                      onClick={startSelectionMode}
+                      title="Delete feature requests"
+                      aria-label="Delete feature requests"
                     >
-                      Cancel
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[#18181b] bg-[#111113] px-3.5 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-[#1b1b1f] disabled:cursor-not-allowed disabled:border-[#ddddE3] disabled:bg-[#efeff2] disabled:text-[#9a9ca5]"
-                      disabled={selectedCount === 0 || actions.deleteMany.isPending}
-                      onClick={() => setOpenDeleteConfirm(true)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-[#f87171]" />
-                      Delete selected
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-[#d9d9e0] bg-white px-2.5 text-[#5e606c] transition-colors hover:border-[#c9cad3] hover:bg-[#f8f8fa] hover:text-[#1f2430]"
-                    onClick={startSelectionMode}
-                    title="Delete feature requests"
-                    aria-label="Delete feature requests"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
         </div>
