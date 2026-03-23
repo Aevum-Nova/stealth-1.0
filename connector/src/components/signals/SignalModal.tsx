@@ -10,6 +10,8 @@ import { formatDate, formatSourceLabel } from "@/lib/utils";
 interface SignalModalProps {
   signalId: string;
   onClose: () => void;
+  backToPath?: string;
+  backToLabel?: string;
 }
 
 function ContentSection({ signal }: { signal: NonNullable<ReturnType<typeof useSignal>["data"]>["data"] }) {
@@ -42,7 +44,12 @@ function ContentSection({ signal }: { signal: NonNullable<ReturnType<typeof useS
   );
 }
 
-export default function SignalModal({ signalId, onClose }: SignalModalProps) {
+export default function SignalModal({
+  signalId,
+  onClose,
+  backToPath,
+  backToLabel,
+}: SignalModalProps) {
   const { data, isLoading, isError } = useSignal(signalId);
   const signal = data?.data;
 
@@ -84,6 +91,14 @@ export default function SignalModal({ signalId, onClose }: SignalModalProps) {
             {signal && (
               <Link
                 to={`/signals/${signalId}`}
+                state={
+                  backToPath && backToLabel
+                    ? {
+                        backToPath,
+                        backToLabel,
+                      }
+                    : undefined
+                }
                 className="inline-flex items-center gap-1 rounded-md border border-[var(--line)] px-2 py-1 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--accent-soft)]"
               >
                 Open page

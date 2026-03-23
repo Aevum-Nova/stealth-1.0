@@ -790,7 +790,12 @@ export default function ProductContextPage() {
       </div>
 
       {signalModalId && (
-        <SignalModal signalId={signalModalId} onClose={closeSignalModal} />
+        <SignalModal
+          signalId={signalModalId}
+          onClose={closeSignalModal}
+          backToPath={`/feature-requests/${fr.id}`}
+          backToLabel="Back to Feature Request"
+        />
       )}
     </div>
   );

@@ -3,7 +3,13 @@ import { useCallback, useState } from "react";
 import SignalModal from "@/components/signals/SignalModal";
 import type { SupportingEvidence } from "@/types/feature-request";
 
-export default function EvidencePanel({ evidence }: { evidence: SupportingEvidence[] }) {
+export default function EvidencePanel({
+  evidence,
+  featureRequestId,
+}: {
+  evidence: SupportingEvidence[];
+  featureRequestId?: string;
+}) {
   const [count, setCount] = useState(5);
   const [activeSignalId, setActiveSignalId] = useState<string | null>(null);
   const closeModal = useCallback(() => setActiveSignalId(null), []);
@@ -48,7 +54,14 @@ export default function EvidencePanel({ evidence }: { evidence: SupportingEviden
         )}
       </div>
 
-      {activeSignalId && <SignalModal signalId={activeSignalId} onClose={closeModal} />}
+      {activeSignalId && (
+        <SignalModal
+          signalId={activeSignalId}
+          onClose={closeModal}
+          backToPath={featureRequestId ? `/feature-requests/${featureRequestId}` : undefined}
+          backToLabel={featureRequestId ? "Back to Feature Request" : undefined}
+        />
+      )}
     </>
   );
 }

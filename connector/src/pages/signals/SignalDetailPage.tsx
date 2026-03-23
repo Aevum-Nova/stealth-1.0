@@ -1,4 +1,5 @@
-import { Link, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -8,6 +9,7 @@ import { formatDate, formatSourceLabel } from "@/lib/utils";
 
 export default function SignalDetailPage() {
   const { id = "" } = useParams();
+  const location = useLocation();
   const signalQuery = useSignal(id);
   const featureRequestsQuery = useFeatureRequests({ signal_id: id, limit: 50 });
 
@@ -21,12 +23,26 @@ export default function SignalDetailPage() {
 
   const signal = signalQuery.data.data;
   const linkedFeatureRequests = featureRequestsQuery.data?.data ?? [];
+  const backToPath =
+    typeof location.state?.backToPath === "string"
+      ? location.state.backToPath
+      : "/signals";
+  const backToLabel =
+    typeof location.state?.backToLabel === "string"
+      ? location.state.backToLabel
+      : "Back to Signals";
 
   return (
     <div className="space-y-4">
-      <Link to="/signals" className="text-[13px] text-[var(--accent)]">
-        ← Back to Signals
-      </Link>
+      <div className="flex items-center">
+        <Link
+          to={backToPath}
+          className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>{backToLabel}</span>
+        </Link>
+      </div>
 
       <section className="panel p-4">
         <h2 className="text-xl font-semibold tracking-tight">Signal Detail</h2>

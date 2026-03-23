@@ -75,7 +75,17 @@ export default function SignalsPage() {
       ) : activeRows.length === 0 ? (
         <EmptyState title="No signals found" description="Try changing filters or searching with another phrase." />
       ) : (
-        <SignalTable rows={activeRows} onOpen={(signal) => navigate(`/signals/${signal.id}`)} />
+        <SignalTable
+          rows={activeRows}
+          onOpen={(signal) =>
+            navigate(`/signals/${signal.id}`, {
+              state: {
+                backToPath: "/signals",
+                backToLabel: "Back to Signals",
+              },
+            })
+          }
+        />
       )}
 
       {!isSearchActive ? (

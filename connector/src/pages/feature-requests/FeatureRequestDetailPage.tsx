@@ -89,7 +89,10 @@ export default function FeatureRequestDetailPage() {
 
             <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
               <h3 className="mb-2 text-[14px] font-semibold">Supporting Evidence</h3>
-              <EvidencePanel evidence={featureRequest.supporting_evidence} />
+              <EvidencePanel
+                evidence={featureRequest.supporting_evidence}
+                featureRequestId={featureRequest.id}
+              />
               <p className="mt-3 text-[12px] text-[var(--ink-soft)]">Linked signals: {supportingSignals.length}</p>
             </article>
 
