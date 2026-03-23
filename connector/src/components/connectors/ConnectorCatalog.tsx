@@ -42,10 +42,10 @@ export default function ConnectorCatalog({ catalog, existing, category, title, o
   };
 
   return (
-    <section className="space-y-3">
-      <h3 className="mb-1 text-[17px] font-medium">{title}</h3>
+    <section>
+      <h3 className="text-[17px] font-medium">{title}</h3>
       {error ? <p className="text-[14px] text-red-700">{error}</p> : null}
-      <div className="inline-grid grid-cols-1 gap-3 md:grid-cols-[28rem_28rem]">
+      <div className="mt-4 inline-grid grid-cols-1 gap-3 md:grid-cols-[28rem_28rem]">
         {filtered.map((item) => {
           const alreadyAdded = existingTypes.has(item.type);
           const connector = existingByType.get(item.type);

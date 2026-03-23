@@ -539,7 +539,7 @@ export default function FeatureRequestFeed({
               </div>
             </div>
 
-            <section className="overflow-hidden rounded-[32px] bg-[var(--action-primary)] p-6 text-white shadow-[0_24px_48px_-28px_rgba(0,0,0,0.45)]">
+            <section className="overflow-hidden rounded-[32px] bg-[#17171b] p-6 text-white shadow-[0_24px_48px_-28px_rgba(0,0,0,0.45)]">
               <div className="pointer-events-none absolute" />
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
                 Request Pulse
@@ -593,7 +593,7 @@ export default function FeatureRequestFeed({
 
               <button
                 type="button"
-                className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-[14px] font-semibold text-[var(--action-primary)] transition-colors hover:bg-white/90"
+                className="mt-8 inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-[#f4f4f5] px-4 py-3 text-[14px] font-semibold text-[#17171b] transition-colors hover:bg-white"
                 onClick={onOpenSheets}
               >
                 Open Sheets View
