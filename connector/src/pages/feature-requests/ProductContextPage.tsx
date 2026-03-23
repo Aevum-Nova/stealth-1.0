@@ -61,12 +61,20 @@ function SummaryBanner({ featureRequest }: { featureRequest: FeatureRequest }) {
   const summary =
     featureRequest.synthesis_summary || summaryQuery.data?.data?.summary;
   const isLoading = !featureRequest.synthesis_summary && summaryQuery.isLoading;
+  const toggleOpen = () => setIsOpen((v) => !v);
 
   return (
-    <div className="border-b border-[var(--line-soft)]">
+    <div
+      className="cursor-pointer border-b border-[var(--line-soft)] transition-colors hover:bg-[var(--surface-subtle)]"
+      onClick={toggleOpen}
+    >
       <button
-        className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
-        onClick={() => setIsOpen((v) => !v)}
+        type="button"
+        className="flex w-full items-center gap-3 px-6 py-3 text-left"
+        onClick={(event) => {
+          event.stopPropagation();
+          toggleOpen();
+        }}
       >
         {isOpen ? (
           <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
@@ -129,17 +137,22 @@ function AgentThread({
       {jobs.map((job, idx) => {
         const isOpen = !collapsed[job.id];
         const taskCount = job.result?.tasks.length ?? 0;
+        const toggleOpen = () =>
+          setCollapsed((prev) => ({ ...prev, [job.id]: !prev[job.id] }));
 
         return (
           <div
             key={job.id}
-            className="border-b border-[var(--line-soft)] last:border-b-0"
+            className="cursor-pointer border-b border-[var(--line-soft)] transition-colors last:border-b-0 hover:bg-[var(--surface-subtle)]"
+            onClick={toggleOpen}
           >
             <button
-              className="flex w-full items-center gap-3 px-6 py-3 text-left transition-colors hover:bg-[var(--surface-subtle)]"
-              onClick={() =>
-                setCollapsed((prev) => ({ ...prev, [job.id]: !prev[job.id] }))
-              }
+              type="button"
+              className="flex w-full items-center gap-3 px-6 py-3 text-left"
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleOpen();
+              }}
             >
               {isOpen ? (
                 <ChevronDown className="size-3.5 shrink-0 text-[var(--ink-muted)]" />
