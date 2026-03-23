@@ -598,6 +598,11 @@ select:focus {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.signal-search-input:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 /* Chat scrollbar: constant 6px width (no layout shift), thumb only visible on hover */
 .chat-scroll-area {
   overflow-y: auto;

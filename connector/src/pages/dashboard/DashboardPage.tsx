@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { Play, RotateCw } from "lucide-react";
 
 import { getDashboardStats } from "@/api/dashboard";
 import SourceBreakdownChart from "@/components/dashboard/SourceBreakdownChart";
@@ -115,7 +115,11 @@ export default function DashboardPage() {
           onClick={() => runMutation.mutate({ mode: "incremental" })}
           disabled={runMutation.isPending}
         >
-          <Sparkles className="size-3.5" />
+          {runMutation.isPending ? (
+            <RotateCw className="size-3.5 animate-spin" />
+          ) : (
+            <Play className="size-3.5" />
+          )}
           Run Synthesis
         </button>
       </div>

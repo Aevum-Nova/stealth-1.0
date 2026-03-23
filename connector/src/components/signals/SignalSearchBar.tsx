@@ -8,7 +8,7 @@ export default function SignalSearchBar({ value, onChange }: { value: string; on
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Semantic search signals..."
-        className="w-full bg-transparent outline-none"
+        className="signal-search-input w-full bg-transparent outline-none"
       />
     </label>
   );

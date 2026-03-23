@@ -18,7 +18,7 @@ export default function ThemeToggle({ compact = false }: ThemeToggleProps) {
       onClick={toggleTheme}
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
       title={`Switch to ${isDark ? "light" : "dark"} mode`}
-      className="inline-flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
+      className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--ink)]"
     >
       <Icon className="size-3.5" />
       {!compact ? <span>{label}</span> : null}
