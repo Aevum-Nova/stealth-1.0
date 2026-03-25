@@ -42,7 +42,7 @@ export default function RegisterPage() {
   const [isGoogleReady, setIsGoogleReady] = useState(false);
   const googleRef = useRef<GoogleIdentityApi | null>(null);
   const googleClientId = useMemo(() => import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? "", []);
-  const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/";
+  const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/dashboard";
 
   const {
     register,
@@ -118,14 +118,14 @@ export default function RegisterPage() {
     setAuthError(null);
     try {
       await registerUser(values.email, values.password, values.name, values.organizationName);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       setAuthError(await extractApiErrorMessage(error, "Register failed."));
     }
   };
 
   return !isLoading && isAuthenticated ? (
-    <Navigate to="/" replace />
+    <Navigate to="/dashboard" replace />
   ) : (
     <div className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
       <div className="absolute right-4 top-4">

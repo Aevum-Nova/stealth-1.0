@@ -25,7 +25,7 @@ export default function CanvasToolbar({
       {/* Left */}
       <div className="flex items-center gap-2 pl-3">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
           className="flex size-7 items-center justify-center rounded-lg text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
         >
           <ArrowLeft className="size-4" />

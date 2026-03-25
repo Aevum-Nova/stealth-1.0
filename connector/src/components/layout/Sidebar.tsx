@@ -13,7 +13,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 
 const mainNav = [
-  { to: "/", label: "Dashboard", icon: BarChart3 },
+  { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { to: "/connectors", label: "Connectors", icon: Boxes },
   { to: "/ingest", label: "Ingest", icon: Database },
 ];
@@ -38,7 +38,7 @@ function NavItem({
   return (
     <NavLink
       to={to}
-      end={to === "/"}
+      end={to === "/dashboard"}
       className={({ isActive }) =>
         `flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all lg:w-full ${
           isActive

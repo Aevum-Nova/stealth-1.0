@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/shared/Toast";
 import { useAuth } from "@/hooks/use-auth";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
+const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
 const LoginPage = lazyWithRetry(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazyWithRetry(() => import("@/pages/auth/RegisterPage"));
 const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorsPage"));
@@ -42,6 +43,7 @@ function ProtectedRoute() {
 }
 
 const router = createBrowserRouter([
+  { path: "/", element: withSuspense(<LandingPage />) },
   { path: "/login", element: withSuspense(<LoginPage />) },
   { path: "/register", element: withSuspense(<RegisterPage />) },
   { path: "/oauth/callback", element: withSuspense(<OAuthCallbackPage />) },
@@ -51,7 +53,7 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { path: "/", element: withSuspense(<DashboardPage />) },
+          { path: "/dashboard", element: withSuspense(<DashboardPage />) },
           { path: "/connectors", element: withSuspense(<ConnectorsPage />) },
           { path: "/connectors/new/:type", element: withSuspense(<ConnectorSetupPage />) },
           { path: "/connectors/:id", element: withSuspense(<ConnectorDetailPage />) },
