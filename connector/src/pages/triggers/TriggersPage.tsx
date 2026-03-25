@@ -345,7 +345,7 @@ export default function TriggersPage() {
       natural_language_description: form.natural_language_description.trim(),
       scope: Object.fromEntries(
         Object.entries(form.scope).filter(([, value]) => {
-          if (Array.isArray(value)) return value.length > 0;
+          if (Array.isArray(value)) return true;
           return String(value ?? "").trim().length > 0;
         }),
       ),

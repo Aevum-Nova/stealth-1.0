@@ -119,8 +119,10 @@ class BaseTriggerAdapter(ABC):
             return True
 
         for key, expected in scope.items():
-            if expected in (None, "", []):
+            if expected in (None, ""):
                 continue
+            if expected == []:
+                return False
             actual = event.source_context.get(key)
             expected_values = expected if isinstance(expected, list) else [expected]
             if actual not in expected_values:
