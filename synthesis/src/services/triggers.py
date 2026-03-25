@@ -145,8 +145,10 @@ class TriggerService:
 
     async def _compile_filter_criteria(self, description: str) -> dict:
         parsed = await self._compile_filter_criteria_with_llm(description)
+        compile_source = "llm"
         if parsed is None:
             parsed = self.parse_description(description)
+            compile_source = "fallback"
 
         include_text = " ".join(
             value
@@ -170,6 +172,19 @@ class TriggerService:
         ).strip()
         include_embedding = await self._embed_text_cached(include_text)
         exclude_embedding = await self._embed_text_cached(exclude_text) if exclude_text else []
+
+        logger.info(
+            "trigger.criteria_compiled",
+            compile_source=compile_source,
+            description_preview=self._preview_text(description),
+            primary_intent=parsed.get("primary_intent"),
+            include_topics=parsed.get("include_topics", []),
+            exclude_topics=parsed.get("exclude_topics", []),
+            include_terms=parsed.get("include_terms", []),
+            exclude_terms=parsed.get("exclude_terms", []),
+            include_embedding_ready=bool(include_embedding),
+            exclude_embedding_ready=bool(exclude_embedding),
+        )
 
         return {
             **parsed,
@@ -197,6 +212,12 @@ class TriggerService:
         if not clean_description:
             return None
 
+        logger.info(
+            "trigger.criteria_compile_requested",
+            description_preview=self._preview_text(clean_description),
+            description_length=len(clean_description),
+        )
+
         system = (
             "You are compiling a trigger description for an event matcher. "
             "Return JSON only. Extract the user's matching intent faithfully, especially exclusions."
@@ -218,6 +239,11 @@ class TriggerService:
             "Prefer precision over recall. Preserve negative constraints such as 'do not include UI feedback'."
         )
         result = await llm_service.json_completion(system, user, max_tokens=500, stage="trigger_description_compile")
+        logger.info(
+            "trigger.criteria_compile_response",
+            description_preview=self._preview_text(clean_description),
+            response_keys=sorted(result.keys()) if isinstance(result, dict) else [],
+        )
         return self._normalize_compiled_criteria(result)
 
     def _normalize_compiled_criteria(self, payload: dict | None) -> dict | None:
@@ -289,6 +315,13 @@ class TriggerService:
             seen.add(normalized)
             result.append(normalized)
         return result
+
+    @staticmethod
+    def _preview_text(value: str | None, limit: int = 160) -> str:
+        text = re.sub(r"\s+", " ", (value or "").strip())
+        if len(text) <= limit:
+            return text
+        return text[: limit - 3] + "..."
 
     @staticmethod
     def _clean_string_list(value: object, *, split_tokens: bool = False) -> list[str]:
@@ -633,6 +666,14 @@ class TriggerService:
         for normalized in normalized_events:
             acknowledged = False
             event_embedding: list[float] | None = None
+            logger.info(
+                "webhook.event_received",
+                plugin_type=plugin_type,
+                external_id=normalized.external_id,
+                content_type=normalized.content_type,
+                content_preview=self._preview_text(normalized.content_text),
+                source_context=normalized.source_context,
+            )
             for trigger, connector in candidates:
                 if not adapter.scope_matches(trigger.scope or {}, normalized):
                     logger.info(
@@ -766,7 +807,43 @@ class TriggerService:
 
         # Hard reject if exclusion intent clearly matches and inclusion intent does not.
         if (exclude_phrase_hit or exclude_kw_score >= 0.5 or exclude_similarity >= 0.72) and include_kw_score < 0.2 and include_similarity < 0.75:
-            return min(combined, 0.15)
+            final_score = min(combined, 0.15)
+            logger.info(
+                "trigger.event_scored",
+                event_preview=self._preview_text(event.content_text),
+                primary_intent=criteria.get("primary_intent"),
+                include_terms=include_terms,
+                exclude_terms=exclude_terms,
+                include_hits=include_hits,
+                exclude_hits=exclude_hits,
+                include_phrase_hit=include_phrase_hit,
+                exclude_phrase_hit=exclude_phrase_hit,
+                include_similarity=round(include_similarity, 4),
+                exclude_similarity=round(exclude_similarity, 4),
+                semantic_score=round(semantic_score, 4),
+                lexical_score=round(lexical_score, 4),
+                final_score=round(final_score, 4),
+                hard_reject=True,
+            )
+            return final_score
+
+        logger.info(
+            "trigger.event_scored",
+            event_preview=self._preview_text(event.content_text),
+            primary_intent=criteria.get("primary_intent"),
+            include_terms=include_terms,
+            exclude_terms=exclude_terms,
+            include_hits=include_hits,
+            exclude_hits=exclude_hits,
+            include_phrase_hit=include_phrase_hit,
+            exclude_phrase_hit=exclude_phrase_hit,
+            include_similarity=round(include_similarity, 4),
+            exclude_similarity=round(exclude_similarity, 4),
+            semantic_score=round(semantic_score, 4),
+            lexical_score=round(lexical_score, 4),
+            final_score=round(combined, 4),
+            hard_reject=False,
+        )
 
         return combined
 
