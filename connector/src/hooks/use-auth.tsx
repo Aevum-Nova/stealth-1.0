@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: response.data.user.name,
       role: response.data.user.role
     });
-    await refreshProfile();
+    void refreshProfile();
   }, [refreshProfile]);
 
   const loginWithGoogle = useCallback(async (idToken: string) => {
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: response.data.user.name,
       role: response.data.user.role
     });
-    await refreshProfile();
+    void refreshProfile();
   }, [refreshProfile]);
 
   const register = useCallback(

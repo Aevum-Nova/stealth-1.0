@@ -38,6 +38,7 @@ export default function RegisterPage() {
   const { register: registerUser, loginWithGoogle, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthSuccess, setIsAuthSuccess] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [isGoogleReady, setIsGoogleReady] = useState(false);
   const googleRef = useRef<GoogleIdentityApi | null>(null);
@@ -64,9 +65,9 @@ export default function RegisterPage() {
       setAuthError(null);
       try {
         await loginWithGoogle(response.credential);
+        setIsAuthSuccess(true);
       } catch (error) {
         setAuthError(await extractApiErrorMessage(error, "Google sign-up failed."));
-      } finally {
         setIsGoogleSubmitting(false);
       }
     },
@@ -127,14 +128,21 @@ export default function RegisterPage() {
     setAuthError(null);
     try {
       await registerUser(values.email, values.password, values.name, values.organizationName);
+      setIsAuthSuccess(true);
     } catch (error) {
       setAuthError(await extractApiErrorMessage(error, "Register failed."));
     }
   };
 
-  return !isLoading && isAuthenticated ? (
-    <Navigate to={target} replace />
-  ) : (
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={target} replace />;
+  }
+
+  return (
     <div className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
       <div className="absolute right-4 top-4">
         <ThemeToggle />

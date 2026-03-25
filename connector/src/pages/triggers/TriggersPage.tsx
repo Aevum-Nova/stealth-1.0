@@ -356,6 +356,11 @@ export default function TriggersPage() {
       return;
     }
 
+    if (selectedConnector?.scope_fields.length && !collectScopeValues(payload.scope).length) {
+      pushToast("Select at least one channel or scope option for this trigger.", "error");
+      return;
+    }
+
     if (editingTriggerId) {
       updateTrigger.mutate(
         {
