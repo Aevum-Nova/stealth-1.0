@@ -134,12 +134,12 @@ export default function RegisterPage() {
     }
   };
 
-  if (isLoading) {
-    return null;
-  }
-
   if (isAuthenticated) {
     return <Navigate to={target} replace />;
+  }
+
+  if (isLoading || isAuthSuccess) {
+    return null;
   }
 
   return (
