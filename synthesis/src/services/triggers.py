@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
+import math
+import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -32,6 +35,7 @@ from src.schemas.trigger import (
     TriggerScopeOption,
     TriggerStats,
 )
+from src.services.embeddings import embedding_service
 from src.services.llm import llm_service
 from src.services.signal_builder import signal_builder
 from src.synthesis.engine import synthesis_engine
@@ -53,9 +57,281 @@ CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
 
 
 class TriggerService:
+    _SEMANTIC_WEIGHT = 0.65
+    _KEYWORD_WEIGHT = 0.35
+    _EXCLUSION_ALPHA = 0.8
+    _EMBEDDING_CACHE_SIZE = 512
+
     def __init__(self) -> None:
         self._runtime_task: asyncio.Task | None = None
         self._runtime_stop = asyncio.Event()
+        self._embedding_cache: dict[str, list[float]] = {}
+
+    def parse_description(self, description: str) -> dict:
+        normalized = re.sub(r"\s+", " ", (description or "").strip()).lower()
+        hashtags = [value.lower() for value in re.findall(r"#([a-z0-9][a-z0-9_-]*)", normalized)]
+
+        exclusion_phrases: list[str] = []
+        for pattern in (r"\bdo not\b", r"\bdon't\b", r"\bexclude\b", r"\bignore\b", r"\bavoid\b", r"\bno\b"):
+            for match in re.finditer(pattern, normalized):
+                tail = normalized[match.end() :]
+                boundary = re.search(r"[.;\n]", tail)
+                phrase = (tail[: boundary.start()] if boundary else tail).strip(" ,:-")
+                if phrase:
+                    exclusion_phrases.append(phrase)
+
+        stopwords = {
+            "a",
+            "an",
+            "and",
+            "any",
+            "are",
+            "as",
+            "at",
+            "be",
+            "by",
+            "for",
+            "from",
+            "if",
+            "in",
+            "into",
+            "is",
+            "it",
+            "of",
+            "on",
+            "or",
+            "that",
+            "the",
+            "this",
+            "to",
+            "with",
+        }
+
+        exclude_terms: list[str] = []
+        for phrase in exclusion_phrases:
+            for token in re.findall(r"[a-z0-9][a-z0-9_-]+", phrase):
+                if token in stopwords:
+                    continue
+                exclude_terms.append(token)
+
+        include_terms: list[str] = []
+        for token in re.findall(r"[a-z0-9][a-z0-9_-]+", normalized):
+            if token in stopwords:
+                continue
+            if token in {"do", "dont", "don't", "exclude", "ignore", "avoid", "not", "no"}:
+                continue
+            if token in exclude_terms:
+                continue
+            include_terms.append(token)
+
+        include_phrases: list[str] = []
+        if normalized:
+            for part in re.split(r"[.;\n]", normalized):
+                phrase = part.strip(" ,:-")
+                if not phrase:
+                    continue
+                if any(marker in phrase for marker in ("do not", "don't", "exclude", "ignore", "avoid")):
+                    continue
+                include_phrases.append(phrase)
+
+        return {
+            "keyword_hints": self._dedupe(hashtags + include_terms),
+            "hashtags": self._dedupe(hashtags),
+            "include_terms": self._dedupe(include_terms),
+            "exclude_terms": self._dedupe(exclude_terms),
+            "include_phrases": self._dedupe(include_phrases),
+            "exclude_phrases": self._dedupe(exclusion_phrases),
+        }
+
+    async def _compile_filter_criteria(self, description: str) -> dict:
+        parsed = await self._compile_filter_criteria_with_llm(description)
+        if parsed is None:
+            parsed = self.parse_description(description)
+
+        include_text = " ".join(
+            value
+            for value in [
+                parsed.get("primary_intent"),
+                parsed.get("summary_for_embedding"),
+                *list(parsed.get("include_topics") or []),
+                *list(parsed.get("include_phrases") or []),
+            ]
+            if value
+        ).strip() or description.strip() or "feature requests"
+        exclude_text = " ".join(
+            value
+            for value in [
+                parsed.get("exclude_summary_for_embedding"),
+                *list(parsed.get("exclude_topics") or []),
+                *list(parsed.get("exclude_phrases") or []),
+                *list(parsed.get("exclude_terms") or []),
+            ]
+            if value
+        ).strip()
+        include_embedding = await self._embed_text_cached(include_text)
+        exclude_embedding = await self._embed_text_cached(exclude_text) if exclude_text else []
+
+        return {
+            **parsed,
+            "include_embedding": include_embedding,
+            "exclude_embedding": exclude_embedding,
+            "compiled_at": datetime.now(UTC).isoformat(),
+            "semantic_version": 2,
+        }
+
+    @staticmethod
+    def _criteria_needs_compilation(criteria: dict | None) -> bool:
+        if not isinstance(criteria, dict) or not criteria:
+            return True
+        include_embedding = criteria.get("include_embedding")
+        keyword_hints = criteria.get("keyword_hints")
+        semantic_version = criteria.get("semantic_version")
+        return (
+            not isinstance(include_embedding, list)
+            or not isinstance(keyword_hints, list)
+            or semantic_version != 2
+        )
+
+    async def _compile_filter_criteria_with_llm(self, description: str) -> dict | None:
+        clean_description = re.sub(r"\s+", " ", (description or "").strip())
+        if not clean_description:
+            return None
+
+        system = (
+            "You are compiling a trigger description for an event matcher. "
+            "Return JSON only. Extract the user's matching intent faithfully, especially exclusions."
+        )
+        user = (
+            "Compile this trigger description into structured matching criteria.\n\n"
+            f"Description:\n{clean_description}\n\n"
+            "Return an object with these keys:\n"
+            "- primary_intent: string\n"
+            "- include_topics: array of short phrases\n"
+            "- exclude_topics: array of short phrases\n"
+            "- keyword_hints: array of useful keywords or hashtags\n"
+            "- include_phrases: array of phrases that should count as positive matches\n"
+            "- exclude_phrases: array of phrases that should count as negative matches\n"
+            "- include_terms: array of single tokens for positive lexical matching\n"
+            "- exclude_terms: array of single tokens for negative lexical matching\n"
+            "- summary_for_embedding: one short sentence describing what should match\n"
+            "- exclude_summary_for_embedding: one short sentence describing what should not match\n"
+            "Prefer precision over recall. Preserve negative constraints such as 'do not include UI feedback'."
+        )
+        result = await llm_service.json_completion(system, user, max_tokens=500, stage="trigger_description_compile")
+        return self._normalize_compiled_criteria(result)
+
+    def _normalize_compiled_criteria(self, payload: dict | None) -> dict | None:
+        if not isinstance(payload, dict):
+            return None
+
+        primary_intent = str(payload.get("primary_intent") or "").strip()
+        include_topics = self._clean_string_list(payload.get("include_topics"))
+        exclude_topics = self._clean_string_list(payload.get("exclude_topics"))
+        keyword_hints = self._clean_string_list(payload.get("keyword_hints"))
+        include_phrases = self._clean_string_list(payload.get("include_phrases"))
+        exclude_phrases = self._clean_string_list(payload.get("exclude_phrases"))
+        include_terms = self._clean_string_list(payload.get("include_terms"), split_tokens=True)
+        exclude_terms = self._clean_string_list(payload.get("exclude_terms"), split_tokens=True)
+        include_terms = self._dedupe(
+            include_terms
+            + self._clean_string_list(include_topics, split_tokens=True)
+            + self._clean_string_list(include_phrases, split_tokens=True)
+        )
+        exclude_terms = self._dedupe(
+            exclude_terms
+            + self._clean_string_list(exclude_topics, split_tokens=True)
+            + self._clean_string_list(exclude_phrases, split_tokens=True)
+        )
+        summary_for_embedding = str(payload.get("summary_for_embedding") or "").strip()
+        exclude_summary_for_embedding = str(payload.get("exclude_summary_for_embedding") or "").strip()
+
+        if not primary_intent and not include_topics and not summary_for_embedding:
+            return None
+
+        return {
+            "primary_intent": primary_intent,
+            "include_topics": include_topics,
+            "exclude_topics": exclude_topics,
+            "keyword_hints": self._dedupe(keyword_hints + include_terms + exclude_terms),
+            "include_phrases": self._dedupe(include_phrases + include_topics),
+            "exclude_phrases": self._dedupe(exclude_phrases + exclude_topics),
+            "include_terms": self._dedupe(include_terms),
+            "exclude_terms": self._dedupe(exclude_terms),
+            "summary_for_embedding": summary_for_embedding or primary_intent,
+            "exclude_summary_for_embedding": exclude_summary_for_embedding,
+        }
+
+    async def _embed_text_cached(self, text: str) -> list[float]:
+        normalized = re.sub(r"\s+", " ", (text or "").strip())
+        if not normalized:
+            return []
+        cache_key = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        cached = self._embedding_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        vector = await embedding_service.embed(normalized)
+        self._embedding_cache[cache_key] = vector
+        if len(self._embedding_cache) > self._EMBEDDING_CACHE_SIZE:
+            oldest_key = next(iter(self._embedding_cache))
+            self._embedding_cache.pop(oldest_key, None)
+        return vector
+
+    @staticmethod
+    def _dedupe(values: list[str]) -> list[str]:
+        seen: set[str] = set()
+        result: list[str] = []
+        for value in values:
+            normalized = value.strip()
+            if not normalized:
+                continue
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(normalized)
+        return result
+
+    @staticmethod
+    def _clean_string_list(value: object, *, split_tokens: bool = False) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        items: list[str] = []
+        for item in value:
+            text = str(item or "").strip().lower()
+            if not text:
+                continue
+            if split_tokens:
+                items.extend(re.findall(r"[a-z0-9][a-z0-9_-]+", text))
+            else:
+                items.append(text)
+        return items
+
+    @staticmethod
+    def _tokenize(text: str) -> set[str]:
+        return {token for token in re.findall(r"[a-z0-9][a-z0-9_-]+", (text or "").lower())}
+
+    @staticmethod
+    def _cosine_similarity(a: list[float], b: list[float]) -> float:
+        if not a or not b:
+            return 0.0
+        length = min(len(a), len(b))
+        if length == 0:
+            return 0.0
+        dot = sum(a[idx] * b[idx] for idx in range(length))
+        a_norm = math.sqrt(sum(a[idx] * a[idx] for idx in range(length)))
+        b_norm = math.sqrt(sum(b[idx] * b[idx] for idx in range(length)))
+        if a_norm == 0 or b_norm == 0:
+            return 0.0
+        return dot / (a_norm * b_norm)
+
+    @staticmethod
+    def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
+        return max(low, min(high, value))
+
+    async def _ensure_criteria(self, trigger: Trigger) -> dict:
+        existing = trigger.parsed_filter_criteria if isinstance(trigger.parsed_filter_criteria, dict) else {}
+        if self._criteria_needs_compilation(existing):
+            return await self._compile_filter_criteria(trigger.natural_language_description)
+        return existing
 
     async def list_connector_options(self, db: AsyncSession, org_id: str) -> list[TriggerConnectorOption]:
         result = await db.execute(
@@ -185,12 +461,15 @@ class TriggerService:
         connector = await self._get_connector(db, org_id, connector_id)
         adapter = self._require_adapter(connector.type)
         clean_scope = self._sanitize_scope(scope, adapter.build_scope_fields(connector))
+        clean_description = natural_language_description.strip()
+        parsed_filter_criteria = await self._compile_filter_criteria(clean_description)
         trigger = Trigger(
             organization_id=UUID(org_id),
             connector_id=connector.id,
             created_by_user_id=UUID(user_id) if user_id else None,
             plugin_type=connector.type,
-            natural_language_description=natural_language_description.strip(),
+            natural_language_description=clean_description,
+            parsed_filter_criteria=parsed_filter_criteria,
             scope=clean_scope,
             scope_summary=adapter.summarize_scope(clean_scope, connector),
             status=self._normalize_status(status),
@@ -246,8 +525,10 @@ class TriggerService:
         trigger, connector = result
         adapter = self._require_adapter(trigger.plugin_type)
 
+        description_updated = False
         if natural_language_description is not None:
             trigger.natural_language_description = natural_language_description.strip()
+            description_updated = True
         if scope is not None:
             trigger.scope = self._sanitize_scope(scope, adapter.build_scope_fields(connector))
         if buffer_config is not None:
@@ -256,6 +537,8 @@ class TriggerService:
             trigger.match_config = self._normalize_match_config(match_config)
         if status is not None:
             trigger.status = self._normalize_status(status)
+        if description_updated or self._criteria_needs_compilation(trigger.parsed_filter_criteria):
+            trigger.parsed_filter_criteria = await self._compile_filter_criteria(trigger.natural_language_description)
 
         trigger.scope_summary = adapter.summarize_scope(trigger.scope or {}, connector)
         await db.commit()
@@ -338,9 +621,18 @@ class TriggerService:
             return {"received": len(normalized_events), "matched": 0}
 
         logger.info("webhook.processing", plugin_type=plugin_type, events=len(normalized_events), candidates=len(candidates))
+        compiled_any = False
+        for trigger, _ in candidates:
+            if self._criteria_needs_compilation(trigger.parsed_filter_criteria):
+                trigger.parsed_filter_criteria = await self._compile_filter_criteria(trigger.natural_language_description)
+                compiled_any = True
+        if compiled_any:
+            await db.commit()
+
         matched = 0
         for normalized in normalized_events:
             acknowledged = False
+            event_embedding: list[float] | None = None
             for trigger, connector in candidates:
                 if not adapter.scope_matches(trigger.scope or {}, normalized):
                     logger.info(
@@ -351,8 +643,10 @@ class TriggerService:
                         event_channel=normalized.source_context.get("channel_id"),
                     )
                     continue
-                score = await self.semantic_match(trigger, normalized)
                 threshold = float((trigger.match_config or {}).get("confidence_threshold", DEFAULT_MATCH_CONFIG["confidence_threshold"]))
+                if event_embedding is None:
+                    event_embedding = await self._embed_text_cached(normalized.content_text)
+                score = await self.semantic_match(trigger, normalized, event_embedding=event_embedding)
                 if score < threshold:
                     logger.info(
                         "webhook.below_threshold",
@@ -419,27 +713,62 @@ class TriggerService:
             except TimeoutError:
                 continue
 
-    async def semantic_match(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
-        base_score = self._heuristic_match_score(trigger, event)
-        prompt = (
-            "Decide whether this event matches the trigger. Return JSON only with keys "
-            "match (boolean) and confidence (0 to 1)."
-        )
-        payload = (
-            f"Trigger description:\n{trigger.natural_language_description}\n\n"
-            f"Event content:\n{event.content_text}\n\n"
-            f"Event context:\n{event.source_context}"
-        )
-        result = await llm_service.json_completion(prompt, payload, max_tokens=200)
-        if isinstance(result, dict) and "confidence" in result:
-            confidence = float(result.get("confidence") or 0)
-            if not bool(result.get("match", confidence >= 0.7)):
-                return min(confidence, base_score)
-            return max(base_score, confidence)
-        return base_score
+    async def semantic_match(
+        self,
+        trigger: Trigger,
+        event: NormalizedTriggerEvent,
+        *,
+        event_embedding: list[float] | None = None,
+    ) -> float:
+        criteria = await self._ensure_criteria(trigger)
+        return await self._fast_semantic_score(criteria, event, event_embedding=event_embedding)
 
-    def _heuristic_match_score(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
-        return 0.8 if len(event.content_text) >= 20 else 0.55
+    async def _fast_semantic_score(
+        self,
+        criteria: dict,
+        event: NormalizedTriggerEvent,
+        *,
+        event_embedding: list[float] | None = None,
+    ) -> float:
+        include_terms = [str(value).lower() for value in (criteria.get("include_terms") or [])]
+        exclude_terms = [str(value).lower() for value in (criteria.get("exclude_terms") or [])]
+        include_phrases = [str(value).lower() for value in (criteria.get("include_phrases") or [])]
+        exclude_phrases = [str(value).lower() for value in (criteria.get("exclude_phrases") or [])]
+
+        content_lower = (event.content_text or "").lower()
+        tokens = self._tokenize(content_lower)
+
+        include_hits = len(tokens.intersection(include_terms))
+        exclude_hits = len(tokens.intersection(exclude_terms))
+        include_phrase_hit = any(phrase and phrase in content_lower for phrase in include_phrases)
+        exclude_phrase_hit = any(phrase and phrase in content_lower for phrase in exclude_phrases)
+
+        include_denom = max(1, min(6, len(include_terms)))
+        exclude_denom = max(1, min(6, len(exclude_terms)))
+        include_kw_score = include_hits / include_denom if include_terms else (0.55 if include_phrase_hit else 0.45)
+        exclude_kw_score = exclude_hits / exclude_denom if exclude_terms else 0.0
+
+        include_embedding = criteria.get("include_embedding") if isinstance(criteria.get("include_embedding"), list) else []
+        exclude_embedding = criteria.get("exclude_embedding") if isinstance(criteria.get("exclude_embedding"), list) else []
+        if event_embedding is None:
+            event_embedding = await self._embed_text_cached(event.content_text)
+
+        include_similarity = (self._cosine_similarity(event_embedding, include_embedding) + 1.0) / 2.0 if include_embedding else 0.5
+        exclude_similarity = (self._cosine_similarity(event_embedding, exclude_embedding) + 1.0) / 2.0 if exclude_embedding else 0.0
+        semantic_score = self._clamp(include_similarity - (self._EXCLUSION_ALPHA * exclude_similarity))
+
+        lexical_score = self._clamp(
+            (include_kw_score + (0.2 if include_phrase_hit else 0.0))
+            - (exclude_kw_score + (0.4 if exclude_phrase_hit else 0.0))
+        )
+
+        combined = self._clamp((self._SEMANTIC_WEIGHT * semantic_score) + (self._KEYWORD_WEIGHT * lexical_score))
+
+        # Hard reject if exclusion intent clearly matches and inclusion intent does not.
+        if (exclude_phrase_hit or exclude_kw_score >= 0.5 or exclude_similarity >= 0.72) and include_kw_score < 0.2 and include_similarity < 0.75:
+            return min(combined, 0.15)
+
+        return combined
 
     async def _persist_matched_event(
         self,
