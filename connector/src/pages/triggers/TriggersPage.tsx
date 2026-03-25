@@ -27,7 +27,7 @@ const DEFAULT_BUFFER_CONFIG: TriggerBufferConfig = {
 };
 
 const DEFAULT_MATCH_CONFIG: TriggerMatchConfig = {
-  confidence_threshold: 0.7,
+  confidence_threshold: 0.8,
 };
 
 function statusTone(status: string) {
@@ -578,7 +578,7 @@ export default function TriggersPage() {
                         value={form.match_config.confidence_threshold}
                         onChange={(event) => setForm((current) => ({
                           ...current,
-                          match_config: { ...current.match_config, confidence_threshold: Number(event.currentTarget.value || 0.7) },
+                          match_config: { ...current.match_config, confidence_threshold: Number(event.currentTarget.value || 0.8) },
                         }))}
                         className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--ink)]"
                       />

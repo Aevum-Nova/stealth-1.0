@@ -48,7 +48,7 @@ logger = structlog.get_logger(__name__)
 
 SUPPORTED_TRIGGER_TYPES = set(TRIGGER_ADAPTERS)
 DEFAULT_BUFFER_CONFIG = {"time_threshold_minutes": 60, "count_threshold": 10, "min_buffer_minutes": 5}
-DEFAULT_MATCH_CONFIG = {"confidence_threshold": 0.7}
+DEFAULT_MATCH_CONFIG = {"confidence_threshold": 0.8}
 CATALOG_BY_TYPE = {item["type"]: item for item in CONNECTOR_CATALOG}
 
 
@@ -419,27 +419,109 @@ class TriggerService:
             except TimeoutError:
                 continue
 
+    _SEMANTIC_MATCH_SCHEMA: dict[str, object] = {
+        "type": "object",
+        "properties": {
+            "exclusion_phrases": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Phrases/topics the trigger explicitly asks to EXCLUDE or NOT capture.",
+            },
+            "event_matches_exclusion": {
+                "type": "boolean",
+                "description": "True if the event matches ANY of the exclusion phrases.",
+            },
+            "inclusion_criteria": {
+                "type": "string",
+                "description": "What the trigger WANTS to capture.",
+            },
+            "event_matches_inclusion": {
+                "type": "boolean",
+                "description": "True if the event matches the inclusion criteria.",
+            },
+            "match": {
+                "type": "boolean",
+                "description": "Final decision: true ONLY if event matches inclusion AND does NOT match any exclusion.",
+            },
+            "confidence": {
+                "type": "number",
+                "description": "Confidence in the match decision, 0.0 to 1.0.",
+            },
+            "reason": {
+                "type": "string",
+                "description": "Brief explanation of the decision.",
+            },
+        },
+        "required": [
+            "exclusion_phrases",
+            "event_matches_exclusion",
+            "inclusion_criteria",
+            "event_matches_inclusion",
+            "match",
+            "confidence",
+            "reason",
+        ],
+        "additionalProperties": False,
+    }
+
     async def semantic_match(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
-        base_score = self._heuristic_match_score(trigger, event)
         prompt = (
-            "Decide whether this event matches the trigger. Return JSON only with keys "
-            "match (boolean) and confidence (0 to 1)."
+            "You are a strict event filter. Analyze the trigger description step by step:\n\n"
+            "STEP 1: Extract exclusion phrases — what does the trigger say to NOT capture, ignore, or exclude?\n"
+            "STEP 2: Check if the event matches ANY exclusion. If yes, event_matches_exclusion=true and match MUST be false.\n"
+            "STEP 3: Extract inclusion criteria — what does the trigger WANT to capture?\n"
+            "STEP 4: Check if the event matches the inclusion criteria.\n"
+            "STEP 5: Final decision — match=true ONLY if event matches inclusion AND does NOT match any exclusion.\n\n"
+            "CRITICAL: Exclusions always win. If the trigger says 'don't capture X' and the event is about X, "
+            "match MUST be false regardless of whether it also matches inclusion criteria.\n"
+            "When in doubt, return match=false. False negatives are better than false positives."
         )
         payload = (
             f"Trigger description:\n{trigger.natural_language_description}\n\n"
             f"Event content:\n{event.content_text}\n\n"
             f"Event context:\n{event.source_context}"
         )
-        result = await llm_service.json_completion(prompt, payload, max_tokens=200)
-        if isinstance(result, dict) and "confidence" in result:
+        result = await llm_service.json_completion(
+            prompt,
+            payload,
+            max_tokens=400,
+            schema=self._SEMANTIC_MATCH_SCHEMA,
+            stage="semantic_match",
+        )
+        if isinstance(result, dict) and "match" in result:
             confidence = float(result.get("confidence") or 0)
-            if not bool(result.get("match", confidence >= 0.7)):
-                return min(confidence, base_score)
-            return max(base_score, confidence)
-        return base_score
-
-    def _heuristic_match_score(self, trigger: Trigger, event: NormalizedTriggerEvent) -> float:
-        return 0.8 if len(event.content_text) >= 20 else 0.55
+            is_match = bool(result.get("match", False))
+            hits_exclusion = bool(result.get("event_matches_exclusion", False))
+            reason = result.get("reason", "")
+            # Safety net: if LLM says it matches an exclusion but also says match=true, override.
+            if hits_exclusion and is_match:
+                logger.warning(
+                    "semantic_match.exclusion_override",
+                    trigger_id=str(trigger.id),
+                    exclusion_phrases=result.get("exclusion_phrases"),
+                    reason=reason,
+                    event_preview=event.content_text[:120],
+                )
+                is_match = False
+                confidence = min(confidence, 0.2)
+            logger.info(
+                "semantic_match.result",
+                trigger_id=str(trigger.id),
+                match=is_match,
+                confidence=round(confidence, 3),
+                hits_exclusion=hits_exclusion,
+                reason=reason,
+                event_preview=event.content_text[:120],
+            )
+            return confidence if is_match else min(confidence, 0.4)
+        # LLM failed — reject by default rather than letting unknown events through.
+        logger.warning(
+            "semantic_match.llm_failed_rejecting",
+            trigger_id=str(trigger.id),
+            result_keys=list(result.keys()) if isinstance(result, dict) else None,
+            event_preview=event.content_text[:120],
+        )
+        return 0.0
 
     async def _persist_matched_event(
         self,
@@ -655,7 +737,7 @@ class TriggerService:
 
     def _normalize_match_config(self, value: dict | None) -> dict:
         merged = {**DEFAULT_MATCH_CONFIG, **(value or {})}
-        confidence = float(merged.get("confidence_threshold", 0.7))
+        confidence = float(merged.get("confidence_threshold", 0.8))
         merged["confidence_threshold"] = max(0.1, min(0.99, confidence))
         return merged
 

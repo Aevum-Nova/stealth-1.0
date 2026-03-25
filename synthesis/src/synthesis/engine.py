@@ -6,11 +6,16 @@ from uuid import UUID
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import asyncio
+
+import structlog
+
 from src.config import settings
 from src.models.feature_request import FeatureRequest, FeatureRequestSignal, SynthesisRun
 from src.models.signal import Signal
 from src.services.embeddings import embedding_service
 from src.services.event_bus import get_event_bus
+from src.services.llm import llm_service
 from src.synthesis.clustering import cluster_signals
 from src.synthesis.cross_run_deduplicator import cross_run_deduplicator
 from src.synthesis.deduplicator import deduplicator
@@ -125,6 +130,10 @@ class SynthesisEngine:
             selected_signal_ids = signal_ids or list(run.input_signal_ids or [])
             effective_context = trigger_context or run.trigger_context
             signals = await self._gather_signals(db, organization_id, mode, selected_signal_ids)
+
+            if effective_context and mode == "trigger":
+                signals = await self._filter_signals_by_relevance(signals, effective_context)
+
             run.signal_count = len(signals)
             await db.commit()
 
@@ -257,6 +266,83 @@ class SynthesisEngine:
         query = query.order_by(Signal.created_at.desc()).limit(settings.SYNTHESIS_MAX_SIGNALS)
         result = await db.execute(query)
         return list(result.scalars().all())
+
+    _RELEVANCE_SCHEMA: dict[str, object] = {
+        "type": "object",
+        "properties": {
+            "exclusion_phrases": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Topics the trigger explicitly asks to EXCLUDE.",
+            },
+            "hits_exclusion": {
+                "type": "boolean",
+                "description": "True if the signal matches any exclusion.",
+            },
+            "relevant": {
+                "type": "boolean",
+                "description": "True ONLY if signal matches inclusion criteria AND does NOT hit any exclusion.",
+            },
+            "reason": {"type": "string"},
+        },
+        "required": ["exclusion_phrases", "hits_exclusion", "relevant", "reason"],
+        "additionalProperties": False,
+    }
+
+    async def _filter_signals_by_relevance(
+        self,
+        signals: list[Signal],
+        trigger_context: str,
+    ) -> list[Signal]:
+        """Second-pass LLM filter: discard signals that don't match the trigger."""
+        log = structlog.get_logger()
+        prompt = (
+            "You are a strict relevance filter. Analyze step by step:\n"
+            "1. Extract exclusion phrases from the trigger description.\n"
+            "2. Check if the signal matches any exclusion. If yes, relevant MUST be false.\n"
+            "3. Check if the signal matches what the trigger wants to capture.\n"
+            "4. relevant=true ONLY if it matches inclusion AND NOT any exclusion.\n"
+            "Exclusions always win. When in doubt, return relevant=false."
+        )
+
+        async def _check_one(signal: Signal) -> tuple[Signal, bool]:
+            summary = (signal.structured_summary or signal.original_text or "")[:500]
+            if not summary.strip():
+                return signal, False
+            payload = (
+                f"Trigger description:\n{trigger_context}\n\n"
+                f"Signal summary:\n{summary}"
+            )
+            result = await llm_service.json_completion(
+                prompt, payload, max_tokens=300, schema=self._RELEVANCE_SCHEMA, stage="relevance_filter",
+            )
+            if not isinstance(result, dict):
+                return signal, False
+            relevant = bool(result.get("relevant", False))
+            hits_exclusion = bool(result.get("hits_exclusion", False))
+            # Safety net: if exclusion detected, force reject
+            if hits_exclusion:
+                relevant = False
+            reason = result.get("reason", "")
+            log.info(
+                "synthesis.relevance_filter",
+                signal_id=str(signal.id),
+                relevant=relevant,
+                hits_exclusion=hits_exclusion,
+                reason=reason,
+                summary_preview=summary[:100],
+            )
+            return signal, relevant
+
+        results = await asyncio.gather(*[_check_one(s) for s in signals])
+        filtered = [signal for signal, relevant in results if relevant]
+        log.info(
+            "synthesis.relevance_filter_complete",
+            total=len(signals),
+            kept=len(filtered),
+            dropped=len(signals) - len(filtered),
+        )
+        return filtered
 
     async def _persist_feature_requests(
         self,

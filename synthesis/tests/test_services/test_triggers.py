@@ -39,7 +39,7 @@ def test_buffer_is_due_when_count_threshold_and_minimum_window_met() -> None:
         natural_language_description="bugs from support",
         scope_summary="All activity",
         buffer_config={"time_threshold_minutes": 60, "count_threshold": 3, "min_buffer_minutes": 5},
-        match_config={"confidence_threshold": 0.7},
+        match_config={"confidence_threshold": 0.8},
         status="active",
     )
     buffer = EventBuffer(

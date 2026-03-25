@@ -11,7 +11,7 @@ class TriggerBufferConfig(BaseModel):
 
 
 class TriggerMatchConfig(BaseModel):
-    confidence_threshold: float = 0.7
+    confidence_threshold: float = 0.8
 
 
 class TriggerCreate(BaseModel):
