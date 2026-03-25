@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/shared/Toast";
 import { useAuth } from "@/hooks/use-auth";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
+const LandingPage = lazyWithRetry(() => import("@/pages/landing/LandingPage"));
 const LoginPage = lazyWithRetry(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazyWithRetry(() => import("@/pages/auth/RegisterPage"));
 const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorsPage"));
@@ -27,6 +28,20 @@ function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<LoadingSpinner label="Loading page" />}>{element}</Suspense>;
 }
 
+function RootRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="p-8">Loading session...</div>;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return withSuspense(<LandingPage />);
+}
+
 function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -35,13 +50,14 @@ function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
 }
 
 const router = createBrowserRouter([
+  { path: "/", element: <RootRoute /> },
   { path: "/login", element: withSuspense(<LoginPage />) },
   { path: "/register", element: withSuspense(<RegisterPage />) },
   { path: "/oauth/callback", element: withSuspense(<OAuthCallbackPage />) },
@@ -51,7 +67,7 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { path: "/", element: withSuspense(<DashboardPage />) },
+          { path: "/dashboard", element: withSuspense(<DashboardPage />) },
           { path: "/connectors", element: withSuspense(<ConnectorsPage />) },
           { path: "/connectors/new/:type", element: withSuspense(<ConnectorSetupPage />) },
           { path: "/connectors/:id", element: withSuspense(<ConnectorDetailPage />) },
