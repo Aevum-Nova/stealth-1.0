@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowRightLeft, ChevronDown, Menu } from "lucide-react";
+import { ArrowRight, ArrowRightLeft, Menu } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
 import dashboardHeroImage from "@/assets/landing/vector-dashboard-hero.png";
@@ -47,10 +47,7 @@ const footerColumns = [
 function LogoWordmark() {
   return (
     <div className="vector-hero-wordmark">
-      <span className="vector-hero-wordmark-mark" aria-hidden>
-        <span />
-        <span />
-      </span>
+      <span className="vector-hero-wordmark-mark" aria-hidden />
       <span>Vector</span>
     </div>
   );
@@ -87,35 +84,34 @@ export default function LandingPage() {
             <a href="#hero" className="vector-peec-hero-nav-link">
               Product
             </a>
-            <a href="#hero" className="vector-peec-hero-nav-link has-chevron">
-              <span>Resources</span>
-              <ChevronDown className="size-4" />
+            <a href="#resources" className="vector-peec-hero-nav-link">
+              Resources
             </a>
-            <a href="#hero" className="vector-peec-hero-nav-link has-chevron">
-              <span>Integrations</span>
-              <ChevronDown className="size-4" />
+            <a href="#integrations" className="vector-peec-hero-nav-link">
+              Integrations
             </a>
           </nav>
 
-          <div className="vector-peec-hero-nav-actions">
-            <Link to="/login" className="vector-peec-hero-nav-button secondary">
-              Log in
-            </Link>
-            <Link
-              to="/register"
-              className="vector-peec-hero-nav-button primary"
+          <div className="vector-peec-hero-nav-trailing">
+            <div className="vector-peec-hero-nav-actions">
+              <Link to="/login" className="vector-peec-hero-nav-button secondary">
+                Log in
+              </Link>
+              <Link
+                to="/register"
+                className="vector-peec-hero-nav-button primary"
+              >
+                Sign up
+              </Link>
+            </div>
+            <button
+              type="button"
+              className="vector-peec-hero-nav-mobile"
+              aria-label="Menu"
             >
-              Sign up
-            </Link>
+              <Menu className="size-4" />
+            </button>
           </div>
-
-          <button
-            type="button"
-            className="vector-peec-hero-nav-mobile"
-            aria-label="Menu"
-          >
-            <Menu className="size-4" />
-          </button>
         </div>
       </header>
 
@@ -123,10 +119,10 @@ export default function LandingPage() {
         <section className="vector-peec-hero-shell" id="hero">
           <div className="vector-peec-hero-container vector-peec-hero-panel">
             <div className="vector-peec-hero-copy">
-              <div className="vector-peec-hero-pill">
+              {/* <div className="vector-peec-hero-pill">
                 <span className="vector-peec-hero-pill-dot" aria-hidden />
                 Slack + GitHub connected
-              </div>
+              </div> */}
 
               <h1>
                 Customer insights
@@ -231,7 +227,7 @@ export default function LandingPage() {
               <div className="vector-peec-cta-band-actions">
                 <Link to="/register" className="vector-peec-cta-band-button primary">
                   Get Started Free
-                  <ArrowRight className="size-5" />
+                  <ArrowRight className="size-4" />
                 </Link>
                 <Link to="/login" className="vector-peec-cta-band-button secondary">
                   Sign In
@@ -254,7 +250,11 @@ export default function LandingPage() {
 
               <div className="vector-peec-footer-links">
                 {footerColumns.map((column) => (
-                  <div key={column.title} className="vector-peec-footer-column">
+                  <div
+                    key={column.title}
+                    id={column.title === "Resources" ? "resources" : undefined}
+                    className="vector-peec-footer-column"
+                  >
                     <div className="vector-peec-footer-heading">{column.title}</div>
                     {column.links.map((link) =>
                       link.href.startsWith("/") ? (

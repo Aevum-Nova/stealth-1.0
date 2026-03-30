@@ -40,7 +40,7 @@ export default function SignalsPage() {
   const activeRows = isSearchActive ? searchQuery.data?.data.map((item) => item.signal) ?? [] : signalsQuery.data?.data ?? [];
 
   if (signalsQuery.isLoading) {
-    return <LoadingSpinner label="Loading signals" />;
+    return <LoadingSpinner fill label="Loading signals" />;
   }
 
   return (

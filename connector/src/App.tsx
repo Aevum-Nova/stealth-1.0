@@ -25,7 +25,9 @@ const TriggersPage = lazyWithRetry(() => import("@/pages/triggers/TriggersPage")
 const WorkflowCreatePage = lazyWithRetry(() => import("@/pages/workflows/CreatePage"));
 
 function withSuspense(element: React.ReactNode) {
-  return <Suspense fallback={<LoadingSpinner label="Loading page" />}>{element}</Suspense>;
+  return (
+    <Suspense fallback={<LoadingSpinner fill label="Loading page" />}>{element}</Suspense>
+  );
 }
 
 function RootRoute() {

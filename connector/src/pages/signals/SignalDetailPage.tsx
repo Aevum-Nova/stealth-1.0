@@ -12,7 +12,7 @@ export default function SignalDetailPage() {
   const featureRequestsQuery = useFeatureRequests({ signal_id: id, limit: 50 });
 
   if (signalQuery.isLoading) {
-    return <LoadingSpinner label="Loading signal" />;
+    return <LoadingSpinner fill label="Loading signal" />;
   }
 
   if (signalQuery.isError || !signalQuery.data?.data) {

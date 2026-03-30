@@ -15,7 +15,7 @@ export default function ConnectorsPage() {
   const { syncConnector } = useConnectorMutations();
 
   if (connectorsQuery.isLoading || catalogQuery.isLoading) {
-    return <LoadingSpinner label="Loading connectors" />;
+    return <LoadingSpinner fill label="Loading connectors" />;
   }
 
   if (connectorsQuery.isError || catalogQuery.isError) {

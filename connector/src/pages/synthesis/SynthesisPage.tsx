@@ -36,7 +36,7 @@ export default function SynthesisPage() {
   }, [events]);
 
   if (runsQuery.isLoading) {
-    return <LoadingSpinner label="Loading synthesis runs" />;
+    return <LoadingSpinner fill label="Loading synthesis runs" />;
   }
 
   if (runsQuery.isError) {

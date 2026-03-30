@@ -33,7 +33,7 @@ export default function FeatureRequestDetailPage() {
   const actions = useFeatureRequestActions();
 
   if (featureRequestQuery.isLoading) {
-    return <LoadingSpinner label="Loading feature request" />;
+    return <LoadingSpinner fill label="Loading feature request" />;
   }
 
   if (featureRequestQuery.isError || !featureRequestQuery.data?.data) {

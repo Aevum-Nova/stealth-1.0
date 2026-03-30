@@ -396,11 +396,11 @@ export default function TriggersPage() {
   };
 
   if (configQuery.isLoading || triggersQuery.isLoading) {
-    return <LoadingSpinner label="Loading triggers" />;
+    return <LoadingSpinner fill label="Loading triggers" />;
   }
 
   if (waitingForSlackChannelNames) {
-    return <LoadingSpinner label="Loading channel names" />;
+    return <LoadingSpinner fill label="Loading channel names" />;
   }
 
   if (configQuery.isError || triggersQuery.isError) {

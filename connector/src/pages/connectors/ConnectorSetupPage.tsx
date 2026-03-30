@@ -63,7 +63,7 @@ export default function ConnectorSetupPage() {
   }, [connectorId]);
 
   if (!item) {
-    return <LoadingSpinner label="Loading connector template" />;
+    return <LoadingSpinner fill label="Loading connector template" />;
   }
 
   const startOAuth = async () => {

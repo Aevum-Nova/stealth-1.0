@@ -176,7 +176,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting || isGoogleSubmitting}
-          className="w-full rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
+          className="flex w-full items-center justify-center rounded-lg bg-[var(--action-primary)] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[var(--action-primary-hover)] disabled:opacity-50"
         >
           {isSubmitting ? <LoadingSpinner label="Signing in" /> : "Sign in"}
         </button>
@@ -191,7 +191,7 @@ export default function LoginPage() {
         {googleClientId ? (
           <div className="relative">
             <div
-              className={`flex w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)] ${(!isGoogleReady || isSubmitting || isGoogleSubmitting) ? "opacity-50" : ""}`}
+              className={`flex min-h-[42px] w-full items-center justify-center gap-2.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-[13px] font-medium text-[var(--ink)] transition-colors hover:bg-[var(--accent-soft)] ${(!isGoogleReady || isSubmitting || isGoogleSubmitting) ? "opacity-50" : ""}`}
             >
               {isGoogleSubmitting ? (
                 <LoadingSpinner label="Signing in with Google" />
