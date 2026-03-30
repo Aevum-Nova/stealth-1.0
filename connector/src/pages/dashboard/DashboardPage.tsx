@@ -92,7 +92,7 @@ export default function DashboardPage() {
   }, [jobsQuery.data, signalsQuery.data, events]);
 
   if (statsQuery.isLoading) {
-    return <LoadingSpinner label="Loading dashboard" />;
+    return <LoadingSpinner fill label="Loading dashboard" />;
   }
 
   if (statsQuery.isError || !statsQuery.data?.data) {

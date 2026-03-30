@@ -24,7 +24,7 @@ export default function ConnectorDetailPage() {
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   if (connectorQuery.isLoading || catalogQuery.isLoading) {
-    return <LoadingSpinner label="Loading connector details" />;
+    return <LoadingSpinner fill label="Loading connector details" />;
   }
 
   if (connectorQuery.isError || !connectorQuery.data?.data) {
