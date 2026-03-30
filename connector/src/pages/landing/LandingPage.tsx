@@ -2,20 +2,19 @@ import { ArrowRight, ArrowRightLeft, Menu } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
 import dashboardHeroImage from "@/assets/landing/vector-dashboard-hero.png";
-import logoGithub from "@/assets/landing/logo-github.svg";
-import logoGmail from "@/assets/landing/logo-gmail.svg";
-import logoSlack from "@/assets/landing/logo-slack.svg";
 import ingestHeroImage from "@/assets/landing/vector-ingest-hero.png";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAuth } from "@/hooks/use-auth";
 
 const integrationLogos = [
-  { name: "Slack", logo: logoSlack },
-  { name: "GitHub", logo: logoGithub },
-  { name: "Gmail", logo: logoGmail },
+  { name: "Slack", logo: "/connector-icons/slack.svg" },
 ] as const;
 
-const comingSoonSlots = [0, 1, 2] as const;
+const comingSoonSlots = [
+  { name: "Teams", logo: "/connector-icons/teams.svg" },
+  { name: "ServiceNow", logo: "/connector-icons/servicenow.svg" },
+  { name: "Zendesk", logo: "/connector-icons/zendesk.svg" },
+] as const;
 
 const footerColumns = [
   {
@@ -196,12 +195,18 @@ export default function LandingPage() {
                   </div>
                 </article>
               ))}
-              {comingSoonSlots.map((i) => (
+              {comingSoonSlots.map((integration) => (
                 <article
-                  key={`soon-${i}`}
+                  key={`soon-${integration.name}`}
                   className="vector-peec-integration-card vector-peec-integration-card--soon"
-                  aria-label="Integration coming soon"
+                  aria-label={`${integration.name} integration coming soon`}
                 >
+                  <div className="vector-peec-integration-mark vector-peec-integration-mark--logo">
+                    <img src={integration.logo} alt="" />
+                  </div>
+                  <div className="vector-peec-integration-name">
+                    {integration.name}
+                  </div>
                   <p className="vector-peec-integration-coming-soon">
                     Coming soon
                   </p>

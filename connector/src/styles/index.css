@@ -3919,7 +3919,7 @@ select {
 .vector-peec-integrations-grid {
   margin-top: 36px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid rgba(28, 25, 23, 0.1);
   border-radius: 0;
   overflow: hidden;
@@ -3928,12 +3928,12 @@ select {
 
 .vector-peec-integration-card {
   min-height: 140px;
-  padding: 20px 14px 18px;
+  padding: 28px 14px 18px;
   border-right: 1px solid rgba(28, 25, 23, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
   text-align: center;
   background: rgba(255, 255, 255, 0.72);
@@ -3969,8 +3969,7 @@ select {
 }
 
 .vector-peec-integration-card--soon {
-  justify-content: center;
-  gap: 0;
+  gap: 6px;
 }
 
 .vector-peec-integration-coming-soon {
