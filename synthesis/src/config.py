@@ -63,6 +63,9 @@ class Settings(BaseSettings):
 
     CREDENTIALS_ENCRYPTION_KEY: str = Field(default="")
 
+    # Agent service (code / PR jobs). Same JWT as synthesis; leave empty to skip agent-backed fields in chat tools.
+    AGENT_SERVICE_URL: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("EMBEDDING_PROVIDER")

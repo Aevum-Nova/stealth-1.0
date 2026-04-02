@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.routes import (
     auth_router,
+    chat_router,
     connectors_router,
     dashboard_router,
     events_router,
@@ -38,6 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(chat_router)
 app.include_router(dashboard_router)
 app.include_router(signals_router)
 app.include_router(feature_requests_router)
