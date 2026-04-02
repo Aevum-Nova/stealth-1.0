@@ -74,10 +74,10 @@ const router = createBrowserRouter([
       { path: "/integrations", element: withSuspense(<IntegrationsPage />) },
       { path: "/privacy", element: withSuspense(<PrivacyPage />) },
       { path: "/terms", element: withSuspense(<TermsPage />) },
+      { path: "/login", element: withSuspense(<LoginPage />) },
+      { path: "/register", element: withSuspense(<RegisterPage />) },
     ],
   },
-  { path: "/login", element: withSuspense(<LoginPage />) },
-  { path: "/register", element: withSuspense(<RegisterPage />) },
   { path: "/oauth/callback", element: withSuspense(<OAuthCallbackPage />) },
   {
     element: <ProtectedRoute />,

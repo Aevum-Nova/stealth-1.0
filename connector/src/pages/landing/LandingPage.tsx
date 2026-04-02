@@ -121,7 +121,7 @@ export default function LandingPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f5f2]">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--v-bg,#f6f5f2)]">
         <LoadingSpinner label="Loading" />
       </div>
     );

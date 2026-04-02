@@ -5,7 +5,6 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import { z } from "zod";
 
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { extractApiErrorMessage } from "@/lib/api-error";
 import { type GoogleCredentialResponse, type GoogleIdentityApi, loadGoogleIdentityScript } from "@/lib/google-identity";
@@ -127,11 +126,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="flex min-h-[70vh] items-center justify-center bg-[var(--canvas)] p-6">
       <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>

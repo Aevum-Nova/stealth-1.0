@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -47,6 +48,7 @@ export default function PublicNav() {
         </nav>
 
         <div className="vector-public-nav-actions">
+          <ThemeToggle compact />
           <Link to="/login">
             <Button variant="ghost" size="sm">
               Log in
