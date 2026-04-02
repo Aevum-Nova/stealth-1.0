@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "og:assets": "npx sharp-cli -i public/og-share.svg -o public/og-image.png --density 200 resize 1200 630 -f png && npx sharp-cli -i public/apple-touch-icon-source.svg -o public/apple-touch-icon.png --density 200 resize 180 180 -f png"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
