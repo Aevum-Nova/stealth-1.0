@@ -24,7 +24,7 @@ const guides = [
     title: "Set up Vector in 5 minutes",
     description:
       "Connect your Slack workspace, run your first synthesis, and review your first set of customer signals.",
-    link: "/docs",
+    link: "/guide/setup-vector",
     time: "5 min read",
   },
   {
@@ -33,7 +33,7 @@ const guides = [
     title: "Configuring Slack channel filters",
     description:
       "Learn how to select specific channels for monitoring, set up exclusion rules, and configure message filters.",
-    link: "/docs",
+    link: "/guide/slack-channel-filters",
     time: "8 min read",
   },
   {
@@ -42,7 +42,7 @@ const guides = [
     title: "Maximizing signal quality",
     description:
       "Tips for structuring your ingestion pipeline to get the most accurate and actionable signals from your customer data.",
-    link: "/docs",
+    link: "/guide/maximizing-signal-quality",
     time: "6 min read",
   },
   {
@@ -51,7 +51,7 @@ const guides = [
     title: "From signal to pull request",
     description:
       "Walk through the complete workflow: detect a signal, promote it to a feature request, and generate a PR.",
-    link: "/docs",
+    link: "/guide/signal-to-pull-request",
     time: "12 min read",
   },
   {
@@ -60,7 +60,7 @@ const guides = [
     title: "Understanding the synthesis engine",
     description:
       "How Vector's AI processes thousands of messages to identify patterns, cluster feedback, and score signals.",
-    link: "/docs",
+    link: "/guide/synthesis-engine",
     time: "10 min read",
   },
   {
@@ -69,7 +69,7 @@ const guides = [
     title: "Connecting GitHub for PR generation",
     description:
       "Set up the GitHub connector so the Vector agent can create pull requests in your repository automatically.",
-    link: "/docs",
+    link: "/guide/github-pr-generation",
     time: "4 min read",
   },
 ] as const;

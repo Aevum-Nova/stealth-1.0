@@ -15,6 +15,7 @@ const ResourcesPage = lazyWithRetry(() => import("@/pages/resources/ResourcesPag
 const IntegrationsPage = lazyWithRetry(() => import("@/pages/integrations-page/IntegrationsPage"));
 const PrivacyPage = lazyWithRetry(() => import("@/pages/legal/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("@/pages/legal/TermsPage"));
+const GuidePage = lazyWithRetry(() => import("@/pages/guides/GuidePage"));
 const LoginPage = lazyWithRetry(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazyWithRetry(() => import("@/pages/auth/RegisterPage"));
 const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorsPage"));
@@ -74,6 +75,7 @@ const router = createBrowserRouter([
       { path: "/integrations", element: withSuspense(<IntegrationsPage />) },
       { path: "/privacy", element: withSuspense(<PrivacyPage />) },
       { path: "/terms", element: withSuspense(<TermsPage />) },
+      { path: "/guide/:slug", element: withSuspense(<GuidePage />) },
     ],
   },
   { path: "/login", element: withSuspense(<LoginPage />) },
