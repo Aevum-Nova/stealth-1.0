@@ -45,7 +45,7 @@ export function WelcomeState({ onSendMessage, isLoading }: WelcomeStateProps) {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center px-4 pb-10 pt-6 sm:pt-10">
+    <div className="flex min-h-0 flex-1 flex-col items-center px-4 py-8 sm:py-10">
       <div className="flex w-full max-w-[42rem] flex-1 flex-col items-center justify-center">
         <div className="mb-10 w-full text-center sm:mb-14">
           <div className="mb-6 flex items-center justify-center gap-3 sm:gap-4">

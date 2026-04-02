@@ -2,11 +2,16 @@ import ky from "ky";
 
 import { attemptTokenRefresh, clearAuthState, getAccessToken } from "@/lib/auth";
 
+/** Base URL for synthesis `/api/v1` (same for ky and streaming chat fetch). */
+export const API_V1_PREFIX = (
+  import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1"
+).replace(/\/$/, "");
+
 // Store the last request body text so it can be re-sent on 401 retry.
 let lastRequestBody: string | null = null;
 
 const api = ky.create({
-  prefixUrl: import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1",
+  prefixUrl: API_V1_PREFIX,
   // Keep UI responsive during backend reloads; fail fast and let queries retry/invalidate.
   timeout: 15_000,
   credentials: "include",
