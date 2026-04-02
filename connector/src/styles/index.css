@@ -3906,7 +3906,7 @@ select {
   display: grid;
   grid-template-columns: minmax(260px, 0.38fr) 64px minmax(0, 1fr);
   gap: 12px;
-  align-items: end;
+  align-items: center;
 }
 
 .vector-screenshots-shot {
@@ -3923,13 +3923,10 @@ select {
 .vector-screenshots-shot img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
 }
 
 .vector-screenshots-ingest {
-  min-height: 380px;
 }
 
 .vector-screenshots-bridge {

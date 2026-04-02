@@ -4,8 +4,8 @@ import { useForm } from "react-hook-form";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { z } from "zod";
 
+import PublicNav from "@/components/landing/PublicNav";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { extractApiErrorMessage } from "@/lib/api-error";
 import { type GoogleCredentialResponse, type GoogleIdentityApi, loadGoogleIdentityScript } from "@/lib/google-identity";
@@ -129,11 +129,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="relative flex min-h-screen flex-col bg-[var(--canvas)]">
+      <PublicNav />
+      <div className="flex flex-1 items-center justify-center p-6">
       <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-5">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Create account</h1>
@@ -234,6 +232,7 @@ export default function RegisterPage() {
           </Link>
         </p>
       </form>
+      </div>
     </div>
   );
 }
