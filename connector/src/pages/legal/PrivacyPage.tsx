@@ -103,11 +103,9 @@ export default function PrivacyPage() {
           <section>
             <h2>6. Data Retention</h2>
             <p>
-              We retain your account information for as long as your account is
-              active. Customer Data is retained for the duration of your
-              subscription and deleted within 30 days of account termination,
-              unless you request earlier deletion. You may request deletion of
-              your data at any time by contacting us.
+              We retain your account information and Customer Data indefinitely,
+              unless you request deletion. You may request deletion of your data
+              at any time by contacting us.
             </p>
           </section>
 
