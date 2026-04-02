@@ -50,7 +50,7 @@ const guides = [
     category: "Tutorial",
     title: "From signal to pull request",
     description:
-      "Walk through the complete workflow: detect a signal, promote it to a feature request, refine context, and generate a PR.",
+      "Walk through the complete workflow: detect a signal, promote it to a feature request, and generate a PR.",
     link: "/docs",
     time: "12 min read",
   },
