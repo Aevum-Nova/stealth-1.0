@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,15 +27,6 @@ export function ChatPageHeader() {
   return (
     <div className="flex items-center gap-3 md:gap-4">
       <ThemeToggle compact />
-
-      <button
-        type="button"
-        aria-label="Notifications"
-        title="Notifications"
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--ink-soft)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
-      >
-        <Bell className="size-[18px] stroke-[1.75]" />
-      </button>
 
       <div className="relative" ref={menuRef}>
         <button

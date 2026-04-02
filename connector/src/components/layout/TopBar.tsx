@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Building2, LogOut, User } from "lucide-react";
+import { Building2, LogOut, User } from "lucide-react";
 
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,10 +43,6 @@ export default function TopBar() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle compact />
-
-        <button className="rounded-lg p-2 text-[var(--ink-muted)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink-soft)]">
-          <Bell className="size-4" />
-        </button>
 
         {/* Profile avatar + dropdown */}
         <div className="relative" ref={menuRef}>
