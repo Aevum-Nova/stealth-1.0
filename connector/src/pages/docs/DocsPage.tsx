@@ -230,16 +230,17 @@ This is useful for importing historical data, feedback from surveys, support tic
     id: "api",
     title: "API Reference",
     icon: Code2,
+    comingSoon: true,
     content: {
       heading: "API Reference",
-      body: `Vector exposes a REST API for programmatic access to connectors, signals, feature requests, and synthesis jobs. All endpoints require authentication via Bearer token.
+      body: `The Vector API is not yet available. We're building a REST API that will provide programmatic access to connectors, signals, feature requests, and synthesis jobs.
 
-The API follows REST conventions with JSON request and response bodies. Rate limits and pagination are documented per endpoint.`,
+Once released, all endpoints will require authentication via Bearer token. The API will follow REST conventions with JSON request and response bodies. Rate limits and pagination will be documented per endpoint.`,
       steps: [
         {
           title: "Authentication",
           description:
-            "All API requests require a Bearer token in the Authorization header. Obtain your token from the Dashboard settings page.",
+            "All API requests will require a Bearer token in the Authorization header. You'll be able to obtain your token from the Dashboard settings page.",
         },
         {
           title: "Connectors API",
@@ -259,7 +260,7 @@ The API follows REST conventions with JSON request and response bodies. Rate lim
       ],
     },
   },
-] as const;
+];
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -298,6 +299,9 @@ export default function DocsPage() {
                 >
                   <s.icon className="size-4" />
                   <span>{s.title}</span>
+                  {"comingSoon" in s && s.comingSoon && (
+                    <span className="ml-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70 whitespace-nowrap">Coming Soon</span>
+                  )}
                   <ChevronRight className="size-3.5 ml-auto opacity-0 group-[.active]:opacity-100" />
                 </button>
               ))}
@@ -309,6 +313,9 @@ export default function DocsPage() {
             <div className="vector-docs-content-header">
               <current.icon className="size-6 text-[#3564e8]" />
               <h2>{current.content.heading}</h2>
+              {"comingSoon" in current && current.comingSoon && (
+                <span className="inline-flex items-center rounded-full bg-[#3564e8]/10 px-2.5 py-0.5 text-xs font-medium text-[#3564e8] whitespace-nowrap">Coming Soon</span>
+              )}
             </div>
 
             <div className="vector-docs-body">
