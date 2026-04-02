@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <!-- No background: link previews composite on the app’s gray; avoids a white “card” inside the bubble. -->
-  <g transform="translate(600 315) rotate(45)">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <!-- Opaque fill: iMessage (and others) matte transparent PNGs to white, which reads as a “mini white box”.
+       #E5E5EA ≈ iOS system gray / link-preview strip so the thumb matches the surrounding card. -->
+  <rect width="1200" height="1200" fill="#E5E5EA" />
+  <g transform="translate(600 600) rotate(45)">
     <rect x="-100" y="-100" width="200" height="200" rx="50" fill="#171717" />
   </g>
 </svg>
