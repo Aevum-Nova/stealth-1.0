@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import type { StreamEvent } from "@/api/chat";
+import { API_V1_PREFIX } from "@/api/client";
 import { attemptTokenRefresh, getAccessToken } from "@/lib/auth";
 
 export interface ChatToolCallEntry {
@@ -54,8 +55,10 @@ export function useChat(options: UseChatOptions = {}) {
     const ac = new AbortController();
     abortControllerRef.current = ac;
 
+    const chatUrl = `${API_V1_PREFIX}/chat/query`;
+
     const chatQuery = (token: string | null) =>
-      fetch("/api/v1/chat/query", {
+      fetch(chatUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
