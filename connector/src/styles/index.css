@@ -56,6 +56,10 @@
   --danger: #ef4444;
   --warning: #f59e0b;
   --success: #22c55e;
+  /* Claude-style chat */
+  --chat-input-shell: #f4f4f5;
+  --chat-claude-user-bg: #ebebed;
+  --chat-accent-warm: #c97b63;
 }
 
 :root[data-theme="dark"] {
@@ -98,6 +102,9 @@
   --focus-ring: rgba(255, 255, 255, 0.14);
   --selection: rgba(255, 255, 255, 0.14);
   --shadow-soft: rgba(0, 0, 0, 0.5);
+  --chat-input-shell: #252528;
+  --chat-claude-user-bg: #2c2c32;
+  --chat-accent-warm: #e8a87c;
 }
 
 :root[data-theme="dark"] body {
@@ -569,6 +576,56 @@ button:not(:disabled):hover {
   margin: 0.85em 0 0;
 }
 
+.chat-message-content .chat-table-wrap {
+  margin: 0.65em 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+.chat-message-content .chat-md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.chat-message-content .chat-md-table th,
+.chat-message-content .chat-md-table td {
+  border-bottom: 1px solid var(--line-soft, #e5e5e5);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.chat-message-content .chat-md-table th {
+  font-weight: 600;
+  color: var(--ink);
+  background: #fafafa;
+  white-space: nowrap;
+}
+.chat-message-content .chat-md-table td {
+  color: var(--ink-soft);
+}
+.chat-message-content .chat-md-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+:root[data-theme="dark"] .chat-message-content .chat-table-wrap {
+  border-color: var(--line-muted);
+  background: var(--surface);
+}
+:root[data-theme="dark"] .chat-message-content .chat-md-table th {
+  background: var(--surface-subtle);
+}
+:root[data-theme="dark"] .chat-message-content .chat-md-table th,
+:root[data-theme="dark"] .chat-message-content .chat-md-table td {
+  border-bottom-color: var(--line-muted);
+}
+
+.app-chat-page .chat-scroll-area::-webkit-scrollbar-track {
+  background: var(--canvas);
+}
+
 /* ── React Flow theme overrides ── */
 .react-flow {
   --xy-background-color: var(--canvas-subtle);
@@ -612,6 +669,21 @@ select:focus {
   outline: none;
   border-color: var(--focus-border);
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* Composer textarea: no inner focus ring — shell uses focus-within only */
+.chat-composer-shell textarea {
+  border: none;
+  box-shadow: none;
+}
+.chat-composer-shell textarea:focus {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+.chat-composer-shell textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 /* Chat scrollbar: constant 6px width (no layout shift), thumb only visible on hover */

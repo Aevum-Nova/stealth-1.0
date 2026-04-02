@@ -1,8 +1,8 @@
 import {
-  BarChart3,
   Boxes,
   Database,
   GitMerge,
+  MessageCircle,
   PenTool,
   RadioTower,
   Workflow,
@@ -10,7 +10,7 @@ import {
 import { NavLink } from "react-router-dom";
 
 const mainNav = [
-  { to: "/", label: "Dashboard", icon: BarChart3 },
+  { to: "/chat", label: "Chat", icon: MessageCircle },
   { to: "/connectors", label: "Connectors", icon: Boxes },
   { to: "/ingest", label: "Ingest", icon: Database },
 ];
@@ -35,7 +35,7 @@ function NavItem({
   return (
     <NavLink
       to={to}
-      end={to === "/"}
+      end={to === "/chat"}
       className={({ isActive }) =>
         `flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all lg:w-full ${
           isActive

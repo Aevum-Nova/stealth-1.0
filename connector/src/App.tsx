@@ -21,7 +21,7 @@ const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/Connectors
 const ConnectorDetailPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorDetailPage"));
 const ConnectorSetupPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorSetupPage"));
 const OAuthCallbackPage = lazyWithRetry(() => import("@/pages/connectors/OAuthCallbackPage"));
-const DashboardPage = lazyWithRetry(() => import("@/pages/dashboard/DashboardPage"));
+const ChatPage = lazyWithRetry(() => import("@/pages/chat/ChatPage"));
 const FeatureRequestsPage = lazyWithRetry(() => import("@/pages/feature-requests/FeatureRequestsPage"));
 const ProductContextPage = lazyWithRetry(() => import("@/pages/feature-requests/ProductContextPage"));
 const IngestPage = lazyWithRetry(() => import("@/pages/ingest/IngestPage"));
@@ -44,7 +44,7 @@ function RootRoute() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/chat" replace />;
   }
 
   return withSuspense(<LandingPage />);
@@ -85,7 +85,8 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { path: "/dashboard", element: withSuspense(<DashboardPage />) },
+          { path: "/chat", element: withSuspense(<ChatPage />) },
+          { path: "/dashboard", element: <Navigate to="/chat" replace /> },
           { path: "/connectors", element: withSuspense(<ConnectorsPage />) },
           { path: "/connectors/new/:type", element: withSuspense(<ConnectorSetupPage />) },
           { path: "/connectors/:id", element: withSuspense(<ConnectorDetailPage />) },

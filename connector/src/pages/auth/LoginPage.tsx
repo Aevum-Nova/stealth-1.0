@@ -27,7 +27,7 @@ export default function LoginPage() {
   const googleRef = useRef<GoogleIdentityApi | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleClientId = useMemo(() => import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? "", []);
-  const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/dashboard";
+  const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/chat";
 
   const {
     register,

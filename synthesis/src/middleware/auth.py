@@ -46,6 +46,38 @@ async def get_current_org(
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 
+async def get_org_and_agent_token(
+    credentials: Annotated[HTTPAuthorizationCredentials, Security(security)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> tuple[str, str | None]:
+    """
+    Organization id plus the raw bearer token when it is a user JWT (for proxying to the agent service).
+    API keys authenticate to synthesis but cannot be forwarded to agent; second value is None.
+    """
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        if payload.get("type") != "access":
+            raise jwt.InvalidTokenError("Not an access token")
+        return str(payload["organization_id"]), token
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, KeyError):
+        pass
+
+    key_hash = hashlib.sha256(token.encode()).hexdigest()
+    result = await db.execute(
+        select(ApiKey).where(
+            ApiKey.key_hash == key_hash,
+            ApiKey.revoked_at.is_(None),
+        )
+    )
+    api_key = result.scalar_one_or_none()
+    if api_key:
+        return str(api_key.organization_id), None
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Security(security)],
     db: Annotated[AsyncSession, Depends(get_db)],
