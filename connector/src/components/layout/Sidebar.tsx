@@ -17,8 +17,8 @@ const mainNav = [
 
 const analysisNav = [
   { to: "/signals", label: "Signals", icon: Workflow },
-  { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
   { to: "/triggers", label: "Triggers", icon: RadioTower },
+  { to: "/feature-requests", label: "Feature Requests", icon: GitMerge },
 ];
 
 const buildNav = [{ to: "/create", label: "Create", icon: PenTool }];
@@ -76,7 +76,7 @@ export default function Sidebar() {
           <NavItem key={item.to} {...item} />
         ))}
 
-        <div className="hidden lg:block">
+        {/* <div className="hidden lg:block">
           <div className="my-3 border-t border-[var(--line-soft)]" />
           <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--ink-muted)]">
             Build
@@ -85,7 +85,7 @@ export default function Sidebar() {
 
         {buildNav.map((item) => (
           <NavItem key={item.to} {...item} />
-        ))}
+        ))} */}
       </nav>
 
     </aside>

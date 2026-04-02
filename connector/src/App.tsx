@@ -28,7 +28,7 @@ const IngestPage = lazyWithRetry(() => import("@/pages/ingest/IngestPage"));
 const SignalDetailPage = lazyWithRetry(() => import("@/pages/signals/SignalDetailPage"));
 const SignalsPage = lazyWithRetry(() => import("@/pages/signals/SignalsPage"));
 const TriggersPage = lazyWithRetry(() => import("@/pages/triggers/TriggersPage"));
-const WorkflowCreatePage = lazyWithRetry(() => import("@/pages/workflows/CreatePage"));
+// const WorkflowCreatePage = lazyWithRetry(() => import("@/pages/workflows/CreatePage"));
 
 function withSuspense(element: React.ReactNode) {
   return (
@@ -98,7 +98,7 @@ const router = createBrowserRouter([
           { path: "/feature-requests/:id/context", element: <Navigate to=".." relative="path" replace /> },
           { path: "/triggers", element: withSuspense(<TriggersPage />) },
           { path: "/synthesis", element: <Navigate to="/triggers" replace /> },
-          { path: "/create", element: withSuspense(<WorkflowCreatePage />) }
+          // { path: "/create", element: withSuspense(<WorkflowCreatePage />) }
         ]
       }
     ]
