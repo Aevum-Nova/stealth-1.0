@@ -13,6 +13,7 @@ import {
 
 import { getPrStatus } from "@/api/agent";
 import PriorityBadge from "@/components/feature-requests/PriorityBadge";
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { timeAgo } from "@/lib/utils";
 import type {
   FeatureRequest,
@@ -129,10 +130,11 @@ export default function FeatureRequestTable({
   onToggleAllSelected,
 }: FeatureRequestTableProps) {
   const navigate = useNavigate();
+  const scope = useAuthQueryScope();
 
   const prQueries = useQueries({
     queries: items.map((item) => ({
-      queryKey: ["pr-status", item.id],
+      queryKey: authQueryKey(scope, "pr-status", item.id),
       queryFn: () => getPrStatus(item.id),
       staleTime: 30_000,
     })),

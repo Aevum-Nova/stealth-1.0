@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 
 import type { FeatureRequest } from "@/types/feature-request";
 import { getPrStatus } from "@/api/agent";
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 
 import FeatureRequestCard from "@/components/feature-requests/FeatureRequestCard";
 
@@ -12,9 +13,10 @@ export default function FeatureRequestList({
   items: FeatureRequest[];
   onDelete: (id: string) => void;
 }) {
+  const scope = useAuthQueryScope();
   const statusQueries = useQueries({
     queries: items.map((item) => ({
-      queryKey: ["pr-status", item.id],
+      queryKey: authQueryKey(scope, "pr-status", item.id),
       queryFn: () => getPrStatus(item.id),
       staleTime: 30_000,
     })),

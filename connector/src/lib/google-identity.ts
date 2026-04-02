@@ -3,12 +3,44 @@ const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
 let googleIdentityScriptPromise: Promise<void> | null = null;
 
+export interface GoogleCredentialResponse {
+  credential?: string;
+}
+
+export interface GoogleIdentityApi {
+  accounts: {
+    id: {
+      cancel: () => void;
+      disableAutoSelect: () => void;
+      initialize: (options: {
+        client_id: string;
+        callback: (response: GoogleCredentialResponse) => void;
+        auto_select?: boolean;
+      }) => void;
+      prompt: () => void;
+      renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+    };
+  };
+}
+
+export function getGoogleIdentityApi(): GoogleIdentityApi | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return (window as Window & { google?: GoogleIdentityApi }).google ?? null;
+}
+
+export function disableGoogleAutoSelect(): void {
+  getGoogleIdentityApi()?.accounts?.id?.disableAutoSelect?.();
+}
+
 export function loadGoogleIdentityScript(): Promise<void> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("Google identity script can only be loaded in the browser"));
   }
 
-  if ((window as Window & { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id) {
+  if (getGoogleIdentityApi()?.accounts?.id) {
     return Promise.resolve();
   }
 

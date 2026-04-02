@@ -15,6 +15,7 @@ class ConnectorRead(BaseModel):
     auto_synthesize: bool
     config: dict = Field(default_factory=dict)
     credentials: dict = Field(default_factory=dict)
+    webhook_token: str | None = None
     last_sync_at: datetime | None = None
     last_sync_error: str | None = None
     created_at: datetime

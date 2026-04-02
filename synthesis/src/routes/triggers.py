@@ -25,8 +25,8 @@ from src.services.triggers import trigger_service
 router = APIRouter(prefix="/api/v1/triggers", tags=["triggers"])
 
 
-def _callback_url(request: Request, plugin_type: str) -> str:
-    return str(request.base_url).rstrip("/") + f"/api/v1/triggers/webhooks/{plugin_type}"
+def _callback_url(request: Request, plugin_type: str, webhook_token: str) -> str:
+    return str(request.base_url).rstrip("/") + f"/api/v1/triggers/webhooks/{plugin_type}/{webhook_token}"
 
 
 @router.get("/config", response_model=ApiResponse[list[TriggerConnectorOption]])
@@ -73,7 +73,7 @@ async def create_trigger(
             buffer_config=payload.buffer_config.model_dump(),
             match_config=payload.match_config.model_dump(),
             status=payload.status,
-            callback_url=_callback_url(request, connector.type),
+            callback_url=_callback_url(request, connector.type, connector.webhook_token),
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -104,6 +104,15 @@ async def update_trigger(
         existing = await trigger_service.get_trigger_detail(db, org_id, trigger_id)
         if not existing:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trigger not found")
+        connector_row = await db.execute(
+            select(Connector).where(
+                Connector.id == existing.trigger.connector_id,
+                Connector.organization_id == UUID(org_id),
+            )
+        )
+        connector = connector_row.scalar_one_or_none()
+        if connector is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connector not found")
         trigger = await trigger_service.update_trigger(
             db,
             org_id=org_id,
@@ -113,7 +122,7 @@ async def update_trigger(
             buffer_config=payload.buffer_config.model_dump() if payload.buffer_config else None,
             match_config=payload.match_config.model_dump() if payload.match_config else None,
             status=payload.status,
-            callback_url=_callback_url(request, existing.trigger.plugin_type),
+            callback_url=_callback_url(request, existing.trigger.plugin_type, connector.webhook_token),
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -164,9 +173,10 @@ async def dispatch_due_buffers(org_id: str = Depends(get_current_org)):
     return ApiResponse(data={"processed": processed})
 
 
-@router.post("/webhooks/{plugin_type}")
+@router.post("/webhooks/{plugin_type}/{webhook_token}")
 async def receive_webhook(
     plugin_type: str,
+    webhook_token: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
     validation_token: str | None = Query(default=None, alias="validationToken"),
@@ -175,10 +185,25 @@ async def receive_webhook(
         return PlainTextResponse(content=validation_token)
 
     webhook_logger = structlog.get_logger("webhook")
+
+    # Look up connector by webhook token to scope to the correct organization
+    connector_row = await db.execute(
+        select(Connector).where(
+            Connector.webhook_token == webhook_token,
+            Connector.type == plugin_type,
+            Connector.enabled.is_(True),
+        )
+    )
+    connector = connector_row.scalar_one_or_none()
+    if connector is None:
+        webhook_logger.warning("webhook.invalid_token", plugin_type=plugin_type)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid webhook URL")
+
     payload = await request.json()
     webhook_logger.info(
         "webhook.received",
         plugin_type=plugin_type,
+        organization_id=str(connector.organization_id),
         payload_type=payload.get("type"),
         event_type=payload.get("event", {}).get("type") if isinstance(payload.get("event"), dict) else None,
     )
@@ -194,6 +219,7 @@ async def receive_webhook(
         result = await trigger_service.process_webhook(
             db,
             plugin_type=plugin_type,
+            organization_id=str(connector.organization_id),
             payload=payload,
             headers={key.lower(): value for key, value in request.headers.items()},
         )

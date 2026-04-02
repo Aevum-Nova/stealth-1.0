@@ -1,38 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as triggersApi from "@/api/triggers";
+import { authQueryKey, useAuthQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import type { TriggerPayload, TriggerUpdatePayload } from "@/types/trigger";
 
 export function useTriggerConfig() {
+  const queryKey = useAuthQueryKey("triggers", "config");
+
   return useQuery({
-    queryKey: ["triggers", "config"],
+    queryKey,
     queryFn: () => triggersApi.getTriggerConfig(),
   });
 }
 
 export function useTriggers() {
+  const queryKey = useAuthQueryKey("triggers");
+
   return useQuery({
-    queryKey: ["triggers"],
+    queryKey,
     queryFn: () => triggersApi.listTriggers(),
   });
 }
 
 export function useTrigger(id?: string) {
+  const queryKey = useAuthQueryKey("triggers", id);
+
   return useQuery({
-    queryKey: ["triggers", id],
+    queryKey,
     queryFn: () => triggersApi.getTrigger(id as string),
     enabled: Boolean(id),
   });
 }
 
 export function useTriggerMutations() {
+  const scope = useAuthQueryScope();
   const queryClient = useQueryClient();
 
   const invalidate = async (id?: string) => {
-    await queryClient.invalidateQueries({ queryKey: ["triggers"] });
-    await queryClient.invalidateQueries({ queryKey: ["triggers", "config"] });
+    await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "triggers") });
+    await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "triggers", "config") });
     if (id) {
-      await queryClient.invalidateQueries({ queryKey: ["triggers", id] });
+      await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "triggers", id) });
     }
   };
 

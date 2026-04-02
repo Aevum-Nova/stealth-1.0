@@ -5,6 +5,7 @@ import { ChatComposer } from "@/components/agent/ChatComposer";
 import ChatMessage from "@/components/agent/ChatMessage";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useApplyChangesToPr, useChatHistory } from "@/hooks/use-agent";
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { streamChatMessage } from "@/api/agent";
 import { useQueryClient } from "@tanstack/react-query";
 import { extractProposedChangesFromText } from "@/lib/extract-proposed-changes";
@@ -34,6 +35,7 @@ export default function ChatPanel({
   const displayedLenRef = useRef(0);
   const tickingRef = useRef(false);
   const doneRef = useRef(false);
+  const scope = useAuthQueryScope();
 
   const chatQuery = useChatHistory(featureRequestId);
   const applyMutation = useApplyChangesToPr(featureRequestId);
@@ -120,7 +122,7 @@ export default function ChatPanel({
       doneRef.current = false;
       setIsStreaming(false);
       queryClient
-        .invalidateQueries({ queryKey: ["agent-chat", featureRequestId] })
+        .invalidateQueries({ queryKey: authQueryKey(scope, "agent-chat", featureRequestId) })
         .then(() => {
           setPendingMessage(null);
           setDisplayedContent(null);
@@ -128,7 +130,7 @@ export default function ChatPanel({
     } else {
       tickingRef.current = false;
     }
-  }, [featureRequestId, queryClient]);
+  }, [featureRequestId, queryClient, scope]);
 
   const startTicking = useCallback(() => {
     if (!tickingRef.current) {
@@ -278,9 +280,9 @@ export default function ChatPanel({
     setDisplayedContent(null);
     setStatusMessage(null);
     queryClient.invalidateQueries({
-      queryKey: ["agent-chat", featureRequestId],
+      queryKey: authQueryKey(scope, "agent-chat", featureRequestId),
     });
-  }, [featureRequestId, queryClient]);
+  }, [featureRequestId, queryClient, scope]);
 
   return (
     <div className="relative flex h-full flex-col bg-white">

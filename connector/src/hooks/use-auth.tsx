@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import * as authApi from "@/api/auth";
+import { disableGoogleAutoSelect } from "@/lib/google-identity";
 import { attemptTokenRefresh, clearAuthState, setAccessToken } from "@/lib/auth";
 
 interface User {
@@ -25,6 +27,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
+    queryClient.clear();
     setAccessToken(response.data.access_token);
     setUser({
       id: response.data.user.id,
@@ -49,10 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: response.data.user.role
     });
     void refreshProfile();
-  }, [refreshProfile]);
+  }, [queryClient, refreshProfile]);
 
   const loginWithGoogle = useCallback(async (idToken: string) => {
     const response = await authApi.loginWithGoogle({ id_token: idToken });
+    queryClient.clear();
     setAccessToken(response.data.access_token);
     setUser({
       id: response.data.user.id,
@@ -61,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: response.data.user.role
     });
     void refreshProfile();
-  }, [refreshProfile]);
+  }, [queryClient, refreshProfile]);
 
   const register = useCallback(
     async (email: string, password: string, name: string, orgName: string) => {
@@ -71,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name,
         organization_name: orgName
       });
+      queryClient.clear();
       setAccessToken(response.data.access_token);
       setUser({
         id: response.data.user.id,
@@ -80,17 +86,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization: response.data.organization
       });
     },
-    []
+    [queryClient]
   );
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } finally {
+      disableGoogleAutoSelect();
       clearAuthState();
+      queryClient.clear();
       setUser(null);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     let cancelled = false;

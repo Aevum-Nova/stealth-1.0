@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { getAccessToken } from "@/lib/auth";
 
 export interface StreamEvent {
@@ -21,6 +23,7 @@ const STREAM_EVENTS = [
 ] as const;
 
 export function useEventStream() {
+  const scope = useAuthQueryScope();
   const queryClient = useQueryClient();
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -48,20 +51,20 @@ export function useEventStream() {
           setEvents((prev) => [{ event: eventName, data: payload, timestamp: Date.now() }, ...prev].slice(0, 50));
 
           if (eventName.startsWith("signal")) {
-            void queryClient.invalidateQueries({ queryKey: ["signals"] });
-            void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "signals") });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "jobs") });
           }
           if (eventName.includes("connector_sync")) {
-            void queryClient.invalidateQueries({ queryKey: ["connectors"] });
-            void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "connectors") });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "dashboard") });
           }
           if (eventName.startsWith("synthesis")) {
-            void queryClient.invalidateQueries({ queryKey: ["synthesis-runs"] });
-            void queryClient.invalidateQueries({ queryKey: ["feature-requests"] });
-            void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "synthesis-runs") });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "feature-requests") });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "dashboard") });
           }
           if (eventName === "job_completed") {
-            void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+            void queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "jobs") });
           }
         });
       });
@@ -88,7 +91,7 @@ export function useEventStream() {
         clearTimeout(reconnectTimer);
       }
     };
-  }, [queryClient]);
+  }, [queryClient, scope]);
 
   return {
     connected,

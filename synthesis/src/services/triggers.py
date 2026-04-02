@@ -310,6 +310,7 @@ class TriggerService:
         db: AsyncSession,
         *,
         plugin_type: str,
+        organization_id: str,
         payload: dict,
         headers: dict[str, str],
     ) -> dict:
@@ -323,6 +324,7 @@ class TriggerService:
             select(Trigger, Connector)
             .join(Connector, Connector.id == Trigger.connector_id)
             .where(
+                Trigger.organization_id == UUID(organization_id),
                 Trigger.plugin_type == plugin_type,
                 Trigger.status == "active",
                 Connector.enabled.is_(True),

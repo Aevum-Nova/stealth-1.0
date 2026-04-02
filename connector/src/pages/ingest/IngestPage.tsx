@@ -6,6 +6,7 @@ import * as ingestApi from "@/api/ingest";
 import FileDropZone from "@/components/ingest/FileDropZone";
 import IngestionHistory from "@/components/ingest/IngestionHistory";
 import { useToast } from "@/components/shared/Toast";
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { useJobs } from "@/hooks/use-jobs";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { extractApiErrorMessage } from "@/lib/api-error";
@@ -24,6 +25,7 @@ function formatSize(bytes: number) {
 }
 
 export default function IngestPage() {
+  const scope = useAuthQueryScope();
   const [textInput, setTextInput] = useState("");
   const [metadataOpen, setMetadataOpen] = useState(false);
   const [customerCompany, setCustomerCompany] = useState("");
@@ -88,8 +90,8 @@ export default function IngestPage() {
         `${totalItems} item${totalItems > 1 ? "s" : ""} submitted for processing.`,
         "success"
       );
-      await queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      await queryClient.invalidateQueries({ queryKey: ["signals"] });
+      await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "jobs") });
+      await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "signals") });
     } catch (error) {
       pushToast(await extractApiErrorMessage(error, "Upload failed."), "error");
     } finally {

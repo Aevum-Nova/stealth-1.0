@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as synthesisApi from "@/api/synthesis";
 import { useToast } from "@/components/shared/Toast";
+import { authQueryKey, useAuthQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { extractApiErrorMessage } from "@/lib/api-error";
 
 type RunSynthesisVariables = { mode: "incremental" | "full" };
@@ -14,8 +15,10 @@ interface UseRunSynthesisOptions {
 }
 
 export function useSynthesisRuns() {
+  const queryKey = useAuthQueryKey("synthesis-runs");
+
   return useQuery({
-    queryKey: ["synthesis-runs"],
+    queryKey,
     queryFn: () => synthesisApi.listSynthesisRuns(),
     refetchInterval: (query) => {
       const runs = query.state.data?.data ?? [];
@@ -25,8 +28,10 @@ export function useSynthesisRuns() {
 }
 
 export function useSynthesisRun(id?: string) {
+  const queryKey = useAuthQueryKey("synthesis-run", id);
+
   return useQuery({
-    queryKey: ["synthesis-run", id],
+    queryKey,
     queryFn: () => synthesisApi.getSynthesisRun(id as string),
     enabled: Boolean(id),
     refetchInterval: 5000
@@ -34,6 +39,7 @@ export function useSynthesisRun(id?: string) {
 }
 
 export function useRunSynthesis(options: UseRunSynthesisOptions = {}) {
+  const scope = useAuthQueryScope();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
 
@@ -45,7 +51,7 @@ export function useRunSynthesis(options: UseRunSynthesisOptions = {}) {
         title: variables.mode === "full" ? "Full synthesis started" : "Synthesis started",
         message: `Run ${response.data.run_id.slice(0, 8)} is ${response.data.status}.`
       });
-      await queryClient.invalidateQueries({ queryKey: ["synthesis-runs"] });
+      await queryClient.invalidateQueries({ queryKey: authQueryKey(scope, "synthesis-runs") });
       options.onSuccess?.(response, variables);
     },
     onError: async (error, variables) => {

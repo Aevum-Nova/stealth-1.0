@@ -8,7 +8,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { extractApiErrorMessage } from "@/lib/api-error";
-import { loadGoogleIdentityScript } from "@/lib/google-identity";
+import { type GoogleCredentialResponse, type GoogleIdentityApi, loadGoogleIdentityScript } from "@/lib/google-identity";
 
 const schema = z.object({
   email: z.string().email(),
@@ -16,21 +16,6 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-
-interface GoogleCredentialResponse {
-  credential?: string;
-}
-
-interface GoogleIdentityApi {
-  accounts: {
-    id: {
-      cancel: () => void;
-      initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void }) => void;
-      prompt: () => void;
-      renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
-    };
-  };
-}
 
 export default function LoginPage() {
   const { login, loginWithGoogle, isAuthenticated, isLoading } = useAuth();
@@ -93,6 +78,7 @@ export default function LoginPage() {
 
         google.accounts.id.initialize({
           client_id: googleClientId,
+          auto_select: false,
           callback: (response) => {
             void handleGoogleCredential(response);
           }

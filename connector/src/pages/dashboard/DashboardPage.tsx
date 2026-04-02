@@ -10,6 +10,7 @@ import RecentActivityFeed from "@/components/dashboard/RecentActivityFeed";
 import StatsGrid from "@/components/dashboard/StatsGrid";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { useAuthQueryKey } from "@/hooks/use-auth-query";
 import { useEventStream } from "@/hooks/use-event-stream";
 import { useJobs } from "@/hooks/use-jobs";
 import { useSignals } from "@/hooks/use-signals";
@@ -18,9 +19,10 @@ import { useRunSynthesis } from "@/hooks/use-synthesis";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { events } = useEventStream();
+  const statsQueryKey = useAuthQueryKey("dashboard", "stats");
 
   const statsQuery = useQuery({
-    queryKey: ["dashboard", "stats"],
+    queryKey: statsQueryKey,
     queryFn: () => getDashboardStats(),
     refetchInterval: 60_000
   });

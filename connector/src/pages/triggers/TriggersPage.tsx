@@ -8,6 +8,7 @@ import SlackChannelPicker from "@/components/connectors/SlackChannelPicker";
 import EmptyState from "@/components/shared/EmptyState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
+import { authQueryKey, useAuthQueryScope } from "@/hooks/use-auth-query";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useTrigger, useTriggerConfig, useTriggerMutations, useTriggers } from "@/hooks/use-triggers";
 import { formatDate, formatNumber, timeAgo } from "@/lib/utils";
@@ -207,6 +208,7 @@ function ScopeField({
 }
 
 export default function TriggersPage() {
+  const scope = useAuthQueryScope();
   const configQuery = useTriggerConfig();
   const connectorsQuery = useConnectors();
   const triggersQuery = useTriggers();
@@ -224,7 +226,7 @@ export default function TriggersPage() {
 
   const slackChannelQueries = useQueries({
     queries: slackTriggerConnectorIds.map((connectorId) => ({
-      queryKey: ["connector", connectorId, "slack-channels"],
+      queryKey: authQueryKey(scope, "connector", connectorId, "slack-channels"),
       queryFn: () => connectorsApi.getSlackChannels(connectorId),
       enabled: Boolean(connectorId),
       staleTime: 5 * 60 * 1000,
