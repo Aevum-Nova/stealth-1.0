@@ -3,14 +3,11 @@ import {
   Boxes,
   Database,
   GitMerge,
-  LogOut,
   PenTool,
   RadioTower,
   Workflow,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
-import { useAuth } from "@/hooks/use-auth";
 
 const mainNav = [
   { to: "/", label: "Dashboard", icon: BarChart3 },
@@ -54,19 +51,12 @@ function NavItem({
 }
 
 export default function Sidebar() {
-  const { logout } = useAuth();
-
   return (
     <aside className="app-sidebar border-b border-[var(--line)] lg:flex lg:w-56 lg:shrink-0 lg:flex-col lg:border-b-0 lg:border-r">
       <div className="px-4 py-4">
         <div className="flex items-center gap-2.5">
-          <div
-            className="flex size-8 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
-            style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
-          >
-            V
-          </div>
-          <span className="text-base font-bold tracking-tight">Vector</span>
+          <span className="sidebar-logo-mark" aria-hidden />
+          <span className="text-[18px] font-bold tracking-[-0.04em]">Vector</span>
         </div>
       </div>
 
@@ -98,15 +88,6 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="hidden border-t border-[var(--line)] px-2.5 py-2.5 lg:block">
-        <button
-          onClick={() => void logout()}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-[var(--ink-soft)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--ink)]"
-        >
-          <LogOut className="size-4" />
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }

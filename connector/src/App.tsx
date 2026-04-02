@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Navigate, Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import AppShell from "@/components/layout/AppShell";
+import PublicLayout from "@/components/landing/PublicLayout";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { ToastProvider } from "@/components/shared/Toast";
@@ -9,6 +10,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 const LandingPage = lazyWithRetry(() => import("@/pages/landing/LandingPage"));
+const DocsPage = lazyWithRetry(() => import("@/pages/docs/DocsPage"));
+const ResourcesPage = lazyWithRetry(() => import("@/pages/resources/ResourcesPage"));
+const IntegrationsPage = lazyWithRetry(() => import("@/pages/integrations-page/IntegrationsPage"));
+const PrivacyPage = lazyWithRetry(() => import("@/pages/legal/PrivacyPage"));
+const TermsPage = lazyWithRetry(() => import("@/pages/legal/TermsPage"));
 const LoginPage = lazyWithRetry(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazyWithRetry(() => import("@/pages/auth/RegisterPage"));
 const ConnectorsPage = lazyWithRetry(() => import("@/pages/connectors/ConnectorsPage"));
@@ -60,6 +66,16 @@ function ProtectedRoute() {
 
 const router = createBrowserRouter([
   { path: "/", element: <RootRoute /> },
+  {
+    element: withSuspense(<PublicLayout />),
+    children: [
+      { path: "/docs", element: withSuspense(<DocsPage />) },
+      { path: "/resources", element: withSuspense(<ResourcesPage />) },
+      { path: "/integrations", element: withSuspense(<IntegrationsPage />) },
+      { path: "/privacy", element: withSuspense(<PrivacyPage />) },
+      { path: "/terms", element: withSuspense(<TermsPage />) },
+    ],
+  },
   { path: "/login", element: withSuspense(<LoginPage />) },
   { path: "/register", element: withSuspense(<RegisterPage />) },
   { path: "/oauth/callback", element: withSuspense(<OAuthCallbackPage />) },
